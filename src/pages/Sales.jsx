@@ -1,7 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Button, Field, Badge, EmptyState, Money } from "../components/ui";
-import { todayInSeoul, money, methodNames, monthStart } from "./commerce-utils";
+import {
+  todayInSeoul,
+  money,
+  methodNames,
+  monthStart,
+  matchesSearch,
+} from "./commerce-utils";
+import { useViewState } from "../components/ViewState";
 import "./Commerce.css";
 
 function priorDay(date) {
@@ -16,14 +23,14 @@ function priorMonth(date) {
   return { from: monthStart(to), to };
 }
 
-export default function Sales({ data, user, navigate, version }) {
+export default function Sales({ data, user, navigate, version, routeContext }) {
   const today = todayInSeoul();
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useViewState("sales", "draft", {
     from: monthStart(),
     to: today,
     staffId: "",
   });
-  const [range, setRange] = useState({
+  const [range, setRange] = useViewState("sales", "range", {
     from: monthStart(),
     to: today,
     staffId: "",
@@ -32,10 +39,37 @@ export default function Sales({ data, user, navigate, version }) {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
-  const [eventKind, setEventKind] = useState("all");
-  const [eventMethod, setEventMethod] = useState("all");
+  const [eventKind, setEventKind] = useViewState("sales", "eventKind", "all");
+  const [eventMethod, setEventMethod] = useViewState(
+    "sales",
+    "eventMethod",
+    "all",
+  );
+  const [eventQuery, setEventQuery] = useViewState("sales", "eventQuery", "");
   const [limit, setLimit] = useState(50);
   const permitted = ["owner", "manager", "reception"].includes(user.role);
+  const usedContext = useRef(null);
+  useEffect(() => {
+    if (!routeContext || routeContext === usedContext.current) return;
+    usedContext.current = routeContext;
+    if (
+      routeContext.from &&
+      routeContext.to &&
+      routeContext.from <= routeContext.to
+    ) {
+      const next = {
+        from: routeContext.from,
+        to: routeContext.to,
+        staffId: routeContext.staffId || "",
+      };
+      setDraft(next);
+      setRange(next);
+      setEventKind("all");
+      setEventMethod("all");
+      setEventQuery("");
+      setLimit(50);
+    }
+  }, [routeContext]);
   useEffect(() => {
     if (!permitted) return;
     let live = true;
@@ -104,6 +138,9 @@ export default function Sales({ data, user, navigate, version }) {
         ...(report.refundEntries || []).map((r) => ({
           ...r,
           eventType: "refund",
+          staffId: (data.transactions || []).find(
+            (tx) => tx.id === r.transactionId,
+          )?.staffId,
           customerName:
             r.customerName ||
             (data.transactions || []).find((tx) => tx.id === r.transactionId)
@@ -114,7 +151,15 @@ export default function Sales({ data, user, navigate, version }) {
         .filter(
           (e) =>
             (eventKind === "all" || e.eventType === eventKind) &&
-            (eventMethod === "all" || e.method === eventMethod),
+            (eventMethod === "all" || e.method === eventMethod) &&
+            matchesSearch(eventQuery, [
+              e.customerName,
+              e.reference,
+              e.transactionId,
+              data.staff.find((staff) => staff.id === e.staffId)?.name,
+              data.transactions.find((tx) => tx.id === e.transactionId)
+                ?.reference,
+            ]),
         )
         .sort(
           (a, b) =>
@@ -124,6 +169,12 @@ export default function Sales({ data, user, navigate, version }) {
             ),
         )
     : [];
+  const matchingSales = events
+    .filter((event) => event.eventType === "sale")
+    .reduce((sum, event) => sum + event.amount, 0);
+  const matchingRefunds = events
+    .filter((event) => event.eventType === "refund")
+    .reduce((sum, event) => sum + event.amount, 0);
   const days = report?.daily || [];
   const chartMax = Math.max(
     1,
@@ -143,7 +194,7 @@ export default function Sales({ data, user, navigate, version }) {
         </div>
         {report && !busy && !error && (
           <a href={exportUrl} className="btn btn-secondary" download>
-            CSV 내려받기
+            조회 기간 CSV 내려받기
           </a>
         )}
       </header>
@@ -207,6 +258,14 @@ export default function Sales({ data, user, navigate, version }) {
                 지난달
               </Button>
             </div>
+            {(draft.from !== range.from ||
+              draft.to !== range.to ||
+              draft.staffId !== range.staffId) && (
+              <p className="commerce-note" role="status">
+                조회 조건이 변경되었습니다. ‘조회’를 누르면 아래 매출에
+                반영됩니다.
+              </p>
+            )}
           </form>
         </div>
       </section>
@@ -488,6 +547,20 @@ export default function Sales({ data, user, navigate, version }) {
             </div>
             <div className="card-body">
               <div className="commerce-filters">
+                <div className="search-field">
+                  <Field label="정산 거래 검색">
+                    <input
+                      className="input"
+                      type="search"
+                      value={eventQuery}
+                      placeholder="고객명, 담당자, 승인 · 거래번호"
+                      onChange={(e) => {
+                        setEventQuery(e.target.value);
+                        setLimit(50);
+                      }}
+                    />
+                  </Field>
+                </div>
                 <Field label="거래 유형">
                   <select
                     className="select"
@@ -519,7 +592,31 @@ export default function Sales({ data, user, navigate, version }) {
                     ))}
                   </select>
                 </Field>
+                {(eventQuery ||
+                  eventKind !== "all" ||
+                  eventMethod !== "all") && (
+                  <Button
+                    onClick={() => {
+                      setEventQuery("");
+                      setEventKind("all");
+                      setEventMethod("all");
+                      setLimit(50);
+                    }}
+                  >
+                    거래 검색 초기화
+                  </Button>
+                )}
               </div>
+              <div className="commerce-result-summary" role="status">
+                <strong>검색 결과 {events.length}건</strong>
+                <span>결제 {money(matchingSales)}</span>
+                <span>환불 {money(matchingRefunds)}</span>
+                <strong>순수납 {money(matchingSales - matchingRefunds)}</strong>
+              </div>
+              <p className="commerce-note">
+                검색 합계는 아래 거래 목록 기준입니다. 상단 매출과 CSV는 조회
+                기간·담당 직원에 해당하는 전체 거래를 포함합니다.
+              </p>
               {events.length ? (
                 <>
                   <div className="table-wrap">
@@ -598,7 +695,7 @@ export default function Sales({ data, user, navigate, version }) {
               ) : (
                 <EmptyState
                   title="조건에 맞는 거래가 없습니다"
-                  description="거래 유형 또는 결제 수단을 변경해 주세요."
+                  description="검색어, 거래 유형 또는 결제 수단을 변경해 주세요."
                 />
               )}
             </div>

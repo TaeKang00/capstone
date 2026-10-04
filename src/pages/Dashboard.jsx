@@ -1,12 +1,24 @@
 import React from "react";
-import { today, timeLabel, won } from "../api";
+import { today, timeLabel } from "../api";
 import { Badge, Button, EmptyState, Money } from "../components/ui";
+import { useViewState } from "../components/ViewState";
 export default function Dashboard({ data, user, navigate }) {
   const date = today();
-  const current = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
+  const clock = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date())
+    .split(":")
+    .map(Number);
+  const minutes = clock[0] * 60 + clock[1];
+  const [scheduleView, setScheduleView] = useViewState(
+    "dashboard",
+    "schedule",
+    "open",
   );
-  const minutes = current.getHours() * 60 + current.getMinutes();
   const appointments = data.appointments
       .filter((a) => a.date === date)
       .sort((a, b) => a.start - b.start),
@@ -32,9 +44,17 @@ export default function Dashboard({ data, user, navigate }) {
     completed = working.filter((a) => a.status === "completed").length;
   const operational = ["owner", "manager"].includes(user.role),
     designer = user.role === "designer";
-  const setup =
-    operational &&
-    (!data.services.some((s) => s.active) || data.staff.length < 2);
+  const setup = operational && !data.services.some((s) => s.active);
+  const openAppointments = working.filter((a) => a.status !== "completed");
+  const schedule =
+    scheduleView === "all"
+      ? working
+      : [...openAppointments].sort(
+          (a, b) =>
+            (({ in_service: 0, checked_in: 1, booked: 2 })[a.status] ?? 3) -
+              ({ in_service: 0, checked_in: 1, booked: 2 }[b.status] ?? 3) ||
+            a.start - b.start,
+        );
   const status = {
     booked: ["예약", "muted"],
     checked_in: ["방문", "warning"],
@@ -77,11 +97,23 @@ export default function Dashboard({ data, user, navigate }) {
             <h2>우리 매장에 맞게 준비해 보세요</h2>
             <p>시술 메뉴와 직원을 등록하면 예약부터 수납까지 연결됩니다.</p>
           </div>
-          <Button onClick={() => navigate("settings")}>운영 설정 시작</Button>
+          <Button onClick={() => navigate("settings", { tab: "services" })}>
+            시술 메뉴 등록
+          </Button>
         </div>
       )}
       <div className="stat-grid">
-        <div className="stat-card featured">
+        <button
+          type="button"
+          className="stat-card stat-link featured"
+          onClick={() =>
+            navigate(
+              designer ? "appointments" : "sales",
+              designer ? { date, status: "all" } : { from: date, to: date },
+            )
+          }
+          aria-label={designer ? "오늘 내 예약 확인" : "오늘 매출 정산 보기"}
+        >
           <div className="stat-label">
             {designer ? "내 담당 수납" : "오늘 순매출"}
             <span>↗</span>
@@ -90,8 +122,13 @@ export default function Dashboard({ data, user, navigate }) {
             <Money value={net} />
           </div>
           <p className="stat-note">결제 {sales.length}건 · 당일 환불 차감</p>
-        </div>
-        <div className="stat-card">
+        </button>
+        <button
+          type="button"
+          className="stat-card stat-link"
+          onClick={() => navigate("appointments", { date, status: "all" })}
+          aria-label="오늘 예약 전체 보기"
+        >
           <div className="stat-label">
             오늘 예약<span>▦</span>
           </div>
@@ -102,8 +139,18 @@ export default function Dashboard({ data, user, navigate }) {
           <p className="stat-note">
             시술 완료 {completed}건 / 취소·미방문 제외
           </p>
-        </div>
-        <div className="stat-card">
+        </button>
+        <button
+          type="button"
+          className="stat-card stat-link"
+          onClick={() =>
+            navigate(
+              designer ? "appointments" : "payments",
+              designer ? { date, status: "all" } : { pending: true },
+            )
+          }
+          aria-label="수납 확인이 필요한 예약 보기"
+        >
           <div className="stat-label">
             수납 확인 필요<span>₩</span>
           </div>
@@ -112,8 +159,20 @@ export default function Dashboard({ data, user, navigate }) {
             <small>건</small>
           </div>
           <p className="stat-note">방문·시술 중·완료 예약 중 미수납</p>
-        </div>
-        <div className="stat-card">
+        </button>
+        <button
+          type="button"
+          className="stat-card stat-link"
+          onClick={() =>
+            navigate(
+              designer ? "appointments" : "inventory",
+              designer ? { pending: true } : { stock: "low" },
+            )
+          }
+          aria-label={
+            designer ? "지난 미처리 예약 보기" : "보충 필요한 재고만 보기"
+          }
+        >
           <div className="stat-label">
             {designer ? "확인할 이전 예약" : "보충 필요한 재고"}
             <span>◌</span>
@@ -127,7 +186,7 @@ export default function Dashboard({ data, user, navigate }) {
               ? "지난 날짜의 미처리 예약"
               : "입고 기준 이하 · 품절 포함"}
           </p>
-        </div>
+        </button>
       </div>
       <div className="dashboard-columns">
         <div className="stack">
@@ -136,12 +195,37 @@ export default function Dashboard({ data, user, navigate }) {
               <h2>
                 오늘의 예약 흐름 <Badge>{working.length}건</Badge>
               </h2>
-              <Button variant="ghost" onClick={() => navigate("appointments")}>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  navigate("appointments", { date, status: "all" })
+                }
+              >
                 전체 일정 →
               </Button>
             </div>
-            {working.length ? (
-              working.slice(0, 8).map((a) => {
+            <div
+              className="dashboard-schedule-tabs"
+              role="group"
+              aria-label="오늘 예약 표시 범위"
+            >
+              <Button
+                variant={scheduleView === "open" ? "primary" : "ghost"}
+                aria-pressed={scheduleView === "open"}
+                onClick={() => setScheduleView("open")}
+              >
+                남은 예약 {openAppointments.length}건
+              </Button>
+              <Button
+                variant={scheduleView === "all" ? "primary" : "ghost"}
+                aria-pressed={scheduleView === "all"}
+                onClick={() => setScheduleView("all")}
+              >
+                전체 {working.length}건
+              </Button>
+            </div>
+            {schedule.length ? (
+              schedule.slice(0, 8).map((a) => {
                 const customer = data.customers.find(
                   (c) => c.id === a.customerId,
                 );
@@ -153,6 +237,9 @@ export default function Dashboard({ data, user, navigate }) {
                         {customer?.name || a.guestName || "방문 고객"}{" "}
                         {customer?.warning && (
                           <Badge tone="warning">주의사항</Badge>
+                        )}
+                        {a.status === "booked" && a.start < minutes && (
+                          <Badge tone="warning">방문 확인 필요</Badge>
                         )}
                       </strong>
                       <small>
@@ -168,6 +255,7 @@ export default function Dashboard({ data, user, navigate }) {
                     </div>
                     <button
                       className="text-btn"
+                      aria-label={`${customer?.name || a.guestName || "방문 고객"} ${timeLabel(a.start)} 예약 상세`}
                       onClick={() =>
                         navigate("appointments", { appointmentId: a.id })
                       }
@@ -181,8 +269,16 @@ export default function Dashboard({ data, user, navigate }) {
               })
             ) : (
               <EmptyState
-                title="오늘 예약이 없습니다"
-                description="새 예약을 등록하거나 날짜를 바꿔 다음 일정을 확인하세요."
+                title={
+                  working.length
+                    ? "오늘 남은 예약을 모두 정리했습니다"
+                    : "오늘 예약이 없습니다"
+                }
+                description={
+                  working.length
+                    ? "완료된 예약은 전체 목록에서 다시 확인할 수 있습니다."
+                    : "새 예약을 등록하거나 날짜를 바꿔 다음 일정을 확인하세요."
+                }
                 action={
                   <Button
                     onClick={() => navigate("appointments", { create: true })}
@@ -191,6 +287,24 @@ export default function Dashboard({ data, user, navigate }) {
                   </Button>
                 }
               />
+            )}
+            {schedule.length > 8 && (
+              <div className="dashboard-more">
+                <span className="help">
+                  {schedule.length}건 중 8건 표시 ·{" "}
+                  {scheduleView === "open"
+                    ? "시술 중·방문 고객 우선"
+                    : "시간순"}
+                </span>
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    navigate("appointments", { date, status: "all" })
+                  }
+                >
+                  남은 {schedule.length - 8}건 더 보기 →
+                </Button>
+              </div>
             )}
           </section>
           <section className="quick-grid">
@@ -242,7 +356,10 @@ export default function Dashboard({ data, user, navigate }) {
                 <Button
                   variant="ghost"
                   onClick={() =>
-                    navigate(designer ? "appointments" : "payments")
+                    navigate(
+                      designer ? "appointments" : "payments",
+                      designer ? { date, status: "all" } : { pending: true },
+                    )
                   }
                 >
                   {unpaid.length}건 →
@@ -253,7 +370,10 @@ export default function Dashboard({ data, user, navigate }) {
                   <div>
                     입고 확인<small>직원이 입고 수량을 직접 등록</small>
                   </div>
-                  <Button variant="ghost" onClick={() => navigate("inventory")}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate("inventory", { stock: "low" })}
+                  >
                     {low.length}품목 →
                   </Button>
                 </li>
@@ -280,7 +400,14 @@ export default function Dashboard({ data, user, navigate }) {
               </p>
               <Button
                 variant="ghost"
-                onClick={() => navigate(designer ? "appointments" : "sales")}
+                onClick={() =>
+                  navigate(
+                    designer ? "appointments" : "sales",
+                    designer
+                      ? { date, status: "all" }
+                      : { from: date, to: date },
+                  )
+                }
               >
                 {designer ? "내 예약 확인" : "오늘 정산 확인"} →
               </Button>

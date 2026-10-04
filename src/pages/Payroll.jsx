@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useViewState } from "../components/ViewState";
 import {
   Button,
   Modal,
@@ -33,6 +34,11 @@ const format = (value) => Number(value || 0).toLocaleString("ko-KR");
 function nextPayDate(month) {
   const [year, m] = month.split("-").map(Number);
   return `${m === 12 ? year + 1 : year}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-05`;
+}
+function shiftMonth(month, offset) {
+  const [year, value] = (month || today().slice(0, 7)).split("-").map(Number);
+  const date = new Date(Date.UTC(year, value - 1 + offset, 1));
+  return date.toISOString().slice(0, 7);
 }
 function getRevenue(data, staffId, month) {
   let gross = 0,
@@ -74,6 +80,8 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
   const [form, setForm] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const [discard, setDiscard] = useState(false);
+  const [copySource, setCopySource] = useState(null);
+  const [copiedFrom, setCopiedFrom] = useState(null);
   const set = (key, value) => {
     setDirty(true);
     setForm((current) => ({ ...current, [key]: value }));
@@ -81,6 +89,41 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
   const identityLocked = Boolean(
     initial.changes?.some((change) => change.kind === "finalized"),
   );
+  const existing = (data.payroll || []).find(
+    (record) =>
+      record.id !== initial.id &&
+      record.staffId === form.staffId &&
+      record.month === form.month,
+  );
+  const previous = (data.payroll || [])
+    .filter(
+      (record) =>
+        record.staffId === form.staffId &&
+        record.month < form.month &&
+        record.status !== "draft",
+    )
+    .sort((a, b) => b.month.localeCompare(a.month))[0];
+  const copyPrevious = () => {
+    setForm((current) => ({
+      ...current,
+      basePay: copySource.basePay,
+      commissionRate: copySource.commissionRate,
+      allowances: copySource.allowances.map((item) => ({ ...item })),
+      deductions: copySource.deductions.map((item) => ({ ...item })),
+      basis: copySource.basis || "",
+      workDays: "",
+      workHours: "",
+      overtimeHours: "",
+      notes: "",
+    }));
+    setDirty(true);
+    setCopiedFrom({
+      month: copySource.month,
+      staffId: copySource.staffId,
+      name: copySource.staffSnapshot?.name,
+    });
+    setCopySource(null);
+  };
   const revenue = getRevenue(data, form.staffId, form.month);
   const commission = Math.round(
     (Math.max(0, revenue.net) * Number(form.commissionRate || 0)) / 100,
@@ -168,7 +211,7 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
   return (
     <Modal
       title={initial.id ? "급여명세서 수정" : "급여명세서 작성"}
-      onClose={onClose}
+      onClose={busy ? undefined : onClose}
       dirty={dirty}
       size="wide"
     >
@@ -176,198 +219,292 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
         className="stack"
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit(form);
+          if (!busy && !existing) onSubmit(form);
         }}
       >
-        {error && (
-          <div className="alert alert-danger" role="alert">
-            {error}
-          </div>
-        )}
-        <div className="grid grid-3">
-          <Field label="직원">
-            <select
-              className="select"
-              required
-              disabled={identityLocked}
-              value={form.staffId}
-              onChange={(event) => set("staffId", event.target.value)}
-            >
-              <option value="">직원 선택</option>
-              {data.staff.map((staff) => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.name}
-                  {staff.status === "inactive" ? " (퇴사·비활성)" : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="급여 귀속월">
-            <input
-              className="input"
-              type="month"
-              min="2000-01"
-              max="2099-12"
-              required
-              disabled={identityLocked}
-              value={form.month}
-              onChange={(event) => set("month", event.target.value)}
-            />
-          </Field>
-          <Field label="지급 예정일">
-            <input
-              className="input"
-              type="date"
-              required
-              value={form.payDate}
-              onChange={(event) => set("payDate", event.target.value)}
-            />
-          </Field>
-        </div>
-        <section className="payroll-form-section">
-          <h3>기본급과 인센티브</h3>
-          <div className="grid grid-2">
-            <Field label="기본급 (원)">
-              <input
-                className="input"
-                type="number"
-                min="0"
-                step="1"
-                required
-                value={form.basePay}
-                onChange={(event) => set("basePay", event.target.value)}
-              />
-            </Field>
-            <Field
-              label="시술 매출 인센티브 (%)"
-              help="0~100%, 소수점 둘째 자리까지"
-            >
-              <input
-                className="input"
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                required
-                value={form.commissionRate}
-                onChange={(event) => set("commissionRate", event.target.value)}
-              />
-            </Field>
-          </div>
-          <div className="payroll-calculation">
-            <span>
-              해당 월 시술 매출 <strong>{format(revenue.gross)}원</strong>
-            </span>
-            <span>
-              해당 월 시술 환불 <strong>−{format(revenue.refunded)}원</strong>
-            </span>
-            <span>
-              예상 인센티브 <strong>{format(commission)}원</strong>
-            </span>
-          </div>
-          <p className="help">
-            결제일 기준 할인 후 시술 매출에서 해당 월 환불액을 뺍니다. 이전 달
-            결제의 이번 달 환불도 반영하며 상품 매출은 제외합니다. 순매출이
-            음수면 인센티브는 0원입니다. 저장·확정 시 최신 거래로 다시
-            계산합니다.
-          </p>
-        </section>
-        {itemFields(
-          "allowances",
-          "추가 지급",
-          "식대, 직책수당, 연장근로수당 등을 항목별로 입력하세요.",
-        )}
-        {itemFields(
-          "deductions",
-          "공제",
-          "확인한 소득세, 지방소득세, 보험료 등을 항목별로 입력하세요.",
-        )}
-        <div className="alert alert-warning">
-          세금·4대보험·연장근로수당은 자동 산정하지 않습니다. 확인한 금액과 계산
-          근거를 직접 입력하세요.
-        </div>
-        <section className="payroll-form-section">
-          <h3>근무 내역과 계산 근거</h3>
+        <fieldset
+          disabled={busy}
+          className="stack"
+          style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}
+        >
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
           <div className="grid grid-3">
-            <Field label="근무일수 (선택)">
+            <Field label="직원">
+              <select
+                className="select"
+                required
+                disabled={identityLocked}
+                value={form.staffId}
+                onChange={(event) => set("staffId", event.target.value)}
+              >
+                <option value="">직원 선택</option>
+                {data.staff.map((staff) => (
+                  <option
+                    key={staff.id}
+                    value={staff.id}
+                    disabled={(data.payroll || []).some(
+                      (record) =>
+                        record.id !== initial.id &&
+                        record.staffId === staff.id &&
+                        record.month === form.month,
+                    )}
+                  >
+                    {staff.name}
+                    {staff.status === "inactive" ? " (퇴사·비활성)" : ""}
+                    {(data.payroll || []).some(
+                      (record) =>
+                        record.id !== initial.id &&
+                        record.staffId === staff.id &&
+                        record.month === form.month,
+                    )
+                      ? " · 명세서 있음"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="급여 귀속월">
               <input
                 className="input"
-                type="number"
-                min="0"
-                max="31"
-                step="1"
-                value={form.workDays ?? ""}
-                onChange={(event) => set("workDays", event.target.value)}
+                type="month"
+                min="2000-01"
+                max="2099-12"
+                required
+                disabled={identityLocked}
+                value={form.month}
+                onChange={(event) => {
+                  const month = event.target.value;
+                  setDirty(true);
+                  setForm((current) => ({
+                    ...current,
+                    month,
+                    payDate:
+                      current.payDate === nextPayDate(current.month) && month
+                        ? nextPayDate(month)
+                        : current.payDate,
+                  }));
+                }}
               />
             </Field>
-            <Field label="총 근로시간 (선택)" help="연장근로시간 포함">
+            <Field label="지급 예정일">
               <input
                 className="input"
-                type="number"
-                min="0"
-                max="744"
-                step="0.01"
-                value={form.workHours ?? ""}
-                onChange={(event) => set("workHours", event.target.value)}
-              />
-            </Field>
-            <Field label="연장근로시간 (선택)">
-              <input
-                className="input"
-                type="number"
-                min="0"
-                max="744"
-                step="0.01"
-                value={form.overtimeHours ?? ""}
-                onChange={(event) => set("overtimeHours", event.target.value)}
+                type="date"
+                required
+                value={form.payDate}
+                onChange={(event) => set("payDate", event.target.value)}
               />
             </Field>
           </div>
-          <Field
-            label="지급·공제 계산 근거"
-            help="예: 기본급 월 정액 / 연장수당: 통상시급 × 연장시간 × 적용 배율 / 공제액 산출 기준"
-          >
-            <textarea
-              className="textarea"
-              rows="3"
-              maxLength={2000}
-              value={form.basis}
-              onChange={(event) => set("basis", event.target.value)}
-            />
-          </Field>
-          <Field label="명세서 메모" help="직원에게도 표시됩니다.">
-            <textarea
-              className="textarea"
-              rows="2"
-              maxLength={1000}
-              value={form.notes}
-              onChange={(event) => set("notes", event.target.value)}
-            />
-          </Field>
-        </section>
-        <div className="payroll-preview">
-          <span>예상 실지급액</span>
-          <strong>{format(net)}원</strong>
-          <small>
-            지급 합계{" "}
-            {format(Number(form.basePay || 0) + commission + allowances)}원 −
-            공제 {format(deductions)}원
-          </small>
-        </div>
-        <div className="payroll-actions">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => (dirty ? setDiscard(true) : onClose())}
-            disabled={busy}
-          >
-            취소
-          </Button>
-          <Button type="submit" variant="primary" busy={busy}>
-            작성 중으로 저장
-          </Button>
-        </div>
+          {existing && (
+            <div role="alert" className="alert alert-warning">
+              선택한 직원의 {form.month} 명세서가 이미 있습니다. 목록에서 기존
+              명세서를 열거나 다른 직원·귀속월을 선택해 주세요.
+            </div>
+          )}
+          {previous && (
+            <div className="alert">
+              <div className="row">
+                <strong>{previous.month} 급여 조건을 이어서 작성</strong>
+                <Button onClick={() => setCopySource(previous)}>
+                  이전 명세서 조건 불러오기
+                </Button>
+              </div>
+              <p className="help">
+                기본급·인센티브 비율·추가 지급·공제·계산 근거를 가져옵니다. 이번
+                달 금액은 저장 전에 확인하세요.
+              </p>
+            </div>
+          )}
+          {copiedFrom && (
+            <p
+              className={
+                copiedFrom.staffId === form.staffId
+                  ? "help"
+                  : "alert alert-warning"
+              }
+              role="status"
+            >
+              {copiedFrom.name}님의 {copiedFrom.month} 조건을 불러왔습니다. 근무
+              내역·메모는 비웠으며, 선택한 귀속월의 매출로 인센티브를
+              계산합니다.
+              {copiedFrom.staffId !== form.staffId &&
+                " 직원이 변경되었습니다. 현재 직원의 계약에 맞는 금액인지 확인하세요."}
+            </p>
+          )}
+          <section className="payroll-form-section">
+            <h3>기본급과 인센티브</h3>
+            <div className="grid grid-2">
+              <Field label="기본급 (원)">
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={form.basePay}
+                  onChange={(event) => set("basePay", event.target.value)}
+                />
+              </Field>
+              <Field
+                label="시술 매출 인센티브 (%)"
+                help="0~100%, 소수점 둘째 자리까지"
+              >
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  required
+                  value={form.commissionRate}
+                  onChange={(event) =>
+                    set("commissionRate", event.target.value)
+                  }
+                />
+              </Field>
+            </div>
+            <div className="payroll-calculation">
+              <span>
+                해당 월 시술 매출 <strong>{format(revenue.gross)}원</strong>
+              </span>
+              <span>
+                해당 월 시술 환불 <strong>−{format(revenue.refunded)}원</strong>
+              </span>
+              <span>
+                예상 인센티브 <strong>{format(commission)}원</strong>
+              </span>
+            </div>
+            <p className="help">
+              결제일 기준 할인 후 시술 매출에서 해당 월 환불액을 뺍니다. 이전 달
+              결제의 이번 달 환불도 반영하며 상품 매출은 제외합니다. 순매출이
+              음수면 인센티브는 0원입니다. 저장·확정 시 최신 거래로 다시
+              계산합니다.
+            </p>
+          </section>
+          {itemFields(
+            "allowances",
+            "추가 지급",
+            "식대, 직책수당, 연장근로수당 등을 항목별로 입력하세요.",
+          )}
+          {itemFields(
+            "deductions",
+            "공제",
+            "확인한 소득세, 지방소득세, 보험료 등을 항목별로 입력하세요.",
+          )}
+          <div className="alert alert-warning">
+            세금·4대보험·연장근로수당은 자동 산정하지 않습니다. 확인한 금액과
+            계산 근거를 직접 입력하세요.
+          </div>
+          <section className="payroll-form-section">
+            <h3>근무 내역과 계산 근거</h3>
+            <div className="grid grid-3">
+              <Field label="근무일수 (선택)">
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  max="31"
+                  step="1"
+                  value={form.workDays ?? ""}
+                  onChange={(event) => set("workDays", event.target.value)}
+                />
+              </Field>
+              <Field label="총 근로시간 (선택)" help="연장근로시간 포함">
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  max="744"
+                  step="0.01"
+                  value={form.workHours ?? ""}
+                  onChange={(event) => set("workHours", event.target.value)}
+                />
+              </Field>
+              <Field label="연장근로시간 (선택)">
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  max="744"
+                  step="0.01"
+                  value={form.overtimeHours ?? ""}
+                  onChange={(event) => set("overtimeHours", event.target.value)}
+                />
+              </Field>
+            </div>
+            <Field
+              label="지급·공제 계산 근거"
+              help="예: 기본급 월 정액 / 연장수당: 통상시급 × 연장시간 × 적용 배율 / 공제액 산출 기준"
+            >
+              <textarea
+                className="textarea"
+                rows="3"
+                maxLength={2000}
+                value={form.basis}
+                onChange={(event) => set("basis", event.target.value)}
+              />
+            </Field>
+            <Field label="명세서 메모" help="직원에게도 표시됩니다.">
+              <textarea
+                className="textarea"
+                rows="2"
+                maxLength={1000}
+                value={form.notes}
+                onChange={(event) => set("notes", event.target.value)}
+              />
+            </Field>
+          </section>
+          <div className="payroll-preview">
+            <span>예상 실지급액</span>
+            <strong>{format(net)}원</strong>
+            <small>
+              지급 합계{" "}
+              {format(Number(form.basePay || 0) + commission + allowances)}원 −
+              공제 {format(deductions)}원
+            </small>
+          </div>
+          <div className="payroll-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => (dirty ? setDiscard(true) : onClose())}
+              disabled={busy}
+            >
+              취소
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              busy={busy}
+              disabled={Boolean(existing)}
+            >
+              작성 중으로 저장
+            </Button>
+          </div>
+        </fieldset>
       </form>
+      {copySource && (
+        <ConfirmDialog
+          title="이전 급여 조건을 불러올까요?"
+          confirmLabel="조건 불러오기"
+          onClose={() => setCopySource(null)}
+          onConfirm={copyPrevious}
+        >
+          <p>
+            {copySource.month}에 확정한 {copySource.staffSnapshot?.name}님의
+            조건으로 현재 입력 중인 급여 항목을 바꿉니다.
+          </p>
+          <p>
+            근무일수·근로시간·메모는 비웁니다. 세금·보험 공제와 수당은 이번 달
+            자료에 맞게 다시 확인해 주세요.
+          </p>
+        </ConfirmDialog>
+      )}
       {discard && (
         <ConfirmDialog
           title="작성을 취소할까요?"
@@ -559,16 +696,40 @@ function Statement({ record }) {
     </article>
   );
 }
-export default function Payroll({ data, user, runAction, notify, navigate }) {
+export default function Payroll({
+  data,
+  user,
+  runAction,
+  notify,
+  navigate,
+  routeContext,
+}) {
   const manager = ["owner", "manager"].includes(user.role);
-  const [month, setMonth] = useState(today().slice(0, 7));
-  const [staffId, setStaffId] = useState("");
-  const [status, setStatus] = useState("");
+  const [month, setMonth] = useViewState("payroll", "month", () =>
+    manager
+      ? today().slice(0, 7)
+      : (data.payroll || [])
+          .map((record) => record.month)
+          .sort()
+          .at(-1) || today().slice(0, 7),
+  );
+  const [staffId, setStaffId] = useViewState(
+    "payroll",
+    "staffId",
+    routeContext?.staffId || "",
+  );
+  const [status, setStatus] = useViewState("payroll", "status", "");
   const [dialog, setDialog] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
   const [paidDate, setPaidDate] = useState(today());
+  useEffect(() => {
+    if (manager && routeContext?.staffId) {
+      setStaffId(routeContext.staffId);
+      setStatus("");
+    }
+  }, [routeContext?.staffId]);
   const records = useMemo(
     () =>
       (data.payroll || [])
@@ -599,10 +760,16 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
     if (!busy) setDialog(null);
   };
   async function submit(type, payload) {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
       await runAction(type, payload);
+      if (type === "payroll.save") {
+        setMonth(payload.month);
+        if (staffId && staffId !== payload.staffId) setStaffId(payload.staffId);
+        if (status && status !== "draft") setStatus("");
+      }
       setDialog(null);
       notify(
         type === "payroll.save"
@@ -669,14 +836,34 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
         )}
       </div>
       <div className="toolbar">
+        <Button
+          aria-label="이전 달 급여"
+          disabled={month === "2000-01"}
+          onClick={() => setMonth(shiftMonth(month, -1))}
+        >
+          이전 달
+        </Button>
         <Field label="귀속월">
           <input
             className="input"
             type="month"
+            min="2000-01"
+            max="2099-12"
+            required
             value={month}
             onChange={(event) => setMonth(event.target.value)}
           />
         </Field>
+        <Button
+          aria-label="다음 달 급여"
+          disabled={month === "2099-12"}
+          onClick={() => setMonth(shiftMonth(month, 1))}
+        >
+          다음 달
+        </Button>
+        <Button variant="ghost" onClick={() => setMonth(today().slice(0, 7))}>
+          이번 달
+        </Button>
         {manager && (
           <Field label="직원">
             <select
@@ -829,13 +1016,21 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
             selected ||
             initialForm(
               month || today().slice(0, 7),
-              data.staff.find(
-                (staff) =>
-                  staff.status === "active" &&
-                  !(data.payroll || []).some(
-                    (item) => item.staffId === staff.id && item.month === month,
-                  ),
-              )?.id || "",
+              (staffId &&
+              !(data.payroll || []).some(
+                (item) => item.staffId === staffId && item.month === month,
+              )
+                ? staffId
+                : "") ||
+                data.staff.find(
+                  (staff) =>
+                    staff.status === "active" &&
+                    !(data.payroll || []).some(
+                      (item) =>
+                        item.staffId === staff.id && item.month === month,
+                    ),
+                )?.id ||
+                "",
             )
           }
           busy={busy}
@@ -947,7 +1142,7 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
         </ConfirmDialog>
       )}
       {dialog?.kind === "reopen" && selected && (
-        <Modal title="급여 확정 취소" onClose={close}>
+        <Modal title="급여 확정 취소" onClose={busy ? undefined : close} dirty={Boolean(reason)}>
           <form
             className="stack"
             onSubmit={(event) => {
@@ -961,6 +1156,7 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
             </p>
             <Field label="취소 사유">
               <textarea
+                disabled={busy}
                 className="textarea"
                 required
                 maxLength={500}
@@ -980,7 +1176,7 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
         </Modal>
       )}
       {dialog?.kind === "paid" && selected && (
-        <Modal title="실제 급여 지급 기록" onClose={close}>
+        <Modal title="실제 급여 지급 기록" onClose={busy ? undefined : close} dirty={paidDate !== today()}>
           <form
             className="stack"
             onSubmit={(event) => {
@@ -999,6 +1195,7 @@ export default function Payroll({ data, user, runAction, notify, navigate }) {
             </div>
             <Field label="실제 지급일">
               <input
+                disabled={busy}
                 className="input"
                 type="date"
                 required

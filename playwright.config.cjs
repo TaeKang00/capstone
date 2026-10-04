@@ -9,7 +9,7 @@ const chromiumPath =
   (fs.existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined);
 module.exports = defineConfig({
   testDir: "./tests",
-  testMatch: "**/erp.spec.cjs",
+  testMatch: "**/*.spec.cjs",
   timeout: 60000,
   fullyParallel: false,
   workers: 1,

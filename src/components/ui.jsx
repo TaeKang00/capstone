@@ -1,5 +1,19 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+let scrollLocks = 0,
+  originalOverflow = "";
+export function lockBodyScroll() {
+  if (scrollLocks++ === 0) {
+    originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (--scrollLocks === 0) document.body.style.overflow = originalOverflow;
+  };
+}
 export function Button({
   variant = "secondary",
   busy,
@@ -119,8 +133,7 @@ export function Modal({
       new CustomEvent("erp-modal-open", { detail: titleId }),
     );
     const before = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlockScroll = lockBodyScroll();
     const target =
       ref.current?.querySelector(
         "input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled])",
@@ -172,7 +185,7 @@ export function Modal({
       window.dispatchEvent(
         new CustomEvent("erp-modal-close", { detail: titleId }),
       );
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       document.removeEventListener("keydown", key);
       window.removeEventListener("beforeunload", unload);
       before?.focus?.();
@@ -192,6 +205,8 @@ export function Modal({
           tabIndex={-1}
           aria-modal="true"
           aria-labelledby={titleId}
+          data-dirty={dirty}
+          data-busy={typeof onClose !== "function"}
           className={`modal ${size === "wide" ? "modal-wide" : ""}`}
         >
           <header className="modal-header">

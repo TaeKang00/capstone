@@ -13,6 +13,21 @@ export const paymentNames = {
   refunded: "전체 환불",
 };
 export const monthStart = (date = todayInSeoul()) => `${date.slice(0, 7)}-01`;
+// Spaces and phone-number separators should not prevent finding a customer.
+export function matchesSearch(query, values) {
+  const text = values
+    .filter((value) => value != null)
+    .join(" ")
+    .toLowerCase();
+  const compact = text.replace(/[\s-]/g, "");
+  return query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .every(
+      (word) => text.includes(word) || compact.includes(word.replace(/-/g, "")),
+    );
+}
 export function displayTime(value) {
   if (!value) return "—";
   const date = new Date(value);

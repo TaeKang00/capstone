@@ -19,6 +19,8 @@ import {
   refundEstimate,
 } from "./commerce-utils";
 import "./Commerce.css";
+import { useViewState } from "../components/ViewState";
+import { matchesSearch } from "./commerce-utils";
 
 const paymentTone = (status) =>
   status === "paid" ? "success" : status === "refunded" ? "muted" : "warning";
@@ -34,12 +36,14 @@ export default function Payments({
 }) {
   const today = todayInSeoul();
   const canWrite = user.role !== "designer";
-  const [from, setFrom] = useState(monthStart());
-  const [to, setTo] = useState(today);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
+  const [from, setFrom] = useViewState("payments", "from", monthStart());
+  const [to, setTo] = useViewState("payments", "to", today);
+  const [query, setQuery] = useViewState("payments", "query", "");
+  const [status, setStatus] = useViewState("payments", "status", "all");
+  const [limit, setLimit] = useState(50);
   const [dialog, setDialog] = useState(null);
   const usedContext = useRef(null);
+  const pendingHeading = useRef(null);
   const transactions = data.transactions || [];
   const staff = data.staff || [];
   const pending = (data.appointments || [])
@@ -57,16 +61,15 @@ export default function Payments({
             tx.date >= from &&
             tx.date <= to &&
             (status === "all" || tx.status === status) &&
-            (!query ||
-              [
-                tx.customerName,
-                tx.reference,
-                tx.id,
-                staff.find((s) => s.id === tx.staffId)?.name,
-              ]
-                .join(" ")
-                .toLowerCase()
-                .includes(query.toLowerCase())),
+            matchesSearch(query, [
+              tx.customerName,
+              data.customers.find((customer) => customer.id === tx.customerId)
+                ?.phone,
+              tx.reference,
+              tx.id,
+              staff.find((s) => s.id === tx.staffId)?.name,
+              ...(tx.lines || []).map((line) => line.name),
+            ]),
         )
         .sort(
           (a, b) =>
@@ -75,8 +78,9 @@ export default function Payments({
               String(a.createdAt || a.time),
             ),
         ),
-    [transactions, from, to, query, status, staff],
+    [transactions, from, to, query, status, staff, data.customers],
   );
+  useEffect(() => setLimit(50), [from, to, query, status]);
   const gross = transactions
     .filter((t) => t.date >= from && t.date <= to)
     .reduce((sum, t) => sum + t.total, 0);
@@ -95,6 +99,11 @@ export default function Payments({
       setDialog({ kind: "create", appointmentId: routeContext.appointmentId });
     else if (routeContext.customerId && canWrite)
       setDialog({ kind: "create", customerId: routeContext.customerId });
+    else if (routeContext.create && canWrite) setDialog({ kind: "create" });
+    else if (routeContext.pending) {
+      pendingHeading.current?.scrollIntoView({ block: "center" });
+      pendingHeading.current?.focus({ preventScroll: true });
+    }
   }, [routeContext, canWrite]);
   const saved = (message) => {
     setDialog(null);
@@ -154,7 +163,13 @@ export default function Payments({
       </div>
       {canWrite && pending.length > 0 && (
         <section aria-label="수납 대기 예약">
-          <h2 className="commerce-section-title">수납할 예약</h2>
+          <h2
+            className="commerce-section-title"
+            ref={pendingHeading}
+            tabIndex={-1}
+          >
+            수납할 예약 · {pending.length}건
+          </h2>
           <div className="commerce-pending">
             {pending.map((a) => (
               <button
@@ -213,7 +228,7 @@ export default function Payments({
                 <input
                   className="input"
                   type="search"
-                  placeholder="고객명, 담당자, 승인번호"
+                  placeholder="고객명, 연락처, 시술, 승인번호"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -233,6 +248,42 @@ export default function Payments({
                 ))}
               </select>
             </Field>
+          </div>
+          <div className="commerce-filter-summary">
+            <div className="commerce-actions" aria-label="수납 빠른 기간 선택">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFrom(today);
+                  setTo(today);
+                }}
+              >
+                오늘
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFrom(monthStart());
+                  setTo(today);
+                }}
+              >
+                이번 달
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setFrom(monthStart());
+                  setTo(today);
+                  setQuery("");
+                  setStatus("all");
+                }}
+              >
+                조회 조건 초기화
+              </Button>
+            </div>
+            <span className="muted" role="status">
+              조회 결과 {records.length}건
+            </span>
           </div>
           {from > to && (
             <p className="error" role="alert">
@@ -256,7 +307,7 @@ export default function Payments({
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((tx) => {
+                  {records.slice(0, limit).map((tx) => {
                     const refunded = (data.refunds || [])
                       .filter((r) => r.transactionId === tx.id)
                       .reduce((sum, r) => sum + r.amount, 0);
@@ -325,6 +376,11 @@ export default function Payments({
                 )
               }
             />
+          )}
+          {records.length > limit && (
+            <Button onClick={() => setLimit((value) => value + 50)}>
+              더 보기 ({limit} / {records.length})
+            </Button>
           )}
           <p className="commerce-note">
             목록은 원래 결제일로 조회합니다. 당일 환불·정산 내역은{" "}
@@ -409,6 +465,8 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
     notes: "",
   }));
   const [addValue, setAddValue] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [catalogQuery, setCatalogQuery] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -419,6 +477,20 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
     setDirty(true);
   };
   const customer = data.customers.find((c) => c.id === form.customerId);
+  const customerOptions = data.customers.filter(
+    (c) =>
+      c.id === form.customerId ||
+      (!c.archived && matchesSearch(customerQuery, [c.name, c.phone])),
+  );
+  const serviceOptions = data.services.filter(
+    (s) => s.active !== false && matchesSearch(catalogQuery, [s.name, "시술"]),
+  );
+  const productOptions = data.items.filter(
+    (i) =>
+      i.kind === "판매 상품" &&
+      i.active !== false &&
+      matchesSearch(catalogQuery, [i.name, "판매 상품"]),
+  );
   const selectedStaff = data.staff.find((s) => s.id === form.staffId);
   const eligibleStaff = data.staff.filter(
     (s) => s.status === "active" || s.id === form.staffId,
@@ -487,6 +559,7 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
           ],
     );
     setAddValue("");
+    setCatalogQuery("");
   }
   async function submit(e) {
     e.preventDefault();
@@ -553,12 +626,28 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
             </div>
           )}
           <div className="commerce-form-grid">
+            {!appointment && (
+              <div className="full">
+                <Field
+                  label="고객 빠른 검색"
+                  help="이름이나 연락처 일부로 검색한 뒤 아래 고객을 선택하세요."
+                >
+                  <input
+                    className="input"
+                    type="search"
+                    value={customerQuery}
+                    placeholder="예: 김민지 또는 1234"
+                    onChange={(e) => setCustomerQuery(e.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
             <Field
               label="고객"
               help={
                 appointment
                   ? "예약의 고객 정보로 연결됩니다."
-                  : "비회원은 방문 고객을 선택하세요."
+                  : "비회원은 방문 고객을 선택하세요. 검색어를 바꿔도 선택한 고객은 유지됩니다."
               }
             >
               <select
@@ -568,14 +657,17 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                 onChange={(e) => update("customerId", e.target.value)}
               >
                 <option value="">방문 고객 (비회원)</option>
-                {data.customers
-                  .filter((c) => !c.archived || c.id === form.customerId)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} · {c.phone || "연락처 없음"}
-                    </option>
-                  ))}
+                {customerOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {c.phone || "연락처 없음"}
+                  </option>
+                ))}
               </select>
+              {customerQuery && customerOptions.length === 0 && (
+                <span className="help" role="status">
+                  일치하는 고객이 없습니다. 방문 고객으로 기록할 수 있습니다.
+                </span>
+              )}
             </Field>
             {!form.customerId && (
               <Field label="방문 고객 이름">
@@ -723,6 +815,18 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                 </div>
               );
             })}
+            <Field label="시술 · 상품 검색">
+              <input
+                className="input"
+                type="search"
+                value={catalogQuery}
+                placeholder="추가할 시술이나 상품 이름"
+                onChange={(e) => {
+                  setCatalogQuery(e.target.value);
+                  setAddValue("");
+                }}
+              />
+            </Field>
             <div className="commerce-add-line">
               <Field label="추가할 시술 · 상품">
                 <select
@@ -732,25 +836,19 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                 >
                   <option value="">선택하세요</option>
                   <optgroup label="시술">
-                    {data.services
-                      .filter((s) => s.active !== false)
-                      .map((s) => (
-                        <option key={s.id} value={`service:${s.id}`}>
-                          {s.name} · {money(s.price)}
-                        </option>
-                      ))}
+                    {serviceOptions.map((s) => (
+                      <option key={s.id} value={`service:${s.id}`}>
+                        {s.name} · {money(s.price)}
+                      </option>
+                    ))}
                   </optgroup>
                   <optgroup label="판매 상품">
-                    {data.items
-                      .filter(
-                        (i) => i.kind === "판매 상품" && i.active !== false,
-                      )
-                      .map((i) => (
-                        <option key={i.id} value={`product:${i.id}`}>
-                          {i.name} · {money(i.price)} · 재고 {quantity(i.qty)}
-                          {i.unit}
-                        </option>
-                      ))}
+                    {productOptions.map((i) => (
+                      <option key={i.id} value={`product:${i.id}`}>
+                        {i.name} · {money(i.price)} · 재고 {quantity(i.qty)}
+                        {i.unit}
+                      </option>
+                    ))}
                   </optgroup>
                 </select>
               </Field>
@@ -762,6 +860,14 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                 항목 추가
               </Button>
             </div>
+            {catalogQuery &&
+              !serviceOptions.length &&
+              !productOptions.length && (
+                <p className="commerce-note" role="status">
+                  검색에 맞는 시술·상품이 없습니다. 검색어를 지우거나 사용 중인
+                  품목을 확인하세요.
+                </p>
+              )}
             {stockUse.length > 0 && (
               <p className="commerce-note">
                 저장 시 사용 재고:{" "}

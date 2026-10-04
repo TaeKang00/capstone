@@ -31,6 +31,26 @@
   flex: 1;
   min-width: 210px;
 }
+.commerce-filter-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -8px 0 18px;
+  font-size: 0.875rem;
+}
+.commerce-result-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, #d5e2dc);
+  border-radius: 10px;
+  background: var(--surface-soft, #f5f8f6);
+  font-size: 0.875rem;
+}
 .commerce-actions {
   display: flex;
   align-items: center;

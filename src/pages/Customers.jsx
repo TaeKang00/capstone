@@ -17,11 +17,21 @@ import {
   todaySeoul,
 } from "./operations-utils.js";
 import "./Operations.css";
+import { useViewState } from "../components/ViewState.jsx";
 
 const blankCustomer = { name: "", phone: "", memo: "", warning: "" };
 const digits = (value) => String(value || "").replace(/\D/g, "");
 
-function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
+export function CustomerEditor({
+  customer,
+  customers,
+  runAction,
+  onClose,
+  onSaved,
+  initialValues,
+  onUseExisting,
+  forAppointment = false,
+}) {
   const initial = useRef(
     customer
       ? {
@@ -31,7 +41,7 @@ function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
           memo: customer.memo || "",
           warning: customer.warning || "",
         }
-      : { ...blankCustomer },
+      : { ...blankCustomer, ...initialValues },
   );
   const [draft, setDraft] = useState(initial.current);
   const [busy, setBusy] = useState(false);
@@ -70,9 +80,7 @@ function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
   return (
     <Modal
       title={customer ? "고객 정보 수정" : "새 고객 등록"}
-      onClose={() => {
-        if (!busy) onClose();
-      }}
+      onClose={busy ? undefined : onClose}
       dirty={JSON.stringify(draft) !== JSON.stringify(initial.current)}
       footer={
         <>
@@ -82,7 +90,7 @@ function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
             form="customer-editor"
             busy={busy}
           >
-            고객 정보 저장
+            {forAppointment ? "고객 등록 후 예약 계속" : "고객 정보 저장"}
           </Button>
         </>
       }
@@ -123,6 +131,13 @@ function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
             <strong>{duplicate.name}</strong>
             {duplicate.archived ? " (보관된 고객)" : ""}. 기존 고객 차트를
             사용하거나 연락처를 확인해 주세요.
+            {onUseExisting && !duplicate.archived && (
+              <div className="row" style={{ marginTop: 8 }}>
+                <Button onClick={() => onUseExisting(duplicate.id)}>
+                  기존 고객 선택 · {duplicate.name}
+                </Button>
+              </div>
+            )}
           </div>
         )}
         <Field
@@ -152,6 +167,8 @@ function CustomerEditor({ customer, customers, runAction, onClose, onSaved }) {
           />
         </Field>
         <p className="help">
+          {forAppointment &&
+            "고객 정보는 지금 저장되고, 입력 중인 예약은 다음 화면에서 저장합니다. "}
           고객에게 안내하고 동의받은 범위에서 필요한 정보만 기록해 주세요.
           주민등록번호·카드번호·비밀번호는 기록하지 않습니다.
         </p>
@@ -208,13 +225,24 @@ function CustomerChart({
             고객 정보 수정
           </Button>
           {!customer.archived && (
-            <Button
-              onClick={() =>
-                navigate("appointments", { customerId: customer.id })
-              }
-            >
-              예약 등록
-            </Button>
+            <>
+              {user.role !== "designer" && (
+                <Button
+                  onClick={() =>
+                    navigate("payments", { customerId: customer.id })
+                  }
+                >
+                  예약 없이 수납
+                </Button>
+              )}
+              <Button
+                onClick={() =>
+                  navigate("appointments", { customerId: customer.id })
+                }
+              >
+                예약 등록
+              </Button>
+            </>
           )}
         </>
       }
@@ -423,21 +451,33 @@ export default function Customers({
   navigate,
   routeContext = {},
 }) {
-  const [query, setQuery] = useState("");
-  const [archiveFilter, setArchiveFilter] = useState("active");
-  const [sort, setSort] = useState("name");
-  const [page, setPage] = useState(1);
+  const [query, setQuery] = useViewState("customers", "query", "");
+  const [archiveFilter, setArchiveFilter] = useViewState(
+    "customers",
+    "archiveFilter",
+    "active",
+  );
+  const [sort, setSort] = useViewState("customers", "sort", "name");
+  const [page, setPage] = useViewState("customers", "page", 1);
   const [selectedId, setSelectedId] = useState(null);
   const [editor, setEditor] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const routeHandled = useRef("");
   useEffect(() => {
+    const key = JSON.stringify(routeContext);
+    if (key === routeHandled.current) return;
+    routeHandled.current = key;
     if (routeContext.customerId) setSelectedId(routeContext.customerId);
-  }, [routeContext.customerId]);
+    else if (routeContext.create) setEditor({});
+  }, [routeContext]);
+  const filterKey = JSON.stringify([query, archiveFilter, sort]);
+  const previousFilters = useRef(filterKey);
   useEffect(() => {
-    setPage(1);
-  }, [query, archiveFilter, sort]);
+    if (filterKey !== previousFilters.current) setPage(1);
+    previousFilters.current = filterKey;
+  }, [filterKey, setPage]);
   const stats = useMemo(() => {
     const result = new Map(
       data.customers.map((item) => [
@@ -707,6 +747,10 @@ export default function Customers({
           customers={data.customers}
           runAction={runAction}
           onClose={() => setEditor(null)}
+          onUseExisting={(id) => {
+            setEditor(null);
+            setSelectedId(id);
+          }}
           onSaved={(id) => {
             setEditor(null);
             if (id) setSelectedId(id);

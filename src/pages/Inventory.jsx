@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Modal,
@@ -7,7 +7,13 @@ import {
   EmptyState,
   Money,
 } from "../components/ui";
-import { todayInSeoul, quantity, displayTime } from "./commerce-utils";
+import {
+  todayInSeoul,
+  quantity,
+  displayTime,
+  matchesSearch,
+} from "./commerce-utils";
+import { useViewState } from "../components/ViewState";
 import "./Commerce.css";
 
 const stockStatus = (item) =>
@@ -24,17 +30,37 @@ const stockTone = (item) =>
       : "success";
 const unitStep = (item) => (item?.unit === "개" ? "1" : ".001");
 
-export default function Inventory({ data, user, runAction, notify }) {
+export default function Inventory({
+  data,
+  user,
+  runAction,
+  notify,
+  routeContext,
+}) {
   const canWrite = user.role !== "designer";
   const canManage = ["owner", "manager"].includes(user.role);
-  const [tab, setTab] = useState("stock");
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("active");
-  const [itemFilter, setItemFilter] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState(todayInSeoul());
+  const [tab, setTab] = useViewState("inventory", "tab", "stock");
+  const [query, setQuery] = useViewState("inventory", "query", "");
+  const [filter, setFilter] = useViewState("inventory", "filter", "active");
+  const [itemFilter, setItemFilter] = useViewState(
+    "inventory",
+    "itemFilter",
+    "",
+  );
+  const [from, setFrom] = useViewState("inventory", "from", "");
+  const [to, setTo] = useViewState("inventory", "to", todayInSeoul());
   const [limit, setLimit] = useState(50);
   const [dialog, setDialog] = useState(null);
+  const usedContext = useRef(null);
+  useEffect(() => {
+    if (!routeContext || routeContext === usedContext.current) return;
+    usedContext.current = routeContext;
+    if (routeContext.stock === "low") {
+      setTab("stock");
+      setFilter("low");
+      setQuery("");
+    }
+  }, [routeContext]);
   const items = data.items || [];
   const receipts = data.receipts || [];
   const active = items.filter((i) => i.active !== false);
@@ -199,7 +225,7 @@ export default function Inventory({ data, user, runAction, notify }) {
             수량을 입력하세요.
           </p>
           <div className="commerce-low-list">
-            {low.map((item) => (
+            {low.slice(0, 8).map((item) => (
               <button
                 key={item.id}
                 onClick={() =>
@@ -215,6 +241,17 @@ export default function Inventory({ data, user, runAction, notify }) {
                 {canWrite ? " + 입고" : ""}
               </button>
             ))}
+            {low.length > 8 && (
+              <button
+                onClick={() => {
+                  setTab("stock");
+                  setFilter("low");
+                  setQuery("");
+                }}
+              >
+                보충 필요 전체 보기 ({low.length}개)
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -874,6 +911,16 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [itemQuery, setItemQuery] = useState("");
+  const [savedMessage, setSavedMessage] = useState("");
+  const searchRef = useRef(null);
+  const focusNext = useRef(false);
+  useEffect(() => {
+    if (!busy && focusNext.current) {
+      focusNext.current = false;
+      searchRef.current?.focus();
+    }
+  }, [busy]);
   const item = items.find((i) => i.id === form.itemId);
   const update = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -882,11 +929,20 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
   async function submit(e) {
     e.preventDefault();
     if (busy) return;
+    const keepOpen = e.nativeEvent.submitter?.value === "continue";
     setBusy(true);
     setError("");
     try {
       await runAction("inventory.receipt", { ...form, qty: Number(form.qty) });
-      onSaved();
+      if (keepOpen) {
+        setSavedMessage(
+          `${item?.name || "품목"} ${quantity(form.qty)}${item?.unit || ""} 입고를 저장했습니다. 다음 품목을 선택하세요.`,
+        );
+        setForm((current) => ({ ...current, itemId: "", qty: "" }));
+        setItemQuery("");
+        setDirty(false);
+        focusNext.current = true;
+      } else onSaved();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -900,6 +956,15 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
       dirty={dirty}
       footer={
         <>
+          <Button
+            variant="secondary"
+            type="submit"
+            form="inventory-receipt"
+            value="continue"
+            disabled={busy}
+          >
+            입고 저장 후 다음 품목
+          </Button>
           <Button
             variant="primary"
             type="submit"
@@ -917,12 +982,34 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
             매장에 실제 도착한 물건의 수량을 입력하세요. 저장하면 현재 재고에
             더해지고 로그인한 직원이 기록자로 남습니다.
           </p>
+          <p className="commerce-note">
+            여러 품목을 받았다면 ‘입고 저장 후 다음 품목’을 사용하세요. 입고일과
+            메모는 유지되고 품목·수량은 비워집니다.
+          </p>
+          {savedMessage && (
+            <div className="alert alert-success" role="status">
+              {savedMessage}
+            </div>
+          )}
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
             </div>
           )}
-          <Field label="입고 품목">
+          <Field label="입고 품목 검색">
+            <input
+              className="input"
+              type="search"
+              ref={searchRef}
+              value={itemQuery}
+              placeholder="품목 이름으로 검색"
+              onChange={(e) => setItemQuery(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="입고 품목"
+            help="검색어를 바꿔도 선택한 품목은 유지됩니다. 입고할 품목과 단위를 확인하세요."
+          >
             <select
               className="select"
               required
@@ -934,7 +1021,12 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
             >
               <option value="">품목을 선택하세요</option>
               {items
-                .filter((i) => i.active !== false)
+                .filter(
+                  (i) =>
+                    i.active !== false &&
+                    (i.id === form.itemId ||
+                      matchesSearch(itemQuery, [i.name, i.kind, i.unit])),
+                )
                 .map((i) => (
                   <option value={i.id} key={i.id}>
                     {i.name} · 현재 {quantity(i.qty)}
@@ -943,6 +1035,17 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
                 ))}
             </select>
           </Field>
+          {itemQuery &&
+            !items.some(
+              (i) =>
+                i.active !== false &&
+                matchesSearch(itemQuery, [i.name, i.kind, i.unit]),
+            ) && (
+              <p className="commerce-note" role="status">
+                검색에 맞는 품목이 없습니다. 검색어를 지우거나 품목 등록 여부를
+                확인하세요.
+              </p>
+            )}
           <div className="commerce-form-grid">
             <Field label={`추가할 수량${item ? ` (${item.unit})` : ""}`}>
               <input

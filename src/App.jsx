@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, getSession, setSession, roleLabel, today } from "./api";
-import { Button, Field, Modal, ConfirmDialog } from "./components/ui";
+import {
+  Button,
+  Field,
+  Modal,
+  ConfirmDialog,
+  lockBodyScroll,
+} from "./components/ui";
+import { ViewStateProvider } from "./components/ViewState";
+import { canVisit as allowed, useWorkspaceNavigation } from "./navigation";
 import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
 import Customers from "./pages/Customers";
@@ -32,12 +40,6 @@ const navigation = [
   ["payroll", "급여명세", "▧"],
   ["settings", "매장 설정", "⚙"],
 ];
-function allowed(page, role) {
-  if (role === "designer")
-    return ["dashboard", "appointments", "customers", "payroll"].includes(page);
-  if (role === "reception") return !["staff", "settings"].includes(page);
-  return true;
-}
 class ErrorBoundary extends React.Component {
   state = { failed: false };
   static getDerivedStateFromError() {
@@ -68,26 +70,52 @@ export default function App() {
     pending = useRef(new Map());
   const drawerRef = useRef(null),
     modalVersions = useRef(new Map());
-  const [pendingNavigation, setPendingNavigation] = useState(null);
-  const [page, setPage] = useState("dashboard"),
-    [routeContext, setRouteContext] = useState({}),
-    [drawer, setDrawer] = useState(false),
+  const [drawer, setDrawer] = useState(false),
     [toast, setToast] = useState(null),
     [passwordModal, setPasswordModal] = useState(false),
     [logoutModal, setLogoutModal] = useState(false),
     [online, setOnline] = useState(navigator.onLine),
-    [refreshing, setRefreshing] = useState(false);
+    [refreshing, setRefreshing] = useState(false),
+    [lastSynced, setLastSynced] = useState(null),
+    [syncError, setSyncError] = useState(false);
   const notify = useCallback(
     (message, tone = "success") => setToast({ message, tone, key: Date.now() }),
     [],
   );
+  const {
+    page,
+    routeContext,
+    navigate: routeNavigate,
+    pendingNavigation,
+    confirmNavigation,
+    cancelNavigation,
+    resetNavigation,
+  } = useWorkspaceNavigation(session?.user.role, notify);
+  const navigate = useCallback(
+    (target, context = {}) => {
+      setDrawer(false);
+      routeNavigate(target, context);
+    },
+    [routeNavigate],
+  );
   const acceptState = (value) => {
     stateRef.current = value;
     setState(value);
+    if (value) {
+      setLastSynced(Date.now());
+      setSyncError(false);
+    }
   };
   const refresh = useCallback(async (background = false) => {
     const requestedSession = getSession();
-    const result = await api("/state");
+    let result;
+    try {
+      result = await api("/state");
+    } catch (error) {
+      if (getSession() === requestedSession && error.status !== 401)
+        setSyncError(true);
+      throw error;
+    }
     if (
       getSession() === requestedSession &&
       !(
@@ -104,8 +132,6 @@ export default function App() {
       if (getSession()?.user.id !== result.user.id) {
         pending.current.clear();
         acceptState(null);
-        setPage("dashboard");
-        setRouteContext({});
       }
       setBootstrap({
         needsSetup: false,
@@ -179,8 +205,7 @@ export default function App() {
   useEffect(() => {
     if (!drawer) return;
     const previous = document.activeElement;
-    const priorOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlockScroll = lockBodyScroll();
     drawerRef.current?.querySelector("button")?.focus();
     const key = (e) => {
       if (e.key === "Escape") {
@@ -202,7 +227,7 @@ export default function App() {
     };
     document.addEventListener("keydown", key);
     return () => {
-      document.body.style.overflow = priorOverflow;
+      unlockScroll();
       document.removeEventListener("keydown", key);
       previous?.focus?.();
     };
@@ -272,23 +297,6 @@ export default function App() {
     },
     [refresh],
   );
-  const changePage = useCallback((target, context = {}) => {
-    setPage(target);
-    setRouteContext(context);
-    setDrawer(false);
-    window.scrollTo({ top: 0 });
-    requestAnimationFrame(() => document.getElementById("main")?.focus());
-  }, []);
-  const navigate = useCallback(
-    (target, context = {}) => {
-      if (document.querySelector('[data-dirty="true"]')) {
-        setPendingNavigation({ target, context });
-        return;
-      }
-      changePage(target, context);
-    },
-    [changePage],
-  );
   const doLogout = async () => {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -297,7 +305,7 @@ export default function App() {
       acceptState(null);
       setLogoutModal(false);
       pending.current.clear();
-      setPage("dashboard");
+      resetNavigation();
     } catch (e) {
       notify(e.message, "danger");
     }
@@ -403,7 +411,14 @@ export default function App() {
   );
   return (
     <>
-      <a href="#main" className="skip-link">
+      <a
+        href="#main"
+        className="skip-link"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById("main")?.focus();
+        }}
+      >
         본문으로 바로가기
       </a>
       <div className="app-layout">
@@ -450,6 +465,16 @@ export default function App() {
               </span>
             </div>
             <div className="row topbar-tools">
+              {lastSynced && (
+                <span
+                  className="sync-status"
+                  title="서버에서 마지막으로 확인한 시각"
+                >
+                  {syncError
+                    ? "연결 확인 필요"
+                    : `동기화 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)}`}
+                </span>
+              )}
               <Button
                 variant="ghost"
                 busy={refreshing}
@@ -483,9 +508,32 @@ export default function App() {
               </Button>
             </div>
           </header>
-          {!online && (
+          {(!online || syncError) && (
             <div role="alert" className="connection-banner">
-              인터넷 연결이 끊겼습니다. 연결 후 저장 내역을 확인해 주세요.
+              <span>
+                {!online
+                  ? "인터넷 연결이 끊겼습니다."
+                  : "서버의 최신 내용을 확인하지 못했습니다."}{" "}
+                현재 화면은 마지막으로 확인한 자료입니다.
+              </span>
+              <Button
+                variant="ghost"
+                busy={refreshing}
+                onClick={async () => {
+                  setRefreshing(true);
+                  try {
+                    await refresh();
+                    setLoadError("");
+                    notify("최신 내용을 불러왔습니다.");
+                  } catch (e) {
+                    notify(e.message, "danger");
+                  } finally {
+                    setRefreshing(false);
+                  }
+                }}
+              >
+                연결 다시 확인
+              </Button>
             </div>
           )}
           <main id="main" className="main-content" tabIndex={-1}>
@@ -504,18 +552,20 @@ export default function App() {
               </div>
             )}
             {data ? (
-              <ErrorBoundary key={activePage}>
-                <Page
-                  data={data}
-                  user={user}
-                  version={state.version}
-                  runAction={runAction}
-                  refresh={refresh}
-                  notify={notify}
-                  navigate={navigate}
-                  routeContext={routeContext}
-                />
-              </ErrorBoundary>
+              <ViewStateProvider key={user.id}>
+                <ErrorBoundary key={activePage}>
+                  <Page
+                    data={data}
+                    user={user}
+                    version={state.version}
+                    runAction={runAction}
+                    refresh={refresh}
+                    notify={notify}
+                    navigate={navigate}
+                    routeContext={routeContext}
+                  />
+                </ErrorBoundary>
+              </ViewStateProvider>
             ) : (
               <div className="empty-state">
                 매장 데이터를 불러오는 중입니다…
@@ -561,16 +611,13 @@ export default function App() {
       )}
       {pendingNavigation && (
         <ConfirmDialog
-          title="저장하지 않은 설정이 있습니다"
+          title="저장하지 않은 내용이 있습니다"
           confirmLabel="변경 버리고 이동"
           variant="danger"
-          onClose={() => setPendingNavigation(null)}
-          onConfirm={() => {
-            changePage(pendingNavigation.target, pendingNavigation.context);
-            setPendingNavigation(null);
-          }}
+          onClose={cancelNavigation}
+          onConfirm={confirmNavigation}
         >
-          다른 화면으로 이동하면 아직 저장하지 않은 설정이 사라집니다.
+          다른 화면으로 이동하면 아직 저장하지 않은 입력이 사라집니다.
         </ConfirmDialog>
       )}
       {passwordModal && (

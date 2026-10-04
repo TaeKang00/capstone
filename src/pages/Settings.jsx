@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, timeLabel } from "../api";
+import { useViewState } from "../components/ViewState";
 import {
   Badge,
   Button,
@@ -13,9 +14,26 @@ const weekday = ["일", "월", "화", "수", "목", "금", "토"];
 const asMinutes = (value) =>
   value ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
 export default function Settings(props) {
-  const { data, user, notify } = props;
-  const [tab, setTab] = useState("store"),
-    [pendingTab, setPendingTab] = useState(null);
+  const { data, user, routeContext } = props;
+  const [tab, setTab] = useViewState(
+    "settings",
+    "tab",
+    routeContext?.tab || "store",
+  );
+  const [pendingTab, setPendingTab] = useState(null);
+  useEffect(() => {
+    const requested = routeContext?.tab;
+    if (
+      [
+        "store",
+        "services",
+        "audit",
+        "help",
+        ...(user.role === "owner" ? ["backup"] : []),
+      ].includes(requested)
+    )
+      setTab(requested);
+  }, [routeContext?.tab, user.role]);
   return (
     <>
       <div className="page-header">
@@ -81,8 +99,37 @@ function StoreSettings({ data, version, runAction, notify }) {
     [initial, setInitial] = useState(data.store),
     [baseVersion, setBaseVersion] = useState(version),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [resetting, setResetting] = useState(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const changedFields = Object.keys(data.store).filter(
+    (key) => JSON.stringify(data.store[key]) !== JSON.stringify(initial[key]),
+  );
+  const remoteChanged = dirty && changedFields.length > 0;
+  const settingLabels = {
+    name: "매장 이름",
+    phone: "매장 전화",
+    address: "매장 주소",
+    open: "영업 시작",
+    close: "영업 종료",
+    slotMinutes: "예약 시간 간격",
+    closedWeekdays: "정기 휴무일",
+  };
+  const settingValue = (key, value) =>
+    key === "closedWeekdays"
+      ? value.map((day) => weekday[day]).join(" · ") || "휴무 없음"
+      : ["open", "close"].includes(key)
+        ? timeLabel(value)
+        : key === "slotMinutes"
+          ? `${value}분`
+          : value || "미입력";
+  const resetForm = () => {
+    setForm({ ...data.store });
+    setInitial(data.store);
+    setBaseVersion(version);
+    setError("");
+    setResetting(false);
+  };
   useEffect(() => {
     const guard = (e) => {
       if (dirty) {
@@ -147,6 +194,40 @@ function StoreSettings({ data, version, runAction, notify }) {
             {error && (
               <div role="alert" className="alert alert-warning">
                 {error}
+              </div>
+            )}
+            {remoteChanged && (
+              <div role="alert" className="alert alert-warning">
+                <strong>다른 직원이 매장 설정을 변경했습니다.</strong>
+                <p>
+                  최신 값과 현재 입력을 비교한 뒤 저장하거나 최신 설정을
+                  불러오세요.
+                </p>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>항목</th>
+                        <th>서버의 최신 값</th>
+                        <th>현재 입력</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changedFields
+                        .filter((key) => settingLabels[key])
+                        .map((key) => (
+                          <tr key={key}>
+                            <td>{settingLabels[key]}</td>
+                            <td>{settingValue(key, data.store[key])}</td>
+                            <td>{settingValue(key, form[key])}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Button onClick={() => setResetting(true)}>
+                  최신 설정 불러오기
+                </Button>
               </div>
             )}
             <div className="grid grid-2">
@@ -265,12 +346,29 @@ function StoreSettings({ data, version, runAction, notify }) {
                 매장 설정 저장
               </Button>
               {dirty && (
-                <span className="help">저장하지 않은 변경사항이 있습니다.</span>
+                <>
+                  <Button onClick={() => setResetting(true)}>변경 취소</Button>
+                  <span className="help">
+                    저장하지 않은 변경사항이 있습니다.
+                  </span>
+                </>
               )}
             </div>
           </fieldset>
         </form>
       </div>
+      {resetting && (
+        <ConfirmDialog
+          title="저장된 매장 설정으로 되돌릴까요?"
+          variant="danger"
+          confirmLabel="저장된 설정 불러오기"
+          onClose={() => setResetting(false)}
+          onConfirm={resetForm}
+        >
+          입력 중인 변경사항을 버리고 서버에 마지막으로 저장된 매장 정보를
+          불러옵니다.
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

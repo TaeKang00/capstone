@@ -69,3 +69,56 @@ export const timestampLabel = (at) =>
         minute: "2-digit",
       }).format(new Date(at))
     : "";
+
+// Availability is a preview only. The server rechecks the schedule when saving.
+export function availableAppointmentTimes(
+  data,
+  { date, staffId, duration, excludeId },
+) {
+  const staff = data.staff.find((item) => item.id === staffId);
+  const length = Number(duration);
+  const weekday = new Date(`${date}T12:00:00+09:00`).getUTCDay();
+  if (
+    !staff ||
+    staff.status !== "active" ||
+    staff.role === "reception" ||
+    !Number.isInteger(length) ||
+    length < 5 ||
+    length > 1440 ||
+    !Number.isFinite(weekday) ||
+    data.store.closedWeekdays?.includes(weekday) ||
+    !staff.workingDays.includes(weekday)
+  )
+    return [];
+  const step = Number(data.store.slotMinutes) || 30;
+  if (!Number.isInteger(step) || step < 1) return [];
+  const opening = Math.max(data.store.open, staff.startMinutes);
+  const closing = Math.min(data.store.close, staff.endMinutes);
+  const occupied = data.appointments.filter(
+    (item) =>
+      item.id !== excludeId &&
+      item.date === date &&
+      item.staffId === staffId &&
+      ["booked", "checked_in", "in_service"].includes(item.status),
+  );
+  const result = [];
+  const first =
+    data.store.open + Math.ceil((opening - data.store.open) / step) * step;
+  for (let start = first; start + length <= closing; start += step) {
+    const end = start + length;
+    if (
+      staff.breakStart != null &&
+      start < staff.breakEnd &&
+      end > staff.breakStart
+    )
+      continue;
+    if (
+      occupied.some(
+        (item) => start < item.start + item.duration && end > item.start,
+      )
+    )
+      continue;
+    result.push(start);
+  }
+  return result;
+}

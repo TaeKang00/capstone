@@ -10,6 +10,7 @@ import {
 import {
   STATUS,
   WEEKDAYS,
+  availableAppointmentTimes,
   customerName,
   customerPhone,
   dateLabel,
@@ -23,6 +24,8 @@ import {
   todaySeoul,
 } from "./operations-utils.js";
 import "./Operations.css";
+import { CustomerEditor } from "./Customers.jsx";
+import { useViewState } from "../components/ViewState.jsx";
 
 const OPEN = ["booked", "checked_in", "in_service"];
 const canTakePayment = (user) => user.role !== "designer";
@@ -30,6 +33,7 @@ function freshDraft(data, user, date, customerId) {
   const availableStaff = data.staff.filter(
     (item) =>
       item.status === "active" &&
+      item.role !== "reception" &&
       (user.role !== "designer" || item.id === user.staffId),
   );
   const nowParts = new Intl.DateTimeFormat("en-GB", {
@@ -64,6 +68,7 @@ function AppointmentEditor({
   appointment,
   date,
   customerId,
+  preferredStaffId,
   data,
   user,
   runAction,
@@ -84,7 +89,10 @@ function AppointmentEditor({
           serviceIds: [...appointment.serviceIds],
           notes: appointment.notes || "",
         }
-      : freshDraft(data, user, date, customerId),
+      : {
+          ...freshDraft(data, user, date, customerId),
+          ...(preferredStaffId ? { staffId: preferredStaffId } : {}),
+        },
   );
   const [draft, setDraft] = useState(initial.current);
   const [kind, setKind] = useState(
@@ -93,11 +101,28 @@ function AppointmentEditor({
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [customerEditor, setCustomerEditor] = useState(null);
+  const [customerCreated, setCustomerCreated] = useState(false);
+  const bookingDirty =
+    JSON.stringify(draft) !== JSON.stringify(initial.current) ||
+    kind !== (initial.current.customerId ? "customer" : "guest");
+  useEffect(() => {
+    if (!customerEditor) return;
+    const protectBooking = (event) => {
+      if (bookingDirty) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", protectBooking);
+    return () => window.removeEventListener("beforeunload", protectBooking);
+  }, [customerEditor, bookingDirty]);
   const change = (key, value) =>
     setDraft((current) => ({ ...current, [key]: value }));
   const availableStaff = data.staff.filter(
     (item) =>
-      (item.status === "active" || item.id === draft.staffId) &&
+      ((item.status === "active" && item.role !== "reception") ||
+        item.id === draft.staffId) &&
       (user.role !== "designer" || item.id === user.staffId),
   );
   const availableServices = data.services.filter(
@@ -132,6 +157,31 @@ function AppointmentEditor({
       Number(draft.start) < item.start + item.duration &&
       Number(draft.start) + Number(draft.duration) > item.start,
   );
+  const availableTimes = availableAppointmentTimes(data, {
+    date: draft.date,
+    staffId: draft.staffId,
+    duration: draft.duration,
+    excludeId: draft.id,
+  });
+  function openCustomerEditor() {
+    const term = search.trim();
+    setCustomerEditor({
+      name: kind === "guest" ? draft.guestName : /\d/.test(term) ? "" : term,
+      phone:
+        kind === "guest"
+          ? draft.guestPhone
+          : /^[\d\s+()-]+$/.test(term)
+            ? term
+            : "",
+    });
+  }
+  function useCustomer(id, created) {
+    change("customerId", id);
+    setKind("customer");
+    setCustomerEditor(null);
+    setCustomerCreated(created);
+    setSearch("");
+  }
   function toggleService(id) {
     setDraft((current) => {
       const ids = current.serviceIds.includes(id)
@@ -171,7 +221,7 @@ function AppointmentEditor({
         start: Number(draft.start),
         duration: Number(draft.duration),
       });
-      onSaved(draft.date);
+      onSaved(draft.date, draft.staffId);
     } catch (cause) {
       setError(
         cause.message ||
@@ -181,17 +231,26 @@ function AppointmentEditor({
       setBusy(false);
     }
   }
+  if (customerEditor)
+    return (
+      <div data-dirty={bookingDirty}>
+        <CustomerEditor
+          customers={data.customers}
+          runAction={runAction}
+          initialValues={customerEditor}
+          forAppointment
+          onClose={() => setCustomerEditor(null)}
+          onSaved={(id) => useCustomer(id, true)}
+          onUseExisting={(id) => useCustomer(id, false)}
+        />
+      </div>
+    );
   return (
     <Modal
       title={appointment ? "예약 수정" : "새 예약 등록"}
       size="wide"
-      onClose={() => {
-        if (!busy) onClose();
-      }}
-      dirty={
-        JSON.stringify(draft) !== JSON.stringify(initial.current) ||
-        kind !== (initial.current.customerId ? "customer" : "guest")
-      }
+      onClose={busy ? undefined : onClose}
+      dirty={bookingDirty}
       footer={
         <>
           <Button
@@ -209,6 +268,12 @@ function AppointmentEditor({
         {error && (
           <div className="ops-error" role="alert">
             {error}
+          </div>
+        )}
+        {customerCreated && (
+          <div className="alert alert-success" role="status">
+            고객 등록이 완료되었습니다. 아래 예약 내용을 확인하고 예약을 저장해
+            주세요.
           </div>
         )}
         <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
@@ -230,6 +295,7 @@ function AppointmentEditor({
             >
               미등록 고객
             </Button>
+            <Button onClick={openCustomerEditor}>+ 새 고객 등록</Button>
           </div>
         </fieldset>
         {kind === "customer" ? (
@@ -271,8 +337,8 @@ function AppointmentEditor({
               ))}
               {!matchingCustomers.length && (
                 <p className="help">
-                  일치하는 고객이 없습니다. 미등록 고객으로 예약하거나 고객
-                  관리에서 먼저 등록해 주세요.
+                  일치하는 고객이 없습니다. 위의 ‘새 고객 등록’으로 고객을
+                  등록하고 이 예약을 이어서 작성할 수 있습니다.
                 </p>
               )}
             </div>
@@ -423,6 +489,43 @@ function AppointmentEditor({
               : ""}
           </p>
         )}
+        <section className="ops-availability" aria-label="예약 가능한 시간">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <strong>예약 가능한 시작 시간</strong>
+            <span className="help">
+              {Number(draft.duration) || 0}분 시술 기준 ·{" "}
+              {data.store.slotMinutes || 30}분 간격
+            </span>
+          </div>
+          {availableTimes.length ? (
+            <div
+              className="ops-time-options"
+              role="group"
+              aria-label="가능한 시작 시간 선택"
+            >
+              {availableTimes.map((start) => (
+                <button
+                  type="button"
+                  className={`ops-time-option ${Number(draft.start) === start ? "selected" : ""}`}
+                  aria-pressed={Number(draft.start) === start}
+                  key={start}
+                  onClick={() => change("start", start)}
+                >
+                  {timeLabel(start)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="help" role="status">
+              선택한 날짜·담당자·소요 시간에 맞는 빈 시간이 없습니다. 날짜나
+              담당자를 변경해 주세요.
+            </p>
+          )}
+          <p className="help">
+            영업·근무·휴게시간과 기존 예약을 반영합니다. 위에서 시간을 직접
+            입력할 수도 있으며, 저장할 때 최신 예약을 다시 확인합니다.
+          </p>
+        </section>
         {collisions.length > 0 && (
           <div className="alert alert-warning">
             <strong>같은 담당자의 예약과 겹칩니다.</strong>
@@ -502,9 +605,7 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
   return (
     <Modal
       title={`예약을 ‘${STATUS[status].label}’ 상태로 변경`}
-      onClose={() => {
-        if (!busy) onClose();
-      }}
+      onClose={busy ? undefined : onClose}
       dirty={Boolean(reason)}
       footer={
         <>
@@ -742,17 +843,25 @@ export default function Appointments({
   routeContext = {},
 }) {
   const today = todaySeoul();
-  const [date, setDate] = useState(today);
-  const [mode, setMode] = useState("day");
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(shiftDate(today, 7));
-  const [staffFilter, setStaffFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [query, setQuery] = useState("");
+  const [date, setDate] = useViewState("appointments", "date", today);
+  const [mode, setMode] = useViewState("appointments", "mode", "day");
+  const [from, setFrom] = useViewState("appointments", "from", today);
+  const [to, setTo] = useViewState("appointments", "to", shiftDate(today, 7));
+  const [staffFilter, setStaffFilter] = useViewState(
+    "appointments",
+    "staffFilter",
+    "all",
+  );
+  const [statusFilter, setStatusFilter] = useViewState(
+    "appointments",
+    "statusFilter",
+    "all",
+  );
+  const [query, setQuery] = useViewState("appointments", "query", "");
   const [editor, setEditor] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [statusTarget, setStatusTarget] = useState(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useViewState("appointments", "page", 1);
   const routeHandled = useRef("");
   useEffect(() => {
     const key = JSON.stringify(routeContext);
@@ -767,12 +876,41 @@ export default function Appointments({
         setMode("day");
         setSelectedId(appointment.id);
       }
-    } else if (routeContext.customerId)
+    } else if (routeContext.customerId) {
+      setDate(routeContext.date || today);
+      setMode("day");
       setEditor({ customerId: routeContext.customerId });
+    } else if (routeContext.create) {
+      setDate(routeContext.date || today);
+      setMode("day");
+      setEditor({});
+    } else if (routeContext.pending) {
+      setMode("pending");
+      setStatusFilter("all");
+      setStaffFilter("all");
+      setQuery("");
+    } else if (routeContext.date) {
+      setDate(routeContext.date);
+      setMode("day");
+      setStatusFilter(routeContext.status || "all");
+      setStaffFilter("all");
+      setQuery("");
+    }
   }, [routeContext, data.appointments]);
+  const filterKey = JSON.stringify([
+    date,
+    mode,
+    from,
+    to,
+    staffFilter,
+    statusFilter,
+    query,
+  ]);
+  const previousFilters = useRef(filterKey);
   useEffect(() => {
-    setPage(1);
-  }, [date, mode, from, to, staffFilter, statusFilter, query]);
+    if (filterKey !== previousFilters.current) setPage(1);
+    previousFilters.current = filterKey;
+  }, [filterKey, setPage]);
   const overdue = data.appointments.filter(
     (item) => item.date < today && OPEN.includes(item.status),
   );
@@ -816,7 +954,9 @@ export default function Appointments({
   const closed = data.store.closedWeekdays?.includes(dayOfWeek);
   const ready =
     data.services.some((item) => item.active) &&
-    visibleStaff.some((item) => item.status === "active");
+    visibleStaff.some(
+      (item) => item.status === "active" && item.role !== "reception",
+    );
   const pageCount = Math.max(1, Math.ceil(matching.length / 30));
   const currentPage = Math.min(page, pageCount);
   const startStatus = (appointment, status) => {
@@ -1272,14 +1412,27 @@ export default function Appointments({
           appointment={editor.appointment}
           date={date}
           customerId={editor.customerId}
+          preferredStaffId={
+            staffFilter === "all"
+              ? undefined
+              : visibleStaff.find(
+                  (item) =>
+                    item.id === staffFilter &&
+                    item.status === "active" &&
+                    item.role !== "reception",
+                )?.id
+          }
           data={data}
           user={user}
           runAction={runAction}
           onClose={() => setEditor(null)}
-          onSaved={(savedDate) => {
+          onSaved={(savedDate, savedStaffId) => {
             setEditor(null);
             setDate(savedDate);
             setMode("day");
+            setStatusFilter("all");
+            setQuery("");
+            if (staffFilter !== "all") setStaffFilter(savedStaffId);
             notify?.("예약을 저장했습니다.", "success");
           }}
         />
