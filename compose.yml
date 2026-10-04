@@ -1,0 +1,46 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DB_PATH: /app/data/salon.sqlite
+      APP_ORIGIN: https://${DOMAIN:?Set DOMAIN in .env}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set BOOTSTRAP_TOKEN in .env}
+    volumes:
+      - salon_data:/app/data
+    expose:
+      - "3001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  salon_data:
+  caddy_data:
+  caddy_config:

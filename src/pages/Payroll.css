@@ -1,0 +1,303 @@
+.payroll-page .stat-card small,
+.payroll-subtext {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  margin-top: 0.35rem;
+}
+.payroll-form-section {
+  border-top: 1px solid var(--border, #dce3ed);
+  padding-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+.payroll-form-section h3,
+.payroll-basis h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+.payroll-form-section .row {
+  justify-content: space-between;
+  align-items: center;
+}
+.payroll-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.6fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+.payroll-item-row > .btn {
+  margin-bottom: 2px;
+}
+.payroll-calculation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--surface-alt, #f1f5f9);
+  font-size: 0.85rem;
+}
+.payroll-calculation span {
+  display: grid;
+  gap: 0.25rem;
+}
+.payroll-preview {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  background: #eef6f4;
+  color: #15594e;
+  border: 1px solid #cfe3dd;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.payroll-preview > strong {
+  font-size: 1.55rem;
+  letter-spacing: -0.04em;
+}
+.payroll-preview > small {
+  grid-column: 1/-1;
+  color: #4c6c64;
+}
+.payroll-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.payroll-statement {
+  display: grid;
+  gap: 1.5rem;
+  background: #fff;
+  color: #172b35;
+}
+.payroll-statement-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 2px solid #246558;
+  padding-bottom: 1rem;
+}
+.payroll-statement-header h2 {
+  font-size: 1.45rem;
+  margin: 0.4rem 0;
+}
+.payroll-statement-header p {
+  margin: 0.3rem 0;
+}
+.payroll-kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #246558;
+}
+.payroll-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 1.5rem;
+  margin: 0;
+}
+.payroll-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.86rem;
+}
+.payroll-details dt {
+  color: #637482;
+  flex-shrink: 0;
+}
+.payroll-details dd {
+  margin: 0;
+  text-align: right;
+}
+.payroll-statement-tables h3 {
+  font-size: 1rem;
+}
+.payroll-statement .table th:last-child,
+.payroll-statement .table td:last-child {
+  text-align: right;
+}
+.payroll-statement .table tfoot {
+  font-weight: 700;
+  background: #f6f8fa;
+}
+.payroll-statement .table {
+  min-width: 0;
+  width: 100%;
+}
+.payroll-basis {
+  font-size: 0.85rem;
+}
+.payroll-basis p {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+}
+.payroll-preserve {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.payroll-statement-footer {
+  border-top: 1px solid #dce3ed;
+  padding-top: 1rem;
+  font-size: 0.72rem;
+  color: #637482;
+  line-height: 1.6;
+}
+.payroll-statement-footer p {
+  margin: 0.3rem 0;
+}
+.payroll-history {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.payroll-history summary {
+  cursor: pointer;
+}
+.payroll-history li {
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .payroll-item-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .payroll-item-row > .btn {
+    grid-column: 1/-1;
+    justify-self: end;
+  }
+  .payroll-details {
+    grid-template-columns: 1fr;
+  }
+  .payroll-statement-header h2 {
+    font-size: 1.1rem;
+  }
+  .payroll-statement-header {
+    gap: 0.5rem;
+  }
+  .payroll-preview > strong {
+    font-size: 1.3rem;
+  }
+}
+@media print {
+  body.payroll-printing {
+    overflow: visible !important;
+    background: white !important;
+  }
+  body.payroll-printing * {
+    visibility: hidden;
+  }
+  body.payroll-printing .payroll-statement,
+  body.payroll-printing .payroll-statement * {
+    visibility: visible;
+  }
+  body.payroll-printing .payroll-statement {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    padding: 8mm;
+    box-sizing: border-box;
+    font-size: 11pt;
+    background: white;
+    gap: 5mm;
+  }
+  body.payroll-printing .payroll-statement-tables {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm;
+  }
+  body.payroll-printing .payroll-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  body.payroll-printing .payroll-statement .table {
+    font-size: 9pt;
+  }
+  body.payroll-printing .payroll-statement section,
+  body.payroll-printing .payroll-statement .payroll-preview {
+    break-inside: avoid;
+  }
+  body.payroll-printing .payroll-statement .badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.payroll-printing [role="dialog"] {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    transform: none !important;
+  }
+  body.payroll-printing [role="dialog"] > div {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
+
+@media print {
+  body.payroll-printing > :not(.modal-backdrop) {
+    display: none !important;
+  }
+  body.payroll-printing .modal-backdrop {
+    position: static !important;
+    display: block !important;
+    background: white !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body.payroll-printing .modal {
+    width: 100% !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  body.payroll-printing .modal-header,
+  body.payroll-printing .modal-footer,
+  body.payroll-printing .payroll-history {
+    display: none !important;
+  }
+  body.payroll-printing .modal-body {
+    padding: 0 !important;
+  }
+  body.payroll-printing .payroll-statement {
+    position: static !important;
+    padding: 0 !important;
+  }
+}
+@media print {
+  body.payroll-printing .payroll-statement {
+    font-size: 10pt;
+    gap: 3mm;
+  }
+  body.payroll-printing .payroll-statement-header {
+    padding-bottom: 3mm;
+  }
+  body.payroll-printing .payroll-statement-header h2 {
+    font-size: 15pt;
+    margin: 2mm 0;
+  }
+  body.payroll-printing .payroll-details {
+    gap: 3mm 5mm;
+  }
+  body.payroll-printing .payroll-statement .table th,
+  body.payroll-printing .payroll-statement .table td {
+    padding: 2.5mm 3mm;
+  }
+  body.payroll-printing .payroll-statement .payroll-preview {
+    padding: 4mm;
+  }
+  body.payroll-printing .payroll-statement-footer {
+    padding-top: 3mm;
+    font-size: 8pt;
+    break-inside: avoid;
+  }
+  body.payroll-printing .payroll-basis p {
+    margin: 1.5mm 0;
+  }
+}
