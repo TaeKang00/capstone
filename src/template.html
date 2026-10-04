@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>봄 헤어 · 미용실 ERP</title>
+<link rel="stylesheet" href="./styles.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./inventory.js"></script>
+<script src="./vendor/support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+
+<style>
+html, body { margin: 0; padding: 0; background: #F7F8FA; }
+a { color: #1E4B8F; text-decoration: underline; }
+a:hover { color: #163A6E; }
+</style>
+</helmet>
+<div style="display:flex; min-height:100vh; background:#F7F8FA; color:#222222; font-family:'Pretendard', 'Malgun Gothic', sans-serif; line-height:1.5; word-break:keep-all; overflow-wrap:break-word;">
+
+<aside class="{{ sidebarClass }}" style="width:228px; flex-shrink:0; position:sticky; top:0; height:100vh; box-sizing:border-box; background:#FFFFFF; border-right:1px solid #E1E5EB; display:flex; flex-direction:column;">
+<div style="padding:20px; border-bottom:1px solid #E1E5EB; display:flex; align-items:center; gap:10px;">
+<span style="width:36px; height:36px; flex-shrink:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">ERP</span>
+<div style="min-width:0; display:flex; flex-direction:column;">
+<span style="font-size:16px; font-weight:700; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ storeName }}</span>
+<span style="font-size:12px; color:#5F6368;">미용실 경영관리 ERP</span>
+</div>
+</div>
+<nav aria-label="주 메뉴" style="flex:1; padding:12px; display:flex; flex-direction:column; gap:2px; overflow-y:auto;">
+<sc-for list="{{ navMain }}" as="n" hint-placeholder-count="7">
+<button onClick="{{ n.go }}" style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:11px 14px; border:0; border-radius:8px; background:{{ n.bg }}; color:{{ n.fg }}; font-family:inherit; font-size:15px; font-weight:{{ n.fw }}; text-align:left; cursor:pointer;">
+<span>{{ n.label }}</span>
+<sc-if value="{{ n.hasCount }}" hint-placeholder-val="{{ false }}"><span style="min-width:22px; box-sizing:border-box; padding:1px 7px; border-radius:999px; background:{{ n.cbg }}; color:#FFFFFF; font-size:12px; font-weight:700; text-align:center;">{{ n.count }}</span></sc-if>
+</button>
+</sc-for>
+<div style="height:1px; margin:10px 6px; background:#E1E5EB;"></div>
+<button onClick="{{ navSet.go }}" style="display:flex; align-items:center; padding:11px 14px; border:0; border-radius:8px; background:{{ navSet.bg }}; color:{{ navSet.fg }}; font-family:inherit; font-size:15px; font-weight:{{ navSet.fw }}; text-align:left; cursor:pointer;">설정</button>
+</nav>
+<div style="padding:16px 20px; border-top:1px solid #E1E5EB; display:flex; align-items:center; gap:10px;">
+<span style="width:34px; height:34px; flex-shrink:0; border-radius:50%; background:var(--tint, #EAF1FA); color:var(--main, #1E4B8F); display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;">김</span>
+<div style="display:flex; flex-direction:column; line-height:1.35;">
+<span style="font-size:14px; font-weight:600;">김민지</span>
+<span style="font-size:12px; color:#5F6368;">원장 · 전체 권한</span>
+</div>
+</div>
+</aside>
+<sc-if value="{{ mobileNav }}"><button class="nav-scrim" aria-label="메뉴 닫기" onClick="{{ toggleMobileNav }}"></button></sc-if>
+
+<main style="flex:1; min-width:0; display:flex; flex-direction:column;">
+<header class="app-header" style="position:sticky; top:0; z-index:10; height:64px; box-sizing:border-box; padding:0 32px; background:#FFFFFF; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:16px;">
+<div style="min-width:0; display:flex; align-items:baseline; gap:12px;">
+<button class="mobile-menu-button" aria-label="메뉴 열기" aria-expanded="{{ mobileNav }}" onClick="{{ toggleMobileNav }}">☰</button>
+<h1 style="margin:0; font-size:21px; font-weight:700; white-space:nowrap;">{{ pageTitle }}</h1>
+<span style="font-size:14px; color:#5F6368; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ pageDesc }}</span>
+</div>
+<div style="flex-shrink:0; display:flex; align-items:center; gap:12px;">
+<sc-if value="{{ saveErr }}" hint-placeholder-val="{{ false }}"><span style="padding:4px 10px; border-radius:999px; background:#FDECEC; color:#C92A2A; font-size:13px; font-weight:700;">브라우저 저장 실패</span></sc-if>
+<span style="font-size:14px; font-weight:600; color:#444444;">{{ todayLabel }}</span>
+</div>
+</header>
+<div class="app-content" style="padding:28px 32px 56px; display:flex; flex-direction:column; gap:20px;">
+
+<sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ showGuide }}" hint-placeholder-val="{{ true }}">
+<div style="padding:16px 20px; border-radius:12px; background:var(--tint, #EAF1FA); display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px;">
+<span style="font-size:14px; font-weight:700; color:var(--main, #1E4B8F);">시연 순서</span>
+<span style="flex:1 1 420px; font-size:14px; color:#333333;">10:00 한지원 예약 → 결제하기 → 할인 10,000원 입력 → 결제 기록 완료 → 재고·입고에서 보충 필요 확인 → 실제 입고 수량 등록</span>
+<button onClick="{{ startDemo }}" style="padding:9px 16px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">{{ demoLabel }}</button>
+</div>
+</sc-if>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:16px;">
+<sc-for list="{{ dash.kpis }}" as="k" hint-placeholder-count="4">
+<button data-testid="{{ k.testId }}" onClick="{{ k.go }}" style="padding:20px 22px; border:1px solid #E1E5EB; border-radius:12px; background:#FFFFFF; font-family:inherit; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:6px;" style-hover="border-color:var(--main, #1E4B8F);">
+<span style="font-size:14px; font-weight:600; color:#5F6368;">{{ k.label }}</span>
+<span style="font-size:28px; font-weight:800; line-height:1.2; color:{{ k.color }};">{{ k.value }}</span>
+<span style="font-size:13px; color:#5F6368;">{{ k.sub }}</span>
+</button>
+</sc-for>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:20px; align-items:start;">
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:16px; font-weight:700;">오늘 일정</span>
+<button onClick="{{ goSched }}" style="padding:4px 0; border:0; background:transparent; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">예약·일정 보기 →</button>
+</div>
+<sc-for list="{{ dash.today }}" as="r" hint-placeholder-count="5">
+<div style="display:grid; grid-template-columns:52px minmax(0, 1fr) auto; gap:14px; align-items:center; padding:12px 20px; border-bottom:1px solid #EEF0F3;">
+<span style="font-size:15px; font-weight:700;">{{ r.time }}</span>
+<button onClick="{{ r.open }}" style="min-width:0; padding:0; border:0; background:transparent; font-family:inherit; text-align:left; cursor:pointer; display:flex; flex-direction:column;">
+<span style="font-size:15px; font-weight:600; color:#222222;">{{ r.cust }}</span>
+<span style="font-size:13px; color:#5F6368;">{{ r.svc }} · {{ r.staff }}</span>
+</button>
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="padding:2px 10px; border-radius:999px; background:{{ r.badge.bg }}; color:{{ r.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ r.badge.t }}</span>
+<sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.pay }}" style="padding:6px 12px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">결제</button></sc-if>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{ dash.noToday }}" hint-placeholder-val="{{ false }}"><div style="padding:32px 20px; text-align:center; font-size:14px; color:#5F6368;">오늘 등록된 예약이 없습니다.</div></sc-if>
+</div>
+<div style="display:flex; flex-direction:column; gap:20px;">
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:16px; font-weight:700;">재고 알림</span>
+<button onClick="{{ goInv }}" style="padding:4px 0; border:0; background:transparent; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">재고·입고 보기 →</button>
+</div>
+<sc-for list="{{ dash.low }}" as="i" hint-placeholder-count="3">
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 20px; border-bottom:1px solid #EEF0F3;">
+<div style="min-width:0; display:flex; flex-direction:column; gap:2px;">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<span style="font-size:15px; font-weight:600;">{{ i.name }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ i.badge.bg }}; color:{{ i.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ i.badge.t }}</span>
+</div>
+<span style="font-size:13px; color:#5F6368;">{{ i.qty }}</span>
+</div>
+
+<sc-if value="{{ i.canReceive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ i.receive }}" style="flex-shrink:0; padding:6px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">입고 등록</button></sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ dash.noLow }}" hint-placeholder-val="{{ false }}"><div style="padding:24px 20px; text-align:center; font-size:14px; color:#5F6368;">부족한 재고가 없습니다.</div></sc-if>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:16px; font-weight:700;">최근 결제</span>
+<button onClick="{{ goSales }}" style="padding:4px 0; border:0; background:transparent; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">매출 관리 보기 →</button>
+</div>
+<sc-for list="{{ dash.recent }}" as="t" hint-placeholder-count="5">
+<button onClick="{{ t.open }}" style="width:100%; display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:center; padding:12px 20px; border:0; border-bottom:1px solid #EEF0F3; background:#FFFFFF; font-family:inherit; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;">
+<span style="min-width:0; display:flex; flex-direction:column;">
+<span style="font-size:15px; font-weight:600; color:#222222;">{{ t.cust }}</span>
+<span style="font-size:13px; color:#5F6368;">{{ t.dt }} · {{ t.staff }}</span>
+</span>
+<span style="font-size:15px; font-weight:700; color:#222222;">{{ t.total }}</span>
+</button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSched }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<button onClick="{{ sched.prev }}" style="padding:9px 14px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">〈 이전</button>
+<input type="date" aria-label="날짜 선택" value="{{ sched.date }}" onChange="{{ sched.onDate }}" style="padding:8px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; outline:none; font-size:15px; font-weight:600;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<button onClick="{{ sched.next }}" style="padding:9px 14px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">다음 〉</button>
+<sc-if value="{{ sched.notToday }}" hint-placeholder-val="{{ false }}"><button onClick="{{ sched.toToday }}" style="padding:9px 14px; border:1px solid var(--main, #1E4B8F); border-radius:8px; background:#FFFFFF; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="background:var(--tint, #EAF1FA);">오늘</button></sc-if>
+<div style="margin-left:8px; display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<span style="font-size:17px; font-weight:700;">{{ sched.dateLabel }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:#F3F4F6; color:#444444; font-size:12px; font-weight:700;">{{ sched.dayNote }}</span>
+<span style="font-size:14px; color:#5F6368;">{{ sched.dayCount }}</span>
+</div>
+</div>
+<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px; font-size:13px; color:#444444;">
+<div style="display:flex; align-items:center; gap:6px;"><span style="width:14px; height:14px; box-sizing:border-box; border-radius:4px; border:1.5px solid var(--main, #1E4B8F); background:var(--tint, #EAF1FA);"></span><span>예약</span></div>
+<div style="display:flex; align-items:center; gap:6px;"><span style="width:14px; height:14px; border-radius:4px; background:var(--main, #1E4B8F);"></span><span>시술 중</span></div>
+<div style="display:flex; align-items:center; gap:6px;"><span style="width:14px; height:14px; box-sizing:border-box; border-radius:4px; border:1.5px solid #D0D7E2; background:#F3F4F6;"></span><span>완료</span></div>
+<span style="color:#5F6368;">빈 칸을 누르면 그 시간으로 예약 등록</span>
+</div>
+<div style="display:flex; gap:8px;">
+<button onClick="{{ openWalkin }}" style="padding:9px 16px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">현장 접수</button>
+<button onClick="{{ openResv }}" style="padding:10px 18px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">예약 등록</button>
+</div>
+</div>
+<div style="display:flex; flex-wrap:nowrap; gap:20px; align-items:flex-start;">
+<div style="flex:1 1 0; min-width:0; max-height:calc(100vh - 200px); overflow:auto; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px;">
+<div style="display:grid; grid-template-columns:{{ sched.cols }}; grid-template-rows:{{ sched.rows }}; min-width:{{ sched.minW }};">
+<div style="grid-row:1; grid-column:1; position:sticky; top:0; left:0; z-index:4; background:#F7F8FA; border-bottom:1px solid #D0D7E2; border-right:1px solid #E1E5EB;"></div>
+<sc-for list="{{ sched.heads }}" as="h" hint-placeholder-count="3">
+<div style="grid-row:1; grid-column:{{ h.col }}; position:sticky; top:0; z-index:3; padding:0 14px; background:#F7F8FA; border-bottom:1px solid #D0D7E2; border-right:1px solid #E1E5EB; display:flex; align-items:center; gap:8px;">
+<span style="font-size:15px; font-weight:700;">{{ h.name }}</span>
+<span style="font-size:12px; color:#5F6368;">{{ h.role }} · {{ h.count }}</span>
+</div>
+</sc-for>
+<sc-for list="{{ sched.times }}" as="t" hint-placeholder-count="0">
+<div style="grid-row:{{ t.row }}; grid-column:1; position:sticky; left:0; z-index:2; padding:3px 10px 0 0; background:#FFFFFF; border-right:1px solid #E1E5EB; border-bottom:1px {{ t.ls }} #E1E5EB; text-align:right; font-size:12px; font-weight:{{ t.fw }}; color:{{ t.fg }};">{{ t.label }}</div>
+</sc-for>
+<sc-for list="{{ sched.cells }}" as="c" hint-placeholder-count="0">
+<button onClick="{{ c.add }}" title="{{ c.title }}" style="grid-row:{{ c.row }}; grid-column:{{ c.col }}; padding:0; border:0; border-right:1px solid #E1E5EB; border-bottom:1px {{ c.ls }} #E1E5EB; background:transparent; cursor:pointer;" style-hover="background:#F7F8FA;"></button>
+</sc-for>
+<sc-for list="{{ sched.blocks }}" as="b" hint-placeholder-count="0">
+<button onClick="{{ b.open }}" title="{{ b.full }}" style="grid-row:{{ b.row }}; grid-column:{{ b.col }}; z-index:1; min-width:0; margin:3px 6px; padding:5px 10px; border:1.5px solid {{ b.bd }}; border-radius:8px; background:{{ b.bg }}; color:{{ b.fg }}; box-shadow:{{ b.shadow }}; font-family:inherit; text-align:left; cursor:pointer; overflow:hidden; display:flex; flex-direction:column; gap:2px;">
+<span style="max-width:100%; font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ b.head }}</span>
+<sc-if value="{{ b.tall }}" hint-placeholder-val="{{ false }}">
+<span style="max-width:100%; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ b.svc }}</span>
+<span style="font-size:12px; font-weight:700;">{{ b.status }}</span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{ sched.hasSel }}" hint-placeholder-val="{{ false }}">
+<div style="flex:0 0 310px; max-height:calc(100vh - 200px); overflow-y:auto; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px;">
+<div style="padding:14px 16px 14px 20px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<div style="display:flex; align-items:center; gap:8px;">
+<span style="font-size:16px; font-weight:700;">예약 상세</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ sched.sel.badge.bg }}; color:{{ sched.sel.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ sched.sel.badge.t }}</span>
+</div>
+<button onClick="{{ sched.sel.close }}" aria-label="닫기" style="width:32px; height:32px; border:0; border-radius:8px; background:transparent; color:#5F6368; font-family:inherit; font-size:20px; cursor:pointer;" style-hover="background:#F3F4F6;">×</button>
+</div>
+<div style="padding:18px 20px; display:flex; flex-direction:column; gap:16px;">
+<div style="display:flex; flex-direction:column; gap:4px;">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<span style="font-size:20px; font-weight:700;">{{ sched.sel.cust }}</span>
+<span style="padding:2px 8px; border-radius:6px; background:#F3F4F6; color:#444444; font-size:12px; font-weight:600;">{{ sched.sel.kind }}</span>
+</div>
+<span style="font-size:14px; color:#5F6368;">{{ sched.sel.phone }}</span>
+</div>
+<div style="display:grid; grid-template-columns:72px minmax(0, 1fr); gap:10px 12px; font-size:14px;">
+<span style="color:#5F6368;">날짜</span><span style="font-weight:600;">{{ sched.sel.dateText }}</span>
+<span style="color:#5F6368;">시간</span><span style="font-weight:600;">{{ sched.sel.time }}</span>
+<span style="color:#5F6368;">담당</span><span style="font-weight:600;">{{ sched.sel.staff }}</span>
+<span style="color:#5F6368;">시술</span><span>{{ sched.sel.svc }}</span>
+<span style="color:#5F6368;">예상 금액</span><span>{{ sched.sel.est }}</span>
+<span style="color:#5F6368;">접수</span><span>{{ sched.sel.src }}</span>
+<span style="color:#5F6368;">메모</span><span>{{ sched.sel.memo }}</span>
+<sc-if value="{{ sched.sel.hasChanges }}" hint-placeholder-val="{{ false }}"><div style="grid-column:1 / -1; margin-top:4px; padding:12px 14px; border-radius:8px; background:#F7F8FA; display:flex; flex-direction:column; gap:6px;"><span style="font-size:12px; font-weight:700; color:#444444;">변경 이력</span><sc-for list="{{ sched.sel.changes }}" as="h" hint-placeholder-count="1"><span style="font-size:13px; color:#333333;">{{ h.at }} · {{ h.text }}</span></sc-for></div></sc-if>
+</div>
+</div>
+<div style="padding:16px 20px; border-top:1px solid #E1E5EB; display:flex; flex-direction:column; gap:8px;">
+<sc-if value="{{ sched.sel.canEdit }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ sched.sel.edit }}" style="padding:10px 12px; border:1px solid var(--main, #1E4B8F); border-radius:8px; background:#FFFFFF; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="background:var(--tint, #EAF1FA);">예약 수정 · 날짜·시간·담당자</button>
+</sc-if>
+<sc-if value="{{ sched.sel.isFuture }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ sched.sel.cancel }}" style="padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#444444; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">예약 취소</button>
+<span style="font-size:13px; color:#5F6368;">방문 확인과 결제는 예약 당일에 할 수 있습니다.</span>
+</sc-if>
+<sc-if value="{{ sched.sel.isPastResv }}" hint-placeholder-val="{{ false }}">
+<span style="font-size:13px; color:#5F6368;">처리되지 않은 지난 예약입니다. 방문하지 않았다면 노쇼로, 취소됐다면 예약 취소로 정리하세요.</span>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+<button onClick="{{ sched.sel.cancel }}" style="padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#444444; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">예약 취소</button>
+<button onClick="{{ sched.sel.noshow }}" style="padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#C92A2A; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#FDECEC;">노쇼 처리</button>
+</div>
+</sc-if>
+<sc-if value="{{ sched.sel.isResv }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+<button onClick="{{ sched.sel.checkin }}" style="padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">방문 확인</button>
+<button onClick="{{ sched.sel.pay }}" style="padding:10px 12px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">결제하기</button>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+<button onClick="{{ sched.sel.cancel }}" style="padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#444444; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">예약 취소</button>
+<button onClick="{{ sched.sel.noshow }}" style="padding:8px 12px; border:0; border-radius:8px; background:transparent; color:#C92A2A; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#FDECEC;">노쇼 처리</button>
+</div>
+</sc-if>
+<sc-if value="{{ sched.sel.isProg }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ sched.sel.pay }}" style="padding:11px 12px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">결제하기</button>
+<span style="font-size:13px; color:#5F6368;">결제를 완료해야 매출과 재고가 확정됩니다.</span>
+</sc-if>
+<sc-if value="{{ sched.sel.isDone }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ sched.sel.viewTxn }}" style="padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">결제 내역 보기</button>
+</sc-if>
+<sc-if value="{{ sched.sel.isOff }}" hint-placeholder-val="{{ false }}">
+<span style="font-size:13px; color:#5F6368;">취소·노쇼 예약은 매출, 시술 이력, 재고에 반영되지 않습니다.</span>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ sched.hasOff }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px; color:#5F6368;">
+<span style="font-weight:700;">취소·노쇼</span>
+<sc-for list="{{ sched.off }}" as="o" hint-placeholder-count="0">
+<button onClick="{{ o.open }}" style="padding:4px 10px; border:1px dashed #D0D7E2; border-radius:999px; background:#FFFFFF; color:#5F6368; font-family:inherit; font-size:13px; cursor:pointer;">{{ o.text }}</button>
+</sc-for>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isCust }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ cust.isList }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<div style="flex:0 1 360px; min-width:220px;">
+<input type="text" placeholder="이름 또는 연락처 검색" value="{{ cust.q }}" onChange="{{ cust.onQ }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; align-items:center; gap:12px;">
+<span style="font-size:14px; color:#5F6368;">{{ cust.count }}</span>
+<button onClick="{{ cust.add }}" style="padding:10px 18px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">고객 등록</button>
+</div>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="overflow-x:auto;"><div style="min-width:780px;">
+<div style="display:grid; grid-template-columns:minmax(80px, 0.9fr) minmax(130px, 1.1fr) 64px minmax(100px, 0.9fr) minmax(100px, 1fr) minmax(0, 1.6fr); gap:12px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>고객명</span><span>연락처</span><span>방문</span><span>최근 방문</span><span>누적 결제</span><span>메모</span>
+</div>
+<sc-for list="{{ cust.rows }}" as="c" hint-placeholder-count="6">
+<button onClick="{{ c.open }}" style="width:100%; display:grid; grid-template-columns:minmax(80px, 0.9fr) minmax(130px, 1.1fr) 64px minmax(100px, 0.9fr) minmax(100px, 1fr) minmax(0, 1.6fr); gap:12px; align-items:center; padding:13px 20px; border:0; border-bottom:1px solid #EEF0F3; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;">
+<span style="font-weight:700;">{{ c.name }}</span>
+<span>{{ c.phone }}</span>
+<span>{{ c.visits }}</span>
+<span>{{ c.last }}</span>
+<span style="font-weight:600;">{{ c.total }}</span>
+<span style="color:#5F6368; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.memo }}</span>
+</button>
+</sc-for>
+</div></div>
+<sc-if value="{{ cust.noRows }}" hint-placeholder-val="{{ false }}"><div style="padding:32px 20px; text-align:center; font-size:14px; color:#5F6368;">검색 결과가 없습니다.</div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ cust.isDetail }}" hint-placeholder-val="{{ false }}">
+<div><button onClick="{{ cust.d.back }}" style="padding:4px 0; border:0; background:transparent; color:var(--main, #1E4B8F); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">← 고객 목록</button></div>
+<div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start;">
+<div style="flex:0 1 340px; min-width:280px; box-sizing:border-box; padding:22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:18px;">
+<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+<div style="display:flex; flex-direction:column; gap:2px;">
+<span style="font-size:22px; font-weight:700;">{{ cust.d.name }}</span>
+<span style="font-size:14px; color:#5F6368;">{{ cust.d.phone }}</span>
+</div>
+<button onClick="{{ cust.d.edit }}" style="padding:6px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">정보 수정</button>
+</div>
+<div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;">
+<div style="padding:10px 12px; border-radius:8px; background:#F7F8FA; display:flex; flex-direction:column;"><span style="font-size:12px; color:#5F6368;">방문</span><span style="font-size:16px; font-weight:700; white-space:nowrap;">{{ cust.d.visits }}</span></div>
+<div style="padding:10px 12px; border-radius:8px; background:#F7F8FA; display:flex; flex-direction:column;"><span style="font-size:12px; color:#5F6368;">최근 방문</span><span style="font-size:16px; font-weight:700; white-space:nowrap;">{{ cust.d.last }}</span></div>
+<div style="grid-column:1 / -1; padding:10px 12px; border-radius:8px; background:#F7F8FA; display:flex; justify-content:space-between; align-items:baseline; gap:12px;"><span style="font-size:12px; color:#5F6368;">누적 결제</span><span style="font-size:16px; font-weight:700; white-space:nowrap;">{{ cust.d.total }}</span></div>
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">메모</span>
+<p style="margin:0; padding:12px 14px; border-radius:8px; background:#F7F8FA; font-size:14px; color:#333333;">{{ cust.d.memo }}</p>
+</div>
+<span style="font-size:13px; color:#5F6368;">{{ cust.d.since }}</span>
+</div>
+<div style="flex:1 1 480px; min-width:0; display:flex; flex-direction:column; gap:20px;">
+<sc-if value="{{ cust.d.hasUp }}" hint-placeholder-val="{{ false }}">
+<div style="background:#FFFFFF; border:1.5px solid var(--main, #1E4B8F); border-radius:12px; overflow:hidden;">
+<div style="padding:12px 20px; background:var(--tint, #EAF1FA); font-size:14px; font-weight:700; color:var(--main, #1E4B8F);">예정된 예약</div>
+<sc-for list="{{ cust.d.up }}" as="u" hint-placeholder-count="1">
+<button onClick="{{ u.go }}" style="width:100%; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 20px; border:0; border-top:1px solid #EEF0F3; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; font-weight:600; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;">
+<span>{{ u.text }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ u.badge.bg }}; color:{{ u.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ u.badge.t }}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+<span style="font-size:16px; font-weight:700;">방문·시술 이력</span>
+<span style="font-size:13px; color:#5F6368;">결제 완료된 거래 기준</span>
+</div>
+<div style="overflow-x:auto;"><div style="min-width:560px;">
+<div style="display:grid; grid-template-columns:120px minmax(0, 1.6fr) 80px 100px 72px; gap:12px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>일시</span><span>시술·상품</span><span>담당</span><span style="text-align:right;">결제금액</span><span>구분</span>
+</div>
+<sc-for list="{{ cust.d.hist }}" as="h" hint-placeholder-count="3">
+<button onClick="{{ h.open }}" style="width:100%; display:grid; grid-template-columns:120px minmax(0, 1.6fr) 80px 100px 72px; gap:12px; align-items:center; padding:12px 20px; border:0; border-bottom:1px solid #EEF0F3; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;">
+<span style="color:#444444;">{{ h.dt }}</span>
+<span style="font-weight:600;">{{ h.svc }}</span>
+<span>{{ h.staff }}</span>
+<span style="text-align:right; font-weight:700; text-decoration:{{ h.adeco }};">{{ h.amount }}</span>
+<span style="justify-self:start; padding:2px 10px; border-radius:999px; background:{{ h.badge.bg }}; color:{{ h.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ h.badge.t }}</span>
+</button>
+</sc-for>
+</div></div>
+<sc-if value="{{ cust.d.noHist }}" hint-placeholder-val="{{ false }}"><div style="padding:32px 20px; text-align:center; font-size:14px; color:#5F6368;">아직 결제 완료된 방문 기록이 없습니다.</div></sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isPay }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ pay.isList }}" hint-placeholder-val="{{ true }}">
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; flex-direction:column; gap:2px;">
+<span style="font-size:16px; font-weight:700;">결제 대기</span>
+<span style="font-size:13px; color:#5F6368;">오늘 예약·시술 중 고객 · 선택하면 예약 정보가 결제 화면에 채워집니다</span>
+</div>
+<sc-for list="{{ pay.list }}" as="r" hint-placeholder-count="4">
+<div style="display:grid; grid-template-columns:minmax(56px, auto) minmax(0, 1fr) auto auto auto; gap:14px; align-items:center; padding:14px 20px; border-bottom:1px solid #EEF0F3;">
+<span style="font-size:15px; font-weight:700;">{{ r.time }}</span>
+<div style="min-width:0; display:flex; flex-direction:column;">
+<span style="font-size:15px; font-weight:600;">{{ r.cust }}</span>
+<span style="font-size:13px; color:#5F6368;">{{ r.svc }} · {{ r.staff }}</span>
+</div>
+<span style="padding:2px 10px; border-radius:999px; background:{{ r.badge.bg }}; color:{{ r.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ r.badge.t }}</span>
+<span style="font-size:14px; font-weight:600;">{{ r.est }}</span>
+<button onClick="{{ r.go }}" style="padding:9px 16px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">결제 진행</button>
+</div>
+</sc-for>
+<sc-if value="{{ pay.noList }}" hint-placeholder-val="{{ false }}"><div style="padding:40px 20px; text-align:center; font-size:14px; color:#5F6368;">결제할 예약이 없습니다. 예약·일정에서 예약이나 현장 접수를 등록하세요.</div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ pay.isForm }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start;">
+<div style="flex:1 1 540px; min-width:0; display:flex; flex-direction:column; gap:20px;">
+<div style="padding:20px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
+<div style="min-width:0; display:flex; flex-direction:column; gap:4px;">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<span style="font-size:20px; font-weight:700;">{{ pay.cust }}</span>
+<span style="padding:2px 8px; border-radius:6px; background:#F3F4F6; color:#444444; font-size:12px; font-weight:600;">{{ pay.kind }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ pay.typeBadge.bg }}; color:{{ pay.typeBadge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ pay.typeBadge.t }}</span>
+</div>
+<span style="font-size:14px; color:#5F6368;">{{ pay.info }}</span>
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">담당 디자이너</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ pay.staffs }}" as="s" hint-placeholder-count="3"><button onClick="{{ s.pick }}" style="padding:8px 14px; border:1px solid {{ s.bd }}; border-radius:8px; background:{{ s.bg }}; color:{{ s.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ s.name }}</button></sc-for>
+</div>
+</div>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+<span style="font-size:16px; font-weight:700;">시술·상품</span>
+<span style="font-size:13px; color:#5F6368;">실제로 진행한 내용과 다르면 결제 전에 변경하세요</span>
+</div>
+<div style="overflow-x:auto;"><div style="min-width:560px;">
+<div style="display:grid; grid-template-columns:56px minmax(0, 1fr) 96px 96px 96px 36px; gap:10px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>구분</span><span>항목</span><span style="text-align:right;">정상가</span><span style="text-align:right;">할인 배분</span><span style="text-align:right;">매출</span><span></span>
+</div>
+<sc-for list="{{ pay.lines }}" as="l" hint-placeholder-count="2">
+<div style="display:grid; grid-template-columns:56px minmax(0, 1fr) 96px 96px 96px 36px; gap:10px; align-items:center; padding:10px 20px; border-bottom:1px solid #EEF0F3; font-size:14px;">
+<span style="justify-self:start; padding:2px 8px; border-radius:6px; background:{{ l.tbg }}; color:{{ l.tfg }}; font-size:12px; font-weight:700;">{{ l.type }}</span>
+<span style="font-weight:600;">{{ l.name }}</span>
+<span style="text-align:right;">{{ l.price }}</span>
+<span style="text-align:right; color:{{ l.afg }};">{{ l.alloc }}</span>
+<span style="text-align:right; font-weight:700;">{{ l.net }}</span>
+<button onClick="{{ l.remove }}" aria-label="항목 삭제" style="width:32px; height:32px; border:0; border-radius:8px; background:transparent; color:#5F6368; font-family:inherit; font-size:18px; cursor:pointer;" style-hover="background:#FDECEC; color:#C92A2A;">×</button>
+</div>
+</sc-for>
+</div></div>
+<sc-if value="{{ pay.noLines }}" hint-placeholder-val="{{ false }}"><div style="padding:24px 20px; text-align:center; font-size:14px; color:#5F6368;">아래에서 시술이나 상품을 추가하세요.</div></sc-if>
+<div style="padding:16px 20px; border-top:1px solid #E1E5EB; display:flex; flex-direction:column; gap:10px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">시술 추가</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ pay.addSvc }}" as="a" hint-placeholder-count="6"><button onClick="{{ a.add }}" style="padding:7px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="border-color:var(--main, #1E4B8F);">+ {{ a.label }} <span style="font-weight:500; color:#5F6368;">{{ a.price }}</span></button></sc-for>
+</div>
+<span style="font-size:13px; font-weight:700; color:#444444;">상품 추가</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ pay.addProd }}" as="a" hint-placeholder-count="3"><button onClick="{{ a.add }}" disabled="{{ a.disabled }}" style="padding:7px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; opacity:{{ a.op }}; font-family:inherit; font-size:13px; font-weight:600; cursor:{{ a.cur }};">+ {{ a.label }} <span style="font-weight:500; color:#5F6368;">{{ a.meta }}</span></button></sc-for>
+</div>
+</div>
+</div>
+</div>
+<div style="flex:0 1 340px; min-width:280px; position:sticky; top:84px; display:flex; flex-direction:column; gap:16px;">
+<div style="padding:20px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:10px;">
+<span style="font-size:16px; font-weight:700;">결제 요약</span>
+<div style="display:flex; justify-content:space-between; gap:8px; font-size:14px;"><span style="color:#5F6368;">합계 (정상가)</span><span style="font-weight:600;">{{ pay.sub }}</span></div>
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:14px;">
+<span style="color:#5F6368;">할인 금액</span>
+<div style="display:flex; align-items:center; gap:6px;"><input type="text" placeholder="0" aria-label="할인 금액" value="{{ pay.discount }}" onChange="{{ pay.onDiscount }}" style="width:120px; box-sizing:border-box; padding:8px 10px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; outline:none; font-size:15px; text-align:right;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);"><span style="color:#444444;">원</span></div>
+</div>
+<span style="margin-top:-4px; text-align:right; font-size:12px; color:#5F6368;">정상가 비율로 항목별 배분 · {{ pay.disc }}</span>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:14px; color:#5F6368;">결제수단</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ pay.methods }}" as="m" hint-placeholder-count="3"><button onClick="{{ m.pick }}" style="padding:8px 14px; border:1px solid {{ m.bd }}; border-radius:8px; background:{{ m.bg }}; color:{{ m.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ m.label }}</button></sc-for>
+</div>
+</div>
+<div style="padding-top:10px; border-top:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+<span style="font-size:15px; font-weight:700;">최종 결제금액</span>
+<span style="font-size:26px; font-weight:800; color:var(--main, #1E4B8F);">{{ pay.total }}</span>
+</div>
+<sc-if value="{{ pay.hasShort }}" hint-placeholder-val="{{ false }}">
+<div style="padding:12px 14px; border-radius:10px; background:#FDECEC; display:flex; flex-direction:column; gap:8px;">
+<sc-for list="{{ pay.shorts }}" as="x" hint-placeholder-count="1"><div style="display:flex; justify-content:space-between; align-items:center; gap:10px;"><span style="font-size:13px; font-weight:700; color:#C92A2A;">{{ x.text }}</span><button onClick="{{ x.adjust }}" style="flex-shrink:0; padding:5px 10px; border:1px solid #C92A2A; border-radius:8px; background:#FFFFFF; color:#C92A2A; font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;">재고 조정</button></div></sc-for>
+<input type="text" placeholder="부족 사유 (예: 실사 전 재고 오차)" value="{{ pay.shortReason }}" onChange="{{ pay.onShortReason }}" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; outline:none; font-size:14px;" style-focus="border-color:#C92A2A;">
+<span style="font-size:12px; color:#444444;">재고를 조정하거나 사유를 남기면 결제를 기록할 수 있습니다. 사유는 입출고 이력에 함께 저장됩니다.</span>
+</div>
+</sc-if>
+<sc-if value="{{ pay.hasErr }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; font-weight:600; color:#C92A2A;">{{ pay.err }}</span></sc-if>
+<button onClick="{{ pay.submit }}" disabled="{{ pay.cant }}" style="margin-top:4px; padding:14px; border:0; border-radius:10px; background:{{ pay.sbg }}; color:#FFFFFF; font-family:inherit; font-size:16px; font-weight:700; cursor:{{ pay.scur }};">{{ pay.submitLabel }}</button>
+<button onClick="{{ pay.cancel }}" style="padding:8px; border:0; background:transparent; color:#5F6368; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">다른 예약 선택</button>
+</div>
+<div style="padding:18px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:12px;">
+<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+<span style="font-size:15px; font-weight:700;">재고 차감 예정</span>
+<span style="font-size:12px; color:#5F6368;">기본 사용량 기준</span>
+</div>
+<sc-for list="{{ pay.stock }}" as="s" hint-placeholder-count="1">
+<div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+<div style="display:flex; flex-direction:column;">
+<span style="font-size:14px; font-weight:600;">{{ s.name }} <span style="color:#C92A2A;">{{ s.use }}</span></span>
+<span style="font-size:13px; color:#5F6368;">{{ s.fromTo }}</span>
+</div>
+<span style="padding:2px 10px; border-radius:999px; background:{{ s.badge.bg }}; color:{{ s.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ s.badge.t }}</span>
+</div>
+</sc-for>
+<sc-if value="{{ pay.noStock }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; color:#5F6368;">차감할 재고가 없습니다.</span></sc-if>
+</div>
+<div style="padding:14px 16px; border-radius:10px; background:var(--tint, #EAF1FA); font-size:13px; line-height:1.6; color:#333333;">결제 기록 완료를 누르면 예약 완료 확정, 매출 생성, 고객 이력·디자이너 실적 반영, 재고 차감이 한 번에 처리됩니다. 처리 중 오류가 나면 아무것도 반영하지 않고, 같은 거래는 한 번만 저장됩니다. 실제 카드 승인은 단말기에서 하고 이 화면에는 결과만 기록합니다.</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ pay.isResult }}" hint-placeholder-val="{{ false }}">
+<div style="max-width:780px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:24px 26px; background:var(--main, #1E4B8F); color:#FFFFFF; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<div style="display:flex; flex-direction:column; gap:2px;">
+<span style="font-size:20px; font-weight:700;">결제가 기록되었습니다</span>
+<span style="font-size:14px; color:#D6E2F3;">{{ pay.res.id }} · {{ pay.res.cust }}</span>
+</div>
+<span style="font-size:28px; font-weight:800;">{{ pay.res.total }}</span>
+</div>
+<div style="padding:16px 26px 6px;"><span style="font-size:13px; font-weight:700; color:#5F6368;">결제 기록 한 번으로 함께 반영된 내용</span></div>
+<sc-for list="{{ pay.res.rows }}" as="x" hint-placeholder-count="5">
+<div style="display:grid; grid-template-columns:120px minmax(0, 1fr) auto; gap:14px; align-items:center; padding:12px 26px; border-bottom:1px solid #EEF0F3;">
+<span style="font-size:14px; font-weight:600; color:#444444;">{{ x.label }}</span>
+<span style="font-size:15px; font-weight:600;">{{ x.value }}</span>
+<sc-if value="{{ x.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="padding:2px 10px; border-radius:999px; background:{{ x.badge.bg }}; color:{{ x.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ x.badge.t }}</span></sc-if>
+</div>
+</sc-for>
+<div style="padding:18px 26px; display:flex; flex-wrap:wrap; gap:8px;">
+<sc-if value="{{ pay.res.hasLow }}" hint-placeholder-val="{{ false }}"><button onClick="{{ pay.res.toInv }}" style="padding:10px 18px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">재고·입고로 이동</button></sc-if>
+<button onClick="{{ pay.res.toSched }}" style="padding:9px 16px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">예약·일정</button>
+<button onClick="{{ pay.res.toSales }}" style="padding:9px 16px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">오늘 매출 보기</button>
+<button onClick="{{ pay.res.again }}" style="padding:9px 16px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">다음 결제</button>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isSales }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<div style="display:flex; gap:6px;">
+<sc-for list="{{ sales.periods }}" as="p" hint-placeholder-count="3"><button onClick="{{ p.pick }}" style="padding:8px 14px; border:1px solid {{ p.bd }}; border-radius:8px; background:{{ p.bg }}; color:{{ p.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ p.label }}</button></sc-for>
+</div>
+<span style="font-size:14px; color:#5F6368;">{{ sales.range }} · 결제 완료일 기준</span>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+<sc-for list="{{ sales.kpis }}" as="k" hint-placeholder-count="4">
+<div style="padding:18px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:4px;">
+<span style="font-size:14px; font-weight:600; color:#5F6368;">{{ k.label }}</span>
+<span style="font-size:26px; font-weight:800; line-height:1.25;">{{ k.value }}</span>
+<span style="font-size:12px; color:#5F6368;">{{ k.sub }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap:20px; align-items:start;">
+<div style="padding:20px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:14px;">
+<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+<span style="font-size:16px; font-weight:700;">시술별 매출</span>
+<span style="font-size:12px; color:#5F6368;">할인 배분 후 금액</span>
+</div>
+<sc-for list="{{ sales.bySvc }}" as="s" hint-placeholder-count="4">
+<div style="display:flex; flex-direction:column; gap:6px;">
+<div style="display:flex; justify-content:space-between; gap:8px; font-size:14px;">
+<span style="font-weight:600;">{{ s.name }} <span style="font-weight:500; color:#5F6368;">{{ s.n }}</span></span>
+<span style="font-weight:700;">{{ s.amt }}</span>
+</div>
+<div style="height:8px; border-radius:999px; background:#EEF0F3; overflow:hidden;"><div style="width:{{ s.w }}; height:100%; border-radius:999px; background:var(--main, #1E4B8F);"></div></div>
+</div>
+</sc-for>
+<sc-if value="{{ sales.noSvc }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; color:#5F6368;">이 기간의 시술 매출이 없습니다.</span></sc-if>
+<span style="padding-top:12px; border-top:1px solid #EEF0F3; font-size:13px; color:#5F6368;">{{ sales.prodLine }}</span>
+</div>
+<div style="display:flex; flex-direction:column; gap:20px;">
+<div style="padding:20px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:14px;">
+<div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px;">
+<span style="font-size:16px; font-weight:700;">직원별 매출</span>
+<span style="font-size:12px; color:#5F6368;">담당 디자이너 기준</span>
+</div>
+<sc-for list="{{ sales.byStaff }}" as="s" hint-placeholder-count="3">
+<div style="display:flex; flex-direction:column; gap:6px;">
+<div style="display:flex; justify-content:space-between; gap:8px; font-size:14px;">
+<span style="font-weight:600;">{{ s.name }} <span style="font-weight:500; color:#5F6368;">{{ s.n }}</span></span>
+<span style="font-weight:700;">{{ s.amt }}</span>
+</div>
+<div style="height:8px; border-radius:999px; background:#EEF0F3; overflow:hidden;"><div style="width:{{ s.w }}; height:100%; border-radius:999px; background:var(--main, #1E4B8F);"></div></div>
+</div>
+</sc-for>
+<sc-if value="{{ sales.noStaff }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; color:#5F6368;">이 기간의 담당 실적이 없습니다.</span></sc-if>
+</div>
+<div style="padding:20px 22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:12px;">
+<span style="font-size:16px; font-weight:700;">고객 유형</span>
+<div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px;">
+<sc-for list="{{ sales.types }}" as="t" hint-placeholder-count="3">
+<div style="padding:12px 14px; border-radius:10px; background:#F7F8FA; display:flex; flex-direction:column; align-items:flex-start; gap:6px;">
+<span style="padding:2px 10px; border-radius:999px; background:{{ t.badge.bg }}; color:{{ t.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ t.label }}</span>
+<span style="font-size:20px; font-weight:800;">{{ t.n }}</span>
+</div>
+</sc-for>
+</div>
+<span style="font-size:12px; color:#5F6368;">신규·재방문은 과거 결제 완료 이력으로 판정합니다. 비회원은 재방문 여부를 알 수 없어 ‘미등록’으로 따로 집계합니다.</span>
+</div>
+</div>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:16px; font-weight:700;">거래 목록</span>
+<span style="font-size:13px; color:#5F6368;">{{ sales.count }}</span>
+</div>
+<div style="overflow-x:auto;"><div style="min-width:900px;">
+<div style="display:grid; grid-template-columns:72px 116px minmax(130px, 1fr) 72px minmax(170px, 1.6fr) 88px 100px 72px; gap:12px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>거래번호</span><span>결제일시</span><span>고객</span><span>담당</span><span>항목</span><span style="text-align:right;">할인</span><span style="text-align:right;">결제금액</span><span>수단</span>
+</div>
+<sc-for list="{{ sales.rows }}" as="t" hint-placeholder-count="6">
+<button onClick="{{ t.open }}" style="width:100%; display:grid; grid-template-columns:72px 116px minmax(130px, 1fr) 72px minmax(170px, 1.6fr) 88px 100px 72px; gap:12px; align-items:center; padding:12px 20px; border:0; border-bottom:1px solid #EEF0F3; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;">
+<span style="color:#5F6368;">{{ t.id }}</span>
+<span>{{ t.dt }}</span>
+<span style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;"><span style="font-weight:600;">{{ t.cust }}</span><span style="padding:1px 8px; border-radius:999px; background:{{ t.badge.bg }}; color:{{ t.badge.fg }}; font-size:11px; font-weight:700; white-space:nowrap;">{{ t.badge.t }}</span></span>
+<span>{{ t.staff }}</span>
+<span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ t.items }}</span>
+<span style="text-align:right; color:#5F6368;">{{ t.disc }}</span>
+<span style="text-align:right; font-weight:700; text-decoration:{{ t.deco }};">{{ t.total }}</span>
+<span>{{ t.method }}</span>
+</button>
+</sc-for>
+</div></div>
+<sc-if value="{{ sales.noRows }}" hint-placeholder-val="{{ false }}"><div style="padding:32px 20px; text-align:center; font-size:14px; color:#5F6368;">이 기간의 결제 완료 거래가 없습니다.</div></sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isStaff }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:14px; color:#5F6368;">실적은 결제 완료 거래의 담당 디자이너 기준이며, 할인 반영 후 금액입니다.</span>
+<button onClick="{{ staffPg.add }}" style="padding:10px 18px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">직원 등록</button>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="overflow-x:auto;"><div style="min-width:840px;">
+<div style="display:grid; grid-template-columns:minmax(130px, 1fr) 80px 130px 70px 60px minmax(200px, 1.5fr) 96px; gap:12px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>이름</span><span>직책</span><span>연락처</span><span>상태</span><span>오늘</span><span>{{ staffPg.monthLabel }}</span><span></span>
+</div>
+<sc-for list="{{ staffPg.rows }}" as="s" hint-placeholder-count="4">
+<div style="display:grid; grid-template-columns:minmax(130px, 1fr) 80px 130px 70px 60px minmax(200px, 1.5fr) 96px; gap:12px; align-items:center; padding:14px 20px; border-bottom:1px solid #EEF0F3; font-size:14px;">
+<div style="display:flex; align-items:center; gap:10px;">
+<span style="width:32px; height:32px; flex-shrink:0; border-radius:50%; background:var(--tint, #EAF1FA); color:var(--main, #1E4B8F); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;">{{ s.init }}</span>
+<span style="font-weight:700;">{{ s.name }}</span>
+</div>
+<span>{{ s.role }}</span>
+<span>{{ s.phone }}</span>
+<span style="justify-self:start; padding:2px 10px; border-radius:999px; background:{{ s.badge.bg }}; color:{{ s.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ s.badge.t }}</span>
+<span>{{ s.today }}</span>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-weight:700;">{{ s.month }}</span><span style="color:#5F6368;">{{ s.cnt }}</span></div>
+<sc-if value="{{ s.isDes }}" hint-placeholder-val="{{ true }}"><div style="height:6px; border-radius:999px; background:#EEF0F3; overflow:hidden;"><div style="width:{{ s.w }}; height:100%; border-radius:999px; background:var(--main, #1E4B8F);"></div></div></sc-if>
+</div>
+<button onClick="{{ s.toggle }}" style="padding:6px 10px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">{{ s.tLabel }}</button>
+</div>
+</sc-for>
+</div></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isInv }}">
+<section class="inventory-page" data-testid="inventory-page" aria-label="재고·입고 관리">
+<div class="inventory-intro"><div><h2>필요한 재고를 확인하고, 들어온 만큼 기록하세요.</h2><p>현재 수량이 보충 기준 이하이면 알려드립니다.</p></div><button class="primary-button" onClick="{{ inv.newReceipt }}">+ 입고 등록</button></div>
+<div class="inventory-summary"><div><span>관리 품목</span><strong>{{ inv.totalCount }}<small>개</small></strong></div><div class="needs-stock"><span>보충 필요 · 품절 포함</span><strong>{{ inv.lowCount }}<small>개</small></strong></div><div><span>오늘 등록한 입고</span><strong>{{ inv.todayCount }}<small>건</small></strong></div></div>
+<div class="inventory-tabs" role="tablist" aria-label="재고 메뉴"><sc-for list="{{ inv.tabs }}" as="t"><button role="tab" aria-selected="{{ t.active }}" class="{{ t.className }}" onClick="{{ t.pick }}">{{ t.label }}</button></sc-for></div>
+<sc-if value="{{ inv.isStock }}">
+<div class="inventory-toolbar"><input class="field-input" type="search" aria-label="재고 품목 검색" placeholder="품목명으로 검색" value="{{ inv.query }}" onChange="{{ inv.onQuery }}"><button class="secondary-button" aria-pressed="{{ inv.onlyLow }}" onClick="{{ inv.toggleLow }}">{{ inv.filterLabel }}</button></div>
+<div class="stock-grid"><sc-for list="{{ inv.stock }}" as="i"><article class="stock-card" data-testid="{{ i.testId }}"><div class="stock-card-heading"><div><span class="eyebrow">{{ i.kind }}</span><h3>{{ i.name }}</h3></div><span class="{{ i.statusClass }}" data-testid="stock-status">{{ i.status }}</span></div><div class="stock-quantity"><div><span>현재 수량</span><strong data-testid="stock-qty">{{ i.qty }}</strong></div><div class="stock-minimum"><span>보충 기준</span><strong>{{ i.min }} 이하</strong></div></div><div class="stock-card-actions"><button class="primary-button" onClick="{{ i.receive }}">입고 등록</button><button class="secondary-button" onClick="{{ i.threshold }}">기준 설정</button><button class="text-button" onClick="{{ i.adjust }}">재고 조정</button></div></article></sc-for></div>
+<sc-if value="{{ inv.noStock }}"><div class="empty-state">{{ inv.emptyStockText }}</div></sc-if>
+<p class="inventory-help">입고는 추가로 들어온 수량을 더합니다. 실제로 세어 본 총수량과 다르면 ‘재고 조정’을 사용하세요.</p>
+</sc-if>
+<sc-if value="{{ inv.isReceipts }}">
+<p class="inventory-help">입고 수량을 잘못 입력했다면 정정하세요. 현재 재고에는 변경한 수량의 차이만 반영됩니다.</p>
+<div class="receipt-list"><sc-for list="{{ inv.receipts }}" as="r"><article class="receipt-card" data-testid="{{ r.testId }}"><div class="receipt-heading"><div><span class="eyebrow">{{ r.id }} · 입고일 {{ r.date }}</span><h3>{{ r.item }}</h3></div><span class="{{ r.statusClass }}">{{ r.statusText }}</span></div><div class="receipt-summary"><strong>{{ r.qty }}</strong><span>입력 직원 {{ r.actor }}</span><span>{{ r.memo }}</span></div><sc-if value="{{ r.legacy }}"><p class="inventory-help">기존 입고 기록 · 재고에 이미 반영된 수량입니다.</p></sc-if><div class="receipt-actions"><sc-if value="{{ r.canEdit }}"><button class="secondary-button" onClick="{{ r.correct }}">수량 정정</button><button class="danger-text-button" onClick="{{ r.cancel }}">입고 취소</button></sc-if></div><details class="receipt-history"><summary>변경 이력 {{ r.changeCount }}건</summary><sc-for list="{{ r.changes }}" as="h"><div class="history-entry"><strong>{{ h.title }}</strong><span>{{ h.detail }}</span><span>{{ h.meta }}</span></div></sc-for></details></article></sc-for></div>
+<sc-if value="{{ inv.noReceipts }}"><div class="empty-state">아직 기록한 입고가 없습니다. 물품이 들어오면 ‘입고 등록’을 눌러 주세요.</div></sc-if>
+</sc-if>
+<sc-if value="{{ inv.isLogs }}"><div class="inventory-log-list"><sc-for list="{{ inv.logs }}" as="l"><article class="inventory-log"><div><strong>{{ l.item }}</strong><span class="eyebrow">{{ l.dt }} · {{ l.actor }}</span></div><span class="status-pill">{{ l.kind }}</span><div><strong>{{ l.change }}</strong><span>{{ l.after }}</span></div><p>{{ l.detail }}</p></article></sc-for></div><sc-if value="{{ inv.noLogs }}"><div class="empty-state">아직 재고 변경 이력이 없습니다.</div></sc-if></sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ isSet }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap:20px; align-items:start;">
+<div style="padding:22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:16px;">
+<span style="font-size:16px; font-weight:700;">매장 정보</span>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">매장명</span>
+<input type="text" value="{{ cfg.name }}" onChange="{{ cfg.onName }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">영업시간</span>
+<span style="font-size:15px;">{{ cfg.hours }}</span>
+</div>
+</div>
+<div style="padding:22px; background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; display:flex; flex-direction:column; gap:12px;">
+<span style="font-size:16px; font-weight:700;">데모 데이터</span>
+<p style="margin:0; font-size:14px; color:#444444;">예약·결제·재고 변경 내용은 이 브라우저에 저장되며, 날짜가 바뀌어도 그대로 유지됩니다. 처음 시연 상태로 되돌리려면 초기화하세요.</p>
+<button onClick="{{ cfg.reset }}" style="align-self:flex-start; padding:9px 16px; border:1px solid #C92A2A; border-radius:8px; background:{{ cfg.rbg }}; color:{{ cfg.rfg }}; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;">{{ cfg.resetLabel }}</button>
+</div>
+</div>
+<div style="background:#FFFFFF; border:1px solid #E1E5EB; border-radius:12px; overflow:hidden;">
+<div style="padding:16px 20px; border-bottom:1px solid #E1E5EB; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+<span style="font-size:16px; font-weight:700;">시술 가격·시간·사용 재료</span>
+<span style="font-size:13px; color:#5F6368;">결제 완료 시 이 기준으로 재료가 차감됩니다</span>
+</div>
+<div style="overflow-x:auto;"><div style="min-width:720px;">
+<div style="display:grid; grid-template-columns:minmax(110px, 1fr) 150px 90px minmax(110px, 1fr) 150px; gap:12px; padding:10px 20px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:13px; font-weight:700; color:#5F6368;">
+<span>시술</span><span>가격 (원)</span><span>소요 시간</span><span>사용 재료</span><span>기본 사용량</span>
+</div>
+<sc-for list="{{ cfg.svcs }}" as="v" hint-placeholder-count="6">
+<div style="display:grid; grid-template-columns:minmax(110px, 1fr) 150px 90px minmax(110px, 1fr) 150px; gap:12px; align-items:center; padding:10px 20px; border-bottom:1px solid #EEF0F3; font-size:14px;">
+<span style="font-weight:700;">{{ v.name }}</span>
+<input type="text" value="{{ v.price }}" onChange="{{ v.onPrice }}" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<span>{{ v.dur }}</span>
+<span style="color:#444444;">{{ v.mat }}</span>
+<sc-if value="{{ v.hasMat }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:center; gap:6px;">
+<input type="text" value="{{ v.amt }}" onChange="{{ v.onAmt }}" style="flex:1; min-width:0; width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:14px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<span style="flex-shrink:0; color:#444444;">{{ v.unit }}</span>
+</div>
+</sc-if>
+<sc-if value="{{ v.noMat }}" hint-placeholder-val="{{ false }}"><span style="color:#5F6368;">—</span></sc-if>
+</div>
+</sc-for>
+</div></div>
+</div>
+</sc-if>
+
+</div>
+</main>
+
+<sc-if value="{{ modal.open }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ modal.close }}" style="position:fixed; inset:0; z-index:50; padding:24px; background:rgba(17, 24, 39, 0.45); display:flex; align-items:center; justify-content:center;">
+<div onClick="{{ modal.stop }}" role="dialog" aria-modal="true" aria-labelledby="modal-title" class="app-modal" style="width:100%; max-width:600px; max-height:calc(100vh - 48px); background:#FFFFFF; border-radius:14px; box-shadow:0 20px 48px rgba(17, 24, 39, 0.25); display:flex; flex-direction:column; overflow:hidden;">
+<div style="padding:20px 20px 16px 24px; border-bottom:1px solid #E1E5EB; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+<div style="display:flex; flex-direction:column; gap:4px;">
+<span id="modal-title" style="font-size:19px; font-weight:700;">{{ modal.title }}</span>
+<sc-if value="{{ modal.hasSub }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; color:#5F6368;">{{ modal.sub }}</span></sc-if>
+</div>
+<button onClick="{{ modal.close }}" aria-label="닫기" style="width:34px; height:34px; flex-shrink:0; border:0; border-radius:8px; background:transparent; color:#5F6368; font-family:inherit; font-size:20px; cursor:pointer;" style-hover="background:#F3F4F6;">×</button>
+</div>
+<div style="flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:18px;">
+
+<sc-if value="{{ modal.isResv }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">고객</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ rf.kinds }}" as="k" hint-placeholder-count="3"><button onClick="{{ k.pick }}" style="padding:8px 14px; border:1px solid {{ k.bd }}; border-radius:8px; background:{{ k.bg }}; color:{{ k.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ k.label }}</button></sc-for>
+</div>
+<sc-if value="{{ rf.isEdit }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px; border-radius:10px; background:#F7F8FA; display:flex; flex-direction:column; gap:2px;"><span style="font-size:15px; font-weight:700;">{{ rf.editCust }}</span><span style="font-size:13px; color:#5F6368;">예약 수정에서는 고객을 바꿀 수 없습니다. 다른 고객이면 이 예약을 취소하고 새로 등록하세요.</span></div></sc-if>
+<sc-if value="{{ rf.isReg }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ rf.hasPicked }}" hint-placeholder-val="{{ false }}">
+<div style="padding:12px 14px; border:1.5px solid var(--main, #1E4B8F); border-radius:10px; background:var(--tint, #EAF1FA); display:flex; justify-content:space-between; align-items:center; gap:12px;">
+<div style="display:flex; flex-direction:column;"><span style="font-size:15px; font-weight:700;">{{ rf.pName }}</span><span style="font-size:13px; color:#444444;">{{ rf.pPhone }}</span></div>
+<button onClick="{{ rf.unpick }}" style="padding:6px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;">변경</button>
+</div>
+</sc-if>
+<sc-if value="{{ rf.noPicked }}" hint-placeholder-val="{{ true }}">
+<input type="text" placeholder="이름 또는 연락처로 검색" value="{{ form.q }}" onChange="{{ fh.q }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<div style="border:1px solid #E1E5EB; border-radius:10px; overflow:hidden;">
+<sc-for list="{{ rf.matches }}" as="c" hint-placeholder-count="0">
+<button onClick="{{ c.pick }}" style="width:100%; display:flex; justify-content:space-between; gap:12px; padding:10px 14px; border:0; border-bottom:1px solid #EEF0F3; background:#FFFFFF; font-family:inherit; font-size:14px; text-align:left; cursor:pointer;" style-hover="background:#F7F8FA;"><span style="font-weight:600; color:#222222;">{{ c.name }}</span><span style="color:#5F6368;">{{ c.phone }}</span></button>
+</sc-for>
+<sc-if value="{{ rf.noMatches }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 14px; font-size:14px; color:#5F6368;">검색 결과가 없습니다. ‘신규 등록’을 선택하세요.</div></sc-if>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ rf.isNew }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+<input type="text" placeholder="이름" value="{{ form.name }}" onChange="{{ fh.name }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<input type="text" placeholder="연락처 010-0000-0000" value="{{ form.phone }}" onChange="{{ fh.phone }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<span style="font-size:13px; color:#5F6368;">저장하면 고객 목록에 함께 등록됩니다.</span>
+</sc-if>
+<sc-if value="{{ rf.isGuest }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+<input type="text" placeholder="이름" value="{{ form.name }}" onChange="{{ fh.name }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+<input type="text" placeholder="연락처 (선택)" value="{{ form.phone }}" onChange="{{ fh.phone }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<span style="font-size:13px; color:#5F6368;">비회원은 거래에 필요한 정보만 남기고 고객 목록에는 추가하지 않습니다.</span>
+</sc-if>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">날짜</span>
+<sc-if value="{{ rf.dateOpen }}" hint-placeholder-val="{{ true }}"><div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px;"><input type="date" min="{{ rf.minDate }}" value="{{ rf.date }}" onChange="{{ rf.onDate }}" style="padding:9px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; outline:none; font-size:15px;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);"><span style="font-size:14px; font-weight:600; color:#444444;">{{ rf.dateText }}</span></div></sc-if>
+<sc-if value="{{ rf.dateLocked }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; font-weight:600;">{{ rf.dateText }} · 현장 접수는 오늘만 가능합니다</span></sc-if>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">시술</span>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
+<sc-for list="{{ rf.svcs }}" as="v" hint-placeholder-count="6">
+<button onClick="{{ v.toggle }}" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid {{ v.bd }}; border-radius:10px; background:{{ v.bg }}; font-family:inherit; text-align:left; cursor:pointer;">
+<span style="width:18px; height:18px; flex-shrink:0; box-sizing:border-box; border:1.5px solid {{ v.boxBd }}; border-radius:4px; background:{{ v.box }}; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">{{ v.mark }}</span>
+<span style="display:flex; flex-direction:column; line-height:1.35;"><span style="font-size:14px; font-weight:700; color:#222222;">{{ v.name }}</span><span style="font-size:12px; color:#5F6368;">{{ v.meta }}</span></span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">담당 디자이너</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ rf.staffs }}" as="s" hint-placeholder-count="3"><button onClick="{{ s.pick }}" style="padding:8px 14px; border:1px solid {{ s.bd }}; border-radius:8px; background:{{ s.bg }}; color:{{ s.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ s.name }}</button></sc-for>
+</div>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">시작 시간</span>
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(68px, 1fr)); gap:6px;">
+<sc-for list="{{ rf.slots }}" as="t" hint-placeholder-count="0">
+<button onClick="{{ t.pick }}" disabled="{{ t.disabled }}" style="padding:7px 0; border:1px solid {{ t.bd }}; border-radius:8px; background:{{ t.bg }}; color:{{ t.fg }}; text-decoration:{{ t.deco }}; font-family:inherit; font-size:13px; font-weight:600; cursor:{{ t.cur }};">{{ t.label }}</button>
+</sc-for>
+</div>
+<span style="font-size:13px; color:#5F6368;">취소선 = 선택한 디자이너의 다른 예약과 겹치거나 영업 종료 뒤에 끝나는 시간</span>
+</div>
+<div style="display:flex; flex-direction:column; gap:8px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">메모 (선택)</span>
+<textarea rows="2" placeholder="요청 사항" value="{{ form.memo }}" onChange="{{ fh.memo }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none; resize:vertical;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);"></textarea>
+</div>
+<div style="padding:12px 14px; border-radius:10px; background:#F7F8FA; font-size:14px; font-weight:600;">{{ rf.summary }}</div>
+</sc-if>
+
+<sc-if value="{{ modal.isCust }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">이름</span>
+<input type="text" placeholder="고객 이름" value="{{ form.name }}" onChange="{{ fh.name }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">연락처</span>
+<input type="text" placeholder="010-0000-0000" value="{{ form.phone }}" onChange="{{ fh.phone }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">메모</span>
+<textarea rows="3" placeholder="선호 스타일, 주의 사항 등" value="{{ form.memo }}" onChange="{{ fh.memo }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none; resize:vertical;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);"></textarea>
+</div>
+</sc-if>
+
+<sc-if value="{{ modal.isStaff }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">이름</span>
+<input type="text" placeholder="직원 이름" value="{{ form.name }}" onChange="{{ fh.name }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">직책</span>
+<div style="display:flex; flex-wrap:wrap; gap:6px;">
+<sc-for list="{{ sf.roles }}" as="r" hint-placeholder-count="3"><button onClick="{{ r.pick }}" style="padding:8px 14px; border:1px solid {{ r.bd }}; border-radius:8px; background:{{ r.bg }}; color:{{ r.fg }}; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;">{{ r.label }}</button></sc-for>
+</div>
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">연락처</span>
+<input type="text" placeholder="010-0000-0000" value="{{ form.phone }}" onChange="{{ fh.phone }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; font-size:15px; outline:none;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+</sc-if>
+
+<sc-if value="{{ modal.isInventory }}">
+<div class="inventory-form">
+<sc-if value="{{ iform.showItems }}"><div class="field-group"><span id="item-choice-label" class="field-label">품목</span><div class="item-options" role="radiogroup" aria-labelledby="item-choice-label"><sc-for list="{{ iform.items }}" as="i"><button role="radio" aria-checked="{{ i.selected }}" class="{{ i.className }}" onClick="{{ i.pick }}"><strong>{{ i.name }}</strong><span>{{ i.meta }}</span></button></sc-for></div></div></sc-if>
+<sc-if value="{{ iform.hasItem }}"><div class="selected-item"><strong>{{ iform.name }}</strong><span>현재 {{ iform.current }} · 보충 기준 {{ iform.minimum }} 이하</span><sc-if value="{{ iform.isReceipt }}"><button class="text-button" style="align-self:flex-start; padding:4px 0;" onClick="{{ iform.toggleItems }}">품목 변경</button></sc-if></div></sc-if>
+<sc-if value="{{ iform.showQuantity }}"><div class="field-group"><label class="field-label" for="inventory-quantity">{{ iform.quantityLabel }}</label><div class="quantity-input-row"><input id="inventory-quantity" class="field-input" type="text" inputmode="decimal" autocomplete="off" value="{{ iform.qty }}" onChange="{{ iform.onQty }}" aria-describedby="inventory-quantity-help" autofocus><span>{{ iform.unit }}</span></div><p id="inventory-quantity-help" class="field-help">{{ iform.quantityHelp }}</p></div></sc-if>
+<sc-if value="{{ iform.isReceipt }}"><div class="field-group"><label class="field-label" for="inventory-date">입고일</label><input id="inventory-date" class="field-input" type="date" value="{{ iform.date }}" max="{{ iform.maxDate }}" onChange="{{ iform.onDate }}"></div><div class="field-group"><label class="field-label" for="inventory-memo">메모 <span class="optional">선택</span></label><textarea id="inventory-memo" class="field-input" rows="2" maxlength="500" placeholder="납품 내용 등 필요한 정보를 남겨 주세요" value="{{ iform.memo }}" onChange="{{ iform.onMemo }}"></textarea></div></sc-if>
+<sc-if value="{{ iform.needsReason }}"><div class="field-group"><label class="field-label" for="inventory-reason">{{ iform.reasonLabel }}</label><textarea id="inventory-reason" class="field-input" rows="2" maxlength="500" value="{{ iform.reason }}" onChange="{{ iform.onReason }}" placeholder="변경한 이유를 입력해 주세요"></textarea></div></sc-if>
+<div class="inventory-preview" role="status" aria-live="polite"><span>{{ iform.previewLabel }}</span><strong>{{ iform.preview }}</strong><span>{{ iform.afterStatus }}</span></div>
+<p class="field-help">입력 직원: {{ iform.actor }} (데모 사용자) · 저장하면 변경 이력이 남습니다.</p>
+<sc-if value="{{ iform.isCancel }}"><p class="cancel-note">입고 기록은 이력에 남으며, 해당 수량을 현재 재고에서 차감합니다. 이미 사용해 현재 수량이 부족하면 취소할 수 없습니다.</p></sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ modal.isTxn }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px;">
+<div style="display:flex; flex-direction:column; gap:2px;">
+<div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+<span style="font-size:18px; font-weight:700;">{{ tf.cust }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ tf.sBadge.bg }}; color:{{ tf.sBadge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ tf.sBadge.t }}</span>
+<span style="padding:2px 10px; border-radius:999px; background:{{ tf.badge.bg }}; color:{{ tf.badge.fg }}; font-size:12px; font-weight:700; white-space:nowrap;">{{ tf.badge.t }}</span>
+</div>
+<span style="font-size:13px; color:#5F6368;">{{ tf.id }} · {{ tf.dt }} · 담당 {{ tf.staff }} · {{ tf.method }}</span>
+</div>
+<sc-if value="{{ tf.isReg }}" hint-placeholder-val="{{ false }}"><button onClick="{{ tf.toCust }}" style="padding:6px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">고객 상세</button></sc-if>
+</div>
+<div style="border:1px solid #E1E5EB; border-radius:10px; overflow:hidden;">
+<div style="display:grid; grid-template-columns:44px minmax(0, 1fr) 84px 84px 84px; gap:8px; padding:10px 14px; background:#F7F8FA; border-bottom:1px solid #E1E5EB; font-size:12px; font-weight:700; color:#5F6368;">
+<span>구분</span><span>항목</span><span style="text-align:right;">정상가</span><span style="text-align:right;">할인 배분</span><span style="text-align:right;">매출</span>
+</div>
+<sc-for list="{{ tf.lines }}" as="l" hint-placeholder-count="2">
+<div style="display:grid; grid-template-columns:44px minmax(0, 1fr) 84px 84px 84px; gap:8px; padding:10px 14px; border-bottom:1px solid #EEF0F3; font-size:14px;">
+<span style="color:#5F6368;">{{ l.type }}</span>
+<span style="font-weight:600;">{{ l.name }}</span>
+<span style="text-align:right;">{{ l.price }}</span>
+<span style="text-align:right; color:{{ l.afg }};">{{ l.alloc }}</span>
+<span style="text-align:right; font-weight:700;">{{ l.net }}</span>
+</div>
+</sc-for>
+<div style="padding:12px 14px; display:flex; flex-direction:column; gap:4px; font-size:14px;">
+<div style="display:flex; justify-content:space-between;"><span style="color:#5F6368;">합계</span><span>{{ tf.sub }}</span></div>
+<div style="display:flex; justify-content:space-between;"><span style="color:#5F6368;">할인</span><span style="color:#C92A2A;">{{ tf.disc }}</span></div>
+<div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-weight:700;">결제금액</span><span style="font-size:18px; font-weight:800; color:var(--main, #1E4B8F);">{{ tf.total }}</span></div>
+</div>
+</div>
+<span style="font-size:13px; color:#5F6368;">전체 할인은 정상가 비율로 항목에 배분하고, 원 단위 반올림 차액은 금액이 가장 큰 항목에 반영합니다.</span>
+<sc-if value="{{ tf.isCx }}" hint-placeholder-val="{{ false }}">
+<div style="padding:12px 14px; border-radius:10px; background:#FDECEC; display:flex; flex-direction:column; gap:4px;">
+<span style="font-size:14px; font-weight:700; color:#C92A2A;">{{ tf.cxText }}</span>
+<span style="font-size:13px; color:#444444;">사유: {{ tf.cxReason }} · 원거래 기록은 그대로 남고 매출 합계에서 제외됩니다.</span>
+</div>
+</sc-if>
+<sc-if value="{{ tf.canCancel }}" hint-placeholder-val="{{ false }}">
+<div style="padding-top:14px; border-top:1px solid #E1E5EB; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<span style="font-size:13px; color:#5F6368;">담당자·금액을 잘못 기록했거나 환불할 때</span>
+<button onClick="{{ tf.openCancel }}" style="flex-shrink:0; padding:8px 14px; border:1px solid #C92A2A; border-radius:8px; background:#FFFFFF; color:#C92A2A; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="background:#FDECEC;">거래 취소</button>
+</div>
+</sc-if>
+<sc-if value="{{ tf.cancelOpen }}" hint-placeholder-val="{{ false }}">
+<div style="padding:16px; border:1.5px solid #C92A2A; border-radius:12px; display:flex; flex-direction:column; gap:14px;">
+<span style="font-size:15px; font-weight:700;">거래 취소</span>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">취소 사유</span>
+<input type="text" placeholder="예: 담당 디자이너를 잘못 선택함" value="{{ form.reason }}" onChange="{{ fh.reason }}" style="width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#222222; font-family:inherit; outline:none; font-size:15px;" style-focus="border-color:var(--main, #1E4B8F); box-shadow:0 0 0 3px var(--tint, #EAF1FA);">
+</div>
+<div style="display:flex; flex-direction:column; gap:6px;">
+<span style="font-size:13px; font-weight:700; color:#444444;">처리 방식</span>
+<sc-for list="{{ tf.modes }}" as="m" hint-placeholder-count="2">
+<button onClick="{{ m.pick }}" style="display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1.5px solid {{ m.bd }}; border-radius:10px; background:{{ m.bg }}; font-family:inherit; text-align:left; cursor:pointer;">
+<span style="width:16px; height:16px; margin-top:2px; flex-shrink:0; box-sizing:border-box; border:1.5px solid var(--main, #1E4B8F); border-radius:50%; background:{{ m.dot }};"></span>
+<span style="display:flex; flex-direction:column;"><span style="font-size:14px; font-weight:700; color:#222222;">{{ m.label }}</span><span style="font-size:12px; color:#5F6368;">{{ m.desc }}</span></span>
+</button>
+</sc-for>
+</div>
+<sc-if value="{{ tf.hasProd }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ tf.toggleRestock }}" style="display:flex; align-items:center; gap:10px; padding:0; border:0; background:transparent; color:#222222; font-family:inherit; font-size:14px; text-align:left; cursor:pointer;">
+<span style="width:18px; height:18px; flex-shrink:0; box-sizing:border-box; border:1.5px solid var(--main, #1E4B8F); border-radius:4px; background:{{ tf.restockBox }}; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;">{{ tf.restockMark }}</span>
+<span>반품된 판매 상품을 재고로 되돌리기</span>
+</button>
+</sc-if>
+<span style="font-size:12px; color:#5F6368;">시술에 사용한 약제는 되돌리지 않습니다. 필요하면 재고 조정으로 따로 처리하세요.</span>
+</div>
+</sc-if>
+</sc-if>
+
+</div>
+<sc-if value="{{ modal.discardConfirm }}"><div class="discard-confirm" role="alert"><strong>작성 중인 내용을 닫을까요?</strong><span>아직 저장하지 않은 내용이 있습니다.</span><div><button class="secondary-button" onClick="{{ modal.keepEditing }}">계속 작성</button><button class="danger-button" onClick="{{ modal.discard }}">내용 버리고 닫기</button></div></div></sc-if>
+<sc-if value="{{ modal.hasFooter }}" hint-placeholder-val="{{ false }}">
+<div style="padding:14px 24px; border-top:1px solid #E1E5EB; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+<span role="alert" style="flex:1 1 200px; font-size:14px; font-weight:600; color:#C92A2A;">{{ modal.err }}</span>
+<div style="display:flex; gap:8px;">
+<button onClick="{{ modal.close }}" style="padding:9px 16px; border:1px solid #D0D7E2; border-radius:8px; background:#FFFFFF; color:#333333; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;" style-hover="background:#F3F4F6;">취소</button>
+<button onClick="{{ modal.save }}" disabled="{{ modal.busy }}" style="padding:10px 18px; border:0; border-radius:8px; background:var(--main, #1E4B8F); color:#FFFFFF; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;" style-hover="opacity:0.9;">{{ modal.saveLabel }}</button>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position:fixed; right:24px; bottom:24px; z-index:60; max-width:440px; padding:14px 18px; border-radius:10px; background:#222222; color:#FFFFFF; font-size:14px; font-weight:600; line-height:1.5; box-shadow:0 10px 30px rgba(17, 24, 39, 0.25);">{{ toast }}</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;mainColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:[&quot;#1E4B8F&quot;,&quot;#EAF1FA&quot;],&quot;options&quot;:[[&quot;#1E4B8F&quot;,&quot;#EAF1FA&quot;],[&quot;#1F6F50&quot;,&quot;#E8F3EE&quot;],[&quot;#3A3F47&quot;,&quot;#EEF0F3&quot;]],&quot;tsType&quot;:&quot;string[]&quot;},&quot;showGuide&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+/* APP_LOGIC */
+</script>
+</body>
+</html>
