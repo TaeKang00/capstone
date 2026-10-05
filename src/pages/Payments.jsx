@@ -113,10 +113,9 @@ export default function Payments({
     <>
       <header className="page-header">
         <div>
-          <p className="commerce-cap">PAYMENTS & REFUNDS</p>
           <h1 className="page-title">수납 · 환불</h1>
           <p className="page-description">
-            단말기 결제 결과를 기록하고, 환불과 매출을 정확하게 관리하세요.
+            단말기 결제 결과와 환불 내역을 기록합니다.
           </p>
         </div>
         {canWrite && (

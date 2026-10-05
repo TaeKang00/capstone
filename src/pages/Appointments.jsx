@@ -24,6 +24,7 @@ import {
   todaySeoul,
 } from "./operations-utils.js";
 import "./Operations.css";
+import { Icon } from "../components/Icon.jsx";
 import { CustomerEditor } from "./Customers.jsx";
 import { useViewState } from "../components/ViewState.jsx";
 
@@ -295,7 +296,9 @@ function AppointmentEditor({
             >
               미등록 고객
             </Button>
-            <Button onClick={openCustomerEditor}>+ 새 고객 등록</Button>
+            <Button onClick={openCustomerEditor} aria-label="+ 새 고객 등록">
+              <Icon name="plus" size={16} /> 새 고객 등록
+            </Button>
           </div>
         </fieldset>
         {kind === "customer" ? (
@@ -641,7 +644,7 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
             <Badge tone={STATUS[appointment.status]?.tone}>
               {STATUS[appointment.status]?.label}
             </Badge>
-            <span aria-hidden="true">→</span>
+            <Icon name="arrow-right" size={16} />
             <Badge tone={STATUS[status]?.tone}>{STATUS[status]?.label}</Badge>
           </div>
         </div>
@@ -969,16 +972,17 @@ export default function Appointments({
         <div>
           <h1 className="page-title">예약 관리</h1>
           <p className="page-description">
-            예약 확인부터 방문·시술·수납까지, 직원별 진행 상황을 확인하세요.
+            날짜와 담당자별 예약을 확인하고 방문 상태를 관리합니다.
           </p>
         </div>
         <div className="page-actions">
           <Button
             variant="primary"
             disabled={!ready}
+            aria-label="+ 예약 등록"
             onClick={() => setEditor({})}
           >
-            + 예약 등록
+            <Icon name="plus" size={16} /> 예약 등록
           </Button>
         </div>
       </header>
@@ -1054,7 +1058,7 @@ export default function Appointments({
               aria-label="이전 날짜"
               onClick={() => setDate(shiftDate(date, -1))}
             >
-              ‹
+              <Icon name="chevron-left" size={16} />
             </Button>
             <input
               className="input"
@@ -1070,7 +1074,7 @@ export default function Appointments({
               aria-label="다음 날짜"
               onClick={() => setDate(shiftDate(date, 1))}
             >
-              ›
+              <Icon name="chevron-right" size={16} />
             </Button>
             <Button variant="secondary" onClick={() => setDate(today)}>
               오늘
@@ -1170,7 +1174,7 @@ export default function Appointments({
               ))}
           </select>
         </Field>
-        <Field label="고객 검색">
+        <Field label="고객 검색" className="ops-search">
           <input
             className="input"
             type="search"

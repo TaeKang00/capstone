@@ -124,7 +124,7 @@ test("완료된 오전 예약 뒤에 오후 고객이 숨지 않으며 1인 매�
   });
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "우리 매장에 맞게 준비해 보세요" }),
+    page.getByRole("heading", { name: "시술 메뉴를 등록해 주세요" }),
   ).toHaveCount(0);
   await expect(page.locator(".timeline-row")).toHaveCount(1);
   await expect(page.locator(".timeline-row")).toContainText("오후 다음 고객");

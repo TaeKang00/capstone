@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api, timeLabel } from "../api";
 import { useViewState } from "../components/ViewState";
+import Icon from "../components/Icon";
 import {
   Badge,
   Button,
@@ -38,10 +39,9 @@ export default function Settings(props) {
     <>
       <div className="page-header">
         <div>
-          <div className="eyebrow">YOUR SALON, YOUR WAY</div>
           <h1 className="page-title">매장 설정</h1>
           <p className="page-description">
-            운영 기준을 정리하면 예약·수납·재고가 함께 움직입니다.
+            매장 정보, 영업시간, 시술 가격과 운영 기록을 관리합니다.
           </p>
         </div>
       </div>
@@ -381,6 +381,7 @@ function ServiceSettings({ data, runAction, notify }) {
         <h2>시술 메뉴와 가격</h2>
         <Button
           variant="primary"
+          aria-label="＋ 시술 등록"
           onClick={() =>
             setEditing({
               name: "",
@@ -391,7 +392,7 @@ function ServiceSettings({ data, runAction, notify }) {
             })
           }
         >
-          ＋ 시술 등록
+          <Icon name="plus" size={15} /> 시술 등록
         </Button>
       </div>
       <div className="card-body">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api, roleLabel, timeLabel } from "../api";
 import { useViewState } from "../components/ViewState";
+import Icon from "../components/Icon";
 import {
   Badge,
   Button,
@@ -94,7 +95,6 @@ export default function Staff({
     <>
       <div className="page-header">
         <div>
-          <div className="eyebrow">TEAM & ACCESS</div>
           <h1 className="page-title">직원 관리</h1>
           <p className="page-description">
             근무 일정과 로그인 권한을 관리합니다. 퇴사 기록과 과거 매출은
@@ -105,6 +105,7 @@ export default function Staff({
           <Button onClick={() => navigate("payroll")}>급여명세</Button>
           <Button
             variant="primary"
+            aria-label="＋ 직원 등록"
             onClick={() =>
               setEditing({
                 ...blank,
@@ -113,7 +114,7 @@ export default function Staff({
               })
             }
           >
-            ＋ 직원 등록
+            <Icon name="plus" size={15} /> 직원 등록
           </Button>
         </div>
       </div>
@@ -206,7 +207,6 @@ export default function Staff({
           return (
             <section className="card staff-card" key={staff.id}>
               <div className="row">
-                <span className="avatar">{staff.name.slice(0, 1)}</span>
                 <div>
                   <h3>{staff.name}</h3>
                   <span className="help">{roleLabel(staff.role)}</span>
@@ -217,24 +217,37 @@ export default function Staff({
                   </Badge>
                 </div>
               </div>
-              <div className="staff-meta">
-                <div>{staff.phone || "연락처 미등록"}</div>
+              <dl className="staff-meta">
                 <div>
-                  {staff.workingDays.map((day) => days[day]).join(" · ")} /{" "}
-                  {timeLabel(staff.startMinutes)}–{timeLabel(staff.endMinutes)}
+                  <dt>연락처</dt>
+                  <dd>{staff.phone || "미등록"}</dd>
                 </div>
                 <div>
-                  휴게{" "}
-                  {staff.breakStart == null
-                    ? "미설정"
-                    : `${timeLabel(staff.breakStart)}–${timeLabel(staff.breakEnd)}`}
+                  <dt>근무</dt>
+                  <dd>
+                    {staff.workingDays.map((day) => days[day]).join(" · ")}
+                    <br />
+                    {timeLabel(staff.startMinutes)}–
+                    {timeLabel(staff.endMinutes)}
+                  </dd>
                 </div>
                 <div>
-                  {login
-                    ? `${login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
-                    : "로그인 계정 미발급"}
+                  <dt>휴게</dt>
+                  <dd>
+                    {staff.breakStart == null
+                      ? "미설정"
+                      : `${timeLabel(staff.breakStart)}–${timeLabel(staff.breakEnd)}`}
+                  </dd>
                 </div>
-              </div>
+                <div>
+                  <dt>계정</dt>
+                  <dd>
+                    {login
+                      ? `${login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
+                      : "로그인 계정 미발급"}
+                  </dd>
+                </div>
+              </dl>
               <div className="staff-actions">
                 <Button
                   onClick={() => setEditing({ ...staff })}

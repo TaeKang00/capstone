@@ -17,6 +17,7 @@ import {
   todaySeoul,
 } from "./operations-utils.js";
 import "./Operations.css";
+import { Icon } from "../components/Icon.jsx";
 import { useViewState } from "../components/ViewState.jsx";
 
 const blankCustomer = { name: "", phone: "", memo: "", warning: "" };
@@ -296,7 +297,7 @@ function CustomerChart({
           </p>
         )}
         <div
-          className="ops-chart-tabs"
+          className="ops-chart-tabs tabs"
           role="tablist"
           aria-label="고객 차트 보기"
         >
@@ -309,7 +310,8 @@ function CustomerChart({
               key={id}
               role="tab"
               aria-selected={tab === id}
-              variant={tab === id ? "primary" : "ghost"}
+              variant="ghost"
+              className={`tab ${tab === id ? "active" : ""}`}
               onClick={() => setTab(id)}
             >
               {label}
@@ -556,12 +558,16 @@ export default function Customers({
         <div>
           <h1 className="page-title">고객 관리</h1>
           <p className="page-description">
-            한 번의 상담부터 다음 방문까지, 고객별 기록을 이어 갑니다.
+            연락처, 상담 메모와 예약·방문 내역을 확인합니다.
           </p>
         </div>
         <div className="page-actions">
-          <Button variant="primary" onClick={() => setEditor({})}>
-            + 고객 등록
+          <Button
+            variant="primary"
+            onClick={() => setEditor({})}
+            aria-label="+ 고객 등록"
+          >
+            <Icon name="plus" size={16} /> 고객 등록
           </Button>
         </div>
       </header>
@@ -590,7 +596,7 @@ export default function Customers({
         </div>
       </div>
       <div className="card card-body ops-filters">
-        <Field label="고객 검색">
+        <Field label="고객 검색" className="ops-search">
           <input
             className="input"
             type="search"
@@ -650,14 +656,6 @@ export default function Customers({
                     </div>
                     {customer.archived && <Badge tone="muted">보관</Badge>}
                   </div>
-                  {customer.warning && (
-                    <div className="ops-warning">
-                      <strong>주의</strong>{" "}
-                      {customer.warning.length > 90
-                        ? `${customer.warning.slice(0, 90)}…`
-                        : customer.warning}
-                    </div>
-                  )}
                   <div className="ops-customer-summary">
                     <div className="muted">
                       완료된 방문<strong>{summary.visits}회</strong>
@@ -667,11 +665,23 @@ export default function Customers({
                       <strong>{summary.last || "방문 기록 없음"}</strong>
                     </div>
                   </div>
-                  {summary.next && (
-                    <span className="help">
-                      다음 예약 · {dateLabel(summary.next)}
-                    </span>
-                  )}
+                  <div className="ops-customer-note">
+                    {customer.warning ? (
+                      <p className="ops-customer-caution">
+                        <strong>주의</strong>{" "}
+                        {customer.warning.length > 90
+                          ? `${customer.warning.slice(0, 90)}…`
+                          : customer.warning}
+                      </p>
+                    ) : (
+                      <span className="help">등록된 주의사항 없음</span>
+                    )}
+                    {summary.next && (
+                      <span className="help">
+                        다음 예약 · {dateLabel(summary.next)}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     variant="secondary"
                     onClick={() => setSelectedId(customer.id)}

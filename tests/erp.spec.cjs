@@ -26,7 +26,7 @@ async function login(page, email = EMAIL, password = PASSWORD) {
   await page.getByLabel('이메일', { exact: true }).fill(email);
   await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '다시 만나 반갑습니다' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: '로그인' })).toBeHidden();
 }
 async function nav(page, name) { await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name, exact: false }).click(); }
 async function closeDialog(page) { await page.getByRole('dialog').getByRole('button', { name: '닫기', exact: true }).first().click(); }
@@ -52,7 +52,7 @@ async function catalog(page, tag, { material = false, product = false } = {}) {
 
 test('첫 설치는 관리자 등록부터 시작하고 로그인과 푸터가 유지된다', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: '우리 매장을 시작하세요' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '매장 초기 설정' })).toBeVisible();
   await page.getByLabel('매장 이름', { exact: true }).fill('브라우저 테스트 미용실');
   await page.getByLabel('원장 이름', { exact: true }).fill('테스트 원장');
   await page.getByLabel('이메일', { exact: true }).fill(EMAIL);
@@ -67,7 +67,7 @@ test('첫 설치는 관리자 등록부터 시작하고 로그인과 푸터가 �
   expect(initial.data.transactions).toEqual([]);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '다시 만나 반갑습니다' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '로그인' })).toBeVisible();
   await page.getByLabel('이메일', { exact: true }).fill(EMAIL);
   await page.getByLabel('비밀번호', { exact: true }).fill('incorrect-test-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();

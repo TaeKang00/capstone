@@ -157,10 +157,9 @@ export default function Inventory({
     <>
       <header className="page-header">
         <div>
-          <p className="commerce-cap">INVENTORY</p>
           <h1 className="page-title">재고 · 입고</h1>
           <p className="page-description">
-            물건이 도착하면 수동으로 입고하고, 보충 기준 이하 품목을 확인하세요.
+            수동 입고와 재고 현황, 보충이 필요한 품목을 확인합니다.
           </p>
         </div>
         <div className="page-actions">

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Icon } from "./Icon";
 let scrollLocks = 0,
   originalOverflow = "";
 export function lockBodyScroll() {
@@ -102,9 +103,6 @@ export function Money({ value }) {
 export function EmptyState({ title, description, action }) {
   return (
     <div className="empty-state">
-      <span className="empty-icon" aria-hidden="true">
-        ＋
-      </span>
       <h3>{title}</h3>
       {description && <p>{description}</p>}
       {action}
@@ -217,7 +215,7 @@ export function Modal({
               aria-label="닫기"
               onClick={() => closeRef.current()}
             >
-              ×
+              <Icon name="close" />
             </button>
           </header>
           <div className="modal-body">{children}</div>

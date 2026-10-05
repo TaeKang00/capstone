@@ -9,6 +9,7 @@ import {
 } from "./components/ui";
 import { ViewStateProvider } from "./components/ViewState";
 import { canVisit as allowed, useWorkspaceNavigation } from "./navigation";
+import { Icon } from "./components/Icon";
 import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
 import Customers from "./pages/Customers";
@@ -30,15 +31,15 @@ const pages = {
   settings: Settings,
 };
 const navigation = [
-  ["dashboard", "오늘의 매장", "◫", "업무"],
-  ["appointments", "예약 일정", "▦"],
-  ["customers", "고객 관리", "◎"],
-  ["payments", "수납 · 환불", "₩"],
-  ["sales", "매출 · 정산", "▥", "운영"],
-  ["inventory", "재고 · 입고", "▤"],
-  ["staff", "직원 관리", "♧"],
-  ["payroll", "급여명세", "▧"],
-  ["settings", "매장 설정", "⚙"],
+  ["dashboard", "오늘의 매장", "workspace", "업무"],
+  ["appointments", "예약 일정", "calendar"],
+  ["customers", "고객 관리", "users"],
+  ["payments", "수납 · 환불", "credit-card"],
+  ["sales", "매출 · 정산", "chart", "운영"],
+  ["inventory", "재고 · 입고", "inventory"],
+  ["staff", "직원 관리", "staff"],
+  ["payroll", "급여명세", "payroll"],
+  ["settings", "매장 설정", "settings"],
 ];
 class ErrorBoundary extends React.Component {
   state = { failed: false };
@@ -313,7 +314,9 @@ export default function App() {
   if (loading)
     return (
       <div className="loading-screen">
-        <div className="brand-mark">S</div>
+        <div className="brand-mark">
+          <Icon name="workspace" size={19} />
+        </div>
         <p>매장 데스크를 준비하고 있습니다…</p>
       </div>
     );
@@ -337,7 +340,6 @@ export default function App() {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <div className="eyebrow">계정 보안</div>
           <h1>새 비밀번호를 설정해 주세요</h1>
           <p className="muted">
             처음 로그인하거나 관리자가 비밀번호를 재설정한 계정입니다.
@@ -367,15 +369,16 @@ export default function App() {
           navigate("dashboard");
         }}
       >
-        <span className="brand-mark">S</span>
+        <span className="brand-mark">
+          <Icon name="workspace" size={19} />
+        </span>
         <span>
-          살롱 데스크<small>SALON WORKSPACE</small>
+          살롱 데스크<small>매장 관리</small>
         </span>
       </a>
       <div className="store-label">
-        <span className="status-dot" />
-        {data?.store?.name || "우리 매장"}
-        <small>매장 운영 공간</small>
+        <span className="store-caption">현재 매장</span>
+        <strong>{data?.store?.name || "우리 매장"}</strong>
       </div>
       <nav aria-label="주 메뉴">
         {navigation
@@ -389,7 +392,7 @@ export default function App() {
                 onClick={() => navigate(key)}
               >
                 <span className="nav-icon" aria-hidden="true">
-                  {icon}
+                  <Icon name={icon} />
                 </span>
                 {label}
                 {key === "inventory" && low > 0 && (
@@ -399,14 +402,6 @@ export default function App() {
             </React.Fragment>
           ))}
       </nav>
-      <div className="sidebar-help">
-        <strong>일의 흐름을 한눈에.</strong>
-        <p>
-          예약부터 마감까지
-          <br />
-          매장의 하루를 함께합니다.
-        </p>
-      </div>
     </>
   );
   return (
@@ -439,7 +434,7 @@ export default function App() {
                 onClick={() => setDrawer(false)}
                 aria-label="메뉴 닫기"
               >
-                ×
+                <Icon name="close" />
               </button>
               {nav}
             </aside>
@@ -455,7 +450,7 @@ export default function App() {
                 aria-controls="mobile-navigation"
                 onClick={() => setDrawer(true)}
               >
-                ☰
+                <Icon name="menu" size={20} />
               </button>
               <span className="topbar-title">
                 {navigation.find(([id]) => id === activePage)?.[1]}
@@ -605,7 +600,7 @@ export default function App() {
             aria-label="알림 닫기"
             onClick={() => setToast(null)}
           >
-            ×
+            <Icon name="close" />
           </button>
         </div>
       )}
@@ -682,49 +677,23 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
   };
   return (
     <div className="auth-layout">
-      <section className="auth-story">
+      <header className="auth-header">
         <div className="brand">
-          <span className="brand-mark">S</span>
+          <span className="brand-mark">
+            <Icon name="workspace" size={19} />
+          </span>
           <span>
-            살롱 데스크<small>SALON WORKSPACE</small>
+            살롱 데스크<small>매장 관리</small>
           </span>
         </div>
-        <div className="auth-story-copy">
-          <div className="eyebrow">YOUR SALON, IN FLOW</div>
-          <h1>
-            좋은 하루의 시작,
-            <br />
-            정돈된 매장 운영.
-          </h1>
-          <p>
-            고객을 맞이하는 순간부터
-            <br />
-            오늘의 마감을 끝내는 시간까지.
-          </p>
-          <div className="story-lines">
-            <span>
-              01 <strong>예약과 고객</strong> 한 흐름으로
-            </span>
-            <span>
-              02 <strong>수납과 재고</strong> 정확하게
-            </span>
-            <span>
-              03 <strong>직원과 급여</strong> 투명하게
-            </span>
-          </div>
-        </div>
-        <div className="auth-story-bottom">
-          매장의 시간을 고객에게 돌려드립니다.
-        </div>
-      </section>
+      </header>
       <section className="auth-form-side">
         <div className="auth-card">
-          <div className="eyebrow">{setup ? "FIRST STEP" : "WELCOME BACK"}</div>
-          <h1>{setup ? "우리 매장을 시작하세요" : "다시 만나 반갑습니다"}</h1>
+          <h1>{setup ? "매장 초기 설정" : "로그인"}</h1>
           <p className="muted">
             {setup
               ? "매장과 첫 원장 계정을 등록합니다. 직원 계정은 로그인 후 발급할 수 있습니다."
-              : "업무용 계정으로 로그인해 오늘의 매장을 확인하세요."}
+              : "직원 계정으로 로그인해 주세요."}
           </p>
           {(externalError || error) && (
             <div className="alert alert-warning" role="alert">
@@ -836,12 +805,11 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
             </form>
           )}
           <div className="auth-note">
-            <span className="status-dot" />
-            직원 전용 업무 공간 · 고객 정보 보호를 위해 공용 계정 사용을
-            피해주세요.
+            <Icon name="lock" size={14} />
+            매장 직원 전용 · 개인 계정으로 이용해 주세요.
           </div>
         </div>
-        <footer className="auth-footer">SALON DESK · v2.0</footer>
+        <footer className="auth-footer">살롱 데스크 · v2.0</footer>
       </section>
     </div>
   );

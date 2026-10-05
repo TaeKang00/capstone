@@ -186,7 +186,6 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
     <>
       <header className="page-header">
         <div>
-          <p className="commerce-cap">SALES & SETTLEMENT</p>
           <h1 className="page-title">매출 · 정산</h1>
           <p className="page-description">
             결제와 환불을 실제 처리한 날짜로 집계합니다.

@@ -1,6 +1,7 @@
 import React from "react";
 import { today, timeLabel } from "../api";
 import { Badge, Button, EmptyState, Money } from "../components/ui";
+import { Icon } from "../components/Icon";
 import { useViewState } from "../components/ViewState";
 export default function Dashboard({ data, user, navigate }) {
   const date = today();
@@ -67,8 +68,7 @@ export default function Dashboard({ data, user, navigate }) {
     <>
       <div className="page-header">
         <div>
-          <div className="eyebrow">TODAY AT YOUR SALON</div>
-          <h1 className="page-title">{user.name}님, 오늘도 반갑습니다</h1>
+          <h1 className="page-title">오늘의 매장</h1>
           <p className="page-description">
             {new Intl.DateTimeFormat("ko-KR", {
               timeZone: "Asia/Seoul",
@@ -76,7 +76,7 @@ export default function Dashboard({ data, user, navigate }) {
               day: "numeric",
               weekday: "long",
             }).format(new Date())}{" "}
-            · {data.store.name}의 하루를 확인하세요.
+            · {data.store.name}
           </p>
         </div>
         <div className="page-actions">
@@ -85,17 +85,18 @@ export default function Dashboard({ data, user, navigate }) {
           </Button>
           <Button
             variant="primary"
+            aria-label="＋ 예약 등록"
             onClick={() => navigate("appointments", { create: true })}
           >
-            ＋ 예약 등록
+            <Icon name="plus" size={16} /> 예약 등록
           </Button>
         </div>
       </div>
       {setup && (
         <div className="welcome-card">
           <div>
-            <h2>우리 매장에 맞게 준비해 보세요</h2>
-            <p>시술 메뉴와 직원을 등록하면 예약부터 수납까지 연결됩니다.</p>
+            <h2>시술 메뉴를 등록해 주세요</h2>
+            <p>시술 가격과 소요시간을 등록하면 예약을 시작할 수 있습니다.</p>
           </div>
           <Button onClick={() => navigate("settings", { tab: "services" })}>
             시술 메뉴 등록
@@ -116,7 +117,7 @@ export default function Dashboard({ data, user, navigate }) {
         >
           <div className="stat-label">
             {designer ? "내 담당 수납" : "오늘 순매출"}
-            <span>↗</span>
+            <Icon name="chevron-right" size={15} />
           </div>
           <div className="stat-value">
             <Money value={net} />
@@ -130,7 +131,8 @@ export default function Dashboard({ data, user, navigate }) {
           aria-label="오늘 예약 전체 보기"
         >
           <div className="stat-label">
-            오늘 예약<span>▦</span>
+            오늘 예약
+            <Icon name="chevron-right" size={15} />
           </div>
           <div className="stat-value">
             {working.length}
@@ -152,7 +154,8 @@ export default function Dashboard({ data, user, navigate }) {
           aria-label="수납 확인이 필요한 예약 보기"
         >
           <div className="stat-label">
-            수납 확인 필요<span>₩</span>
+            수납 확인 필요
+            <Icon name="chevron-right" size={15} />
           </div>
           <div className="stat-value">
             {unpaid.length}
@@ -175,7 +178,7 @@ export default function Dashboard({ data, user, navigate }) {
         >
           <div className="stat-label">
             {designer ? "확인할 이전 예약" : "보충 필요한 재고"}
-            <span>◌</span>
+            <Icon name="chevron-right" size={15} />
           </div>
           <div className="stat-value">
             {designer ? pending.length : low.length}
@@ -193,7 +196,7 @@ export default function Dashboard({ data, user, navigate }) {
           <section className="card">
             <div className="card-header">
               <h2>
-                오늘의 예약 흐름 <Badge>{working.length}건</Badge>
+                오늘 예약 <Badge>{working.length}건</Badge>
               </h2>
               <Button
                 variant="ghost"
@@ -309,23 +312,28 @@ export default function Dashboard({ data, user, navigate }) {
           </section>
           <section className="quick-grid">
             {[
-              ["appointments", "▦", "새 예약 등록", { create: true }],
-              ["customers", "◎", "고객 찾아보기", {}],
+              ["appointments", "calendar", "새 예약 등록", { create: true }],
+              ["customers", "users", "고객 찾아보기", {}],
               ...(!designer
                 ? [
-                    ["payments", "₩", "방문 고객 수납", { create: true }],
-                    ["inventory", "▤", "입고·재고 확인", {}],
+                    [
+                      "payments",
+                      "credit-card",
+                      "방문 고객 수납",
+                      { create: true },
+                    ],
+                    ["inventory", "inventory", "입고·재고 확인", {}],
                   ]
-                : [["payroll", "▧", "내 급여명세 확인", {}]]),
+                : [["payroll", "payroll", "내 급여명세 확인", {}]]),
             ].map(([page, icon, label, context]) => (
               <button
                 className="quick-action"
                 key={page}
                 onClick={() => navigate(page, context)}
               >
-                <span aria-hidden="true">{icon}</span>
+                <Icon name={icon} size={17} />
                 {label}
-                <span style={{ marginLeft: "auto", fontSize: 15 }}>↗</span>
+                <Icon name="chevron-right" size={15} className="quick-arrow" />
               </button>
             ))}
           </section>
@@ -333,8 +341,7 @@ export default function Dashboard({ data, user, navigate }) {
         <div className="stack">
           <section className="card">
             <div className="card-header">
-              <h2>놓치지 말아야 할 일</h2>
-              <Badge tone="warning">확인</Badge>
+              <h2>확인할 업무</h2>
             </div>
             <ul className="task-list">
               <li>
@@ -392,8 +399,7 @@ export default function Dashboard({ data, user, navigate }) {
           </section>
           <section className="card">
             <div className="card-body">
-              <div className="eyebrow">DAILY CHECK</div>
-              <h3>마감 전, 한 번 더 확인하세요</h3>
+              <h3>매출 마감</h3>
               <p className="help">
                 예약의 방문 상태를 정리하고 단말기 매출과 ERP 수납을 대조하세요.
                 환불은 처리한 날짜의 정산에 반영됩니다.

@@ -524,7 +524,6 @@ function Statement({ record }) {
     <article className="payroll-statement">
       <div className="payroll-statement-header">
         <div>
-          <p className="payroll-kicker">PAYSLIP</p>
           <h2>{record.month.replace("-", "년 ")}월 급여명세서</h2>
           <p>{record.storeSnapshot?.name}</p>
         </div>
@@ -835,32 +834,34 @@ export default function Payroll({
           </Button>
         )}
       </div>
-      <div className="toolbar">
-        <Button
-          aria-label="이전 달 급여"
-          disabled={month === "2000-01"}
-          onClick={() => setMonth(shiftMonth(month, -1))}
-        >
-          이전 달
-        </Button>
-        <Field label="귀속월">
-          <input
-            className="input"
-            type="month"
-            min="2000-01"
-            max="2099-12"
-            required
-            value={month}
-            onChange={(event) => setMonth(event.target.value)}
-          />
-        </Field>
-        <Button
-          aria-label="다음 달 급여"
-          disabled={month === "2099-12"}
-          onClick={() => setMonth(shiftMonth(month, 1))}
-        >
-          다음 달
-        </Button>
+      <div className="toolbar payroll-toolbar">
+        <div className="payroll-month-navigation">
+          <Button
+            aria-label="이전 달 급여"
+            disabled={month === "2000-01"}
+            onClick={() => setMonth(shiftMonth(month, -1))}
+          >
+            이전 달
+          </Button>
+          <Field label="귀속월">
+            <input
+              className="input"
+              type="month"
+              min="2000-01"
+              max="2099-12"
+              required
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+            />
+          </Field>
+          <Button
+            aria-label="다음 달 급여"
+            disabled={month === "2099-12"}
+            onClick={() => setMonth(shiftMonth(month, 1))}
+          >
+            다음 달
+          </Button>
+        </div>
         <Button variant="ghost" onClick={() => setMonth(today().slice(0, 7))}>
           이번 달
         </Button>
@@ -897,28 +898,28 @@ export default function Payroll({
           </select>
         </Field>
       </div>
-      <div className="stat-grid">
+      <div className="stat-grid payroll-summary">
         <div className="stat-card">
-          <span>조회 명세서</span>
-          <strong>{records.length}건</strong>
+          <div className="stat-label">조회 명세서</div>
+          <div className="stat-value">{records.length}건</div>
         </div>
         <div className="stat-card">
-          <span>실지급액 합계</span>
-          <strong>
+          <div className="stat-label">실지급액 합계</div>
+          <div className="stat-value">
             {format(records.reduce((sum, item) => sum + item.netPay, 0))}원
-          </strong>
+          </div>
           <small>작성 중·확정·지급 완료 포함</small>
         </div>
         <div className="stat-card">
-          <span>확정 후 지급 대기</span>
-          <strong>
+          <div className="stat-label">확정 후 지급 대기</div>
+          <div className="stat-value">
             {format(
               records
                 .filter((item) => item.status === "finalized")
                 .reduce((sum, item) => sum + item.netPay, 0),
             )}
             원
-          </strong>
+          </div>
         </div>
       </div>
       {manager && (
@@ -1142,7 +1143,11 @@ export default function Payroll({
         </ConfirmDialog>
       )}
       {dialog?.kind === "reopen" && selected && (
-        <Modal title="급여 확정 취소" onClose={busy ? undefined : close} dirty={Boolean(reason)}>
+        <Modal
+          title="급여 확정 취소"
+          onClose={busy ? undefined : close}
+          dirty={Boolean(reason)}
+        >
           <form
             className="stack"
             onSubmit={(event) => {
@@ -1176,7 +1181,11 @@ export default function Payroll({
         </Modal>
       )}
       {dialog?.kind === "paid" && selected && (
-        <Modal title="실제 급여 지급 기록" onClose={busy ? undefined : close} dirty={paidDate !== today()}>
+        <Modal
+          title="실제 급여 지급 기록"
+          onClose={busy ? undefined : close}
+          dirty={paidDate !== today()}
+        >
           <form
             className="stack"
             onSubmit={(event) => {
