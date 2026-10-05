@@ -1,3 +1,4 @@
+import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useMemo, useState } from "react";
 import { useViewState } from "../components/ViewState";
 import {
@@ -268,7 +269,7 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
               </select>
             </Field>
             <Field label="급여 귀속월">
-              <input
+              <DateInput
                 className="input"
                 type="month"
                 min="2000-01"
@@ -291,7 +292,7 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
               />
             </Field>
             <Field label="지급 예정일">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 required
@@ -844,7 +845,7 @@ export default function Payroll({
             이전 달
           </Button>
           <Field label="귀속월">
-            <input
+            <DateInput
               className="input"
               type="month"
               min="2000-01"
@@ -1203,7 +1204,7 @@ export default function Payroll({
               수정할 수 없습니다.
             </div>
             <Field label="실제 지급일">
-              <input
+              <DateInput
                 disabled={busy}
                 className="input"
                 type="date"

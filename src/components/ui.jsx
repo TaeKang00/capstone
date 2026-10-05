@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import { DateInput } from "./DateInput.jsx";
 let scrollLocks = 0,
   originalOverflow = "";
 export function lockBodyScroll() {
@@ -45,8 +46,9 @@ export function Field({ label, help, error, children, className = "" }) {
     React.Children.map(nodes, (node) => {
       if (!React.isValidElement(node) || controlId) return node;
       if (
-        typeof node.type === "string" &&
-        ["input", "select", "textarea"].includes(node.type) &&
+        ((typeof node.type === "string" &&
+          ["input", "select", "textarea"].includes(node.type)) ||
+          node.type === DateInput) &&
         node.props.type !== "hidden"
       ) {
         controlId = node.props.id || id;
@@ -58,6 +60,9 @@ export function Field({ label, help, error, children, className = "" }) {
           id: controlId,
           "aria-describedby": description,
           "aria-invalid": error ? true : node.props["aria-invalid"],
+          ...(node.type === DateInput && typeof label === "string"
+            ? { pickerLabel: label }
+            : {}),
         });
       }
       return node.props.children
@@ -141,12 +146,19 @@ export function Modal({
     target?.focus();
     const key = (event) => {
       if (
+        event.defaultPrevented ||
         !ref.current ||
         ref.current.closest(".modal-backdrop") !==
           [...document.querySelectorAll(".modal-backdrop")].at(-1)
       )
         return;
       if (event.key === "Escape") {
+        // The first Escape belongs to an expanded native dropdown.
+        if (
+          CSS.supports("selector(select:open)") &&
+          ref.current.querySelector("select:open")
+        )
+          return;
         event.preventDefault();
         closeRef.current();
       }

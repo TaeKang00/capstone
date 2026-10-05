@@ -1,3 +1,4 @@
+import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
@@ -204,7 +205,7 @@ export default function Payments({
         <div className="card-body">
           <div className="commerce-filters">
             <Field label="결제 시작일">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 value={from}
@@ -213,7 +214,7 @@ export default function Payments({
               />
             </Field>
             <Field label="결제 종료일">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 value={to}
@@ -705,7 +706,7 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
               </select>
             </Field>
             <Field label="시술 · 판매일" help="수납일은 오늘로 기록됩니다.">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 disabled={!!appointment}

@@ -1,3 +1,4 @@
+import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Button, Field, Badge, EmptyState, Money } from "../components/ui";
@@ -202,7 +203,7 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
           <form onSubmit={submit}>
             <div className="commerce-filters">
               <Field label="조회 시작일">
-                <input
+                <DateInput
                   className="input"
                   type="date"
                   required
@@ -212,7 +213,7 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
                 />
               </Field>
               <Field label="조회 종료일">
-                <input
+                <DateInput
                   className="input"
                   type="date"
                   required

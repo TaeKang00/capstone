@@ -1,3 +1,4 @@
+import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
@@ -334,7 +335,7 @@ export default function Inventory({
                   </select>
                 </Field>
                 <Field label="시작일">
-                  <input
+                  <DateInput
                     className="input"
                     type="date"
                     max={to}
@@ -346,7 +347,7 @@ export default function Inventory({
                   />
                 </Field>
                 <Field label="종료일">
-                  <input
+                  <DateInput
                     className="input"
                     type="date"
                     min={from}
@@ -1061,7 +1062,7 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
               />
             </Field>
             <Field label="입고일">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 required

@@ -1,3 +1,4 @@
+import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
@@ -386,7 +387,7 @@ function AppointmentEditor({
         )}
         <div className="grid grid-2">
           <Field label="예약 날짜 *">
-            <input
+            <DateInput
               className="input"
               type="date"
               required
@@ -1060,7 +1061,7 @@ export default function Appointments({
             >
               <Icon name="chevron-left" size={16} />
             </Button>
-            <input
+            <DateInput
               className="input"
               aria-label="조회 날짜"
               type="date"
@@ -1125,7 +1126,7 @@ export default function Appointments({
         {mode === "range" && (
           <>
             <Field label="시작 날짜">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 value={from}
@@ -1133,7 +1134,7 @@ export default function Appointments({
               />
             </Field>
             <Field label="종료 날짜">
-              <input
+              <DateInput
                 className="input"
                 type="date"
                 value={to}
