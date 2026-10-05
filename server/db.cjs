@@ -17,7 +17,21 @@ function openDatabase(filename) {
     CREATE INDEX IF NOT EXISTS session_user ON sessions(user_id);
     CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, actor_id TEXT, actor_name TEXT NOT NULL, action TEXT NOT NULL, summary TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS requests (actor_id TEXT NOT NULL, request_id TEXT NOT NULL, signature TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(actor_id,request_id));
-    PRAGMA user_version=1;`);
+    PRAGMA user_version=2;`);
+  const sessionColumns = new Set(
+    db
+      .prepare("PRAGMA table_info(sessions)")
+      .all()
+      .map((column) => column.name),
+  );
+  if (!sessionColumns.has("mode"))
+    db.exec(
+      "ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'work'",
+    );
+  if (!sessionColumns.has("idle_expires_at"))
+    db.exec(
+      "ALTER TABLE sessions ADD COLUMN idle_expires_at INTEGER NOT NULL DEFAULT 0",
+    );
   if (filename !== ":memory:") {
     try {
       fs.chmodSync(filename, 0o600);

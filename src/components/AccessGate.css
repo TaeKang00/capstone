@@ -1,0 +1,43 @@
+.access-gate {
+  display: grid;
+  gap: 18px;
+}
+.access-gate > .field,
+.access-gate > .alert,
+.access-gate-description,
+.access-gate-note {
+  margin: 0;
+}
+.access-gate-description {
+  color: var(--muted);
+}
+.access-gate-account {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  overflow-wrap: anywhere;
+}
+.access-gate-account-label {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.access-gate-account > span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+}
+.access-gate-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.access-gate-note > .icon {
+  margin-top: 2px;
+}

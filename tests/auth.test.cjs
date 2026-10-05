@@ -19,7 +19,7 @@ async function fixture(t, options = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => { await new Promise(resolve => server.close(resolve)); service.close(); fs.rmSync(directory,{ recursive:true,force:true }); assert.deepEqual(failures,[],'Unexpected server errors'); });
   async function request(route,{ method='GET',body,session,headers={} }={}) {
-    const response = await fetch(`${base}/api${route}`,{ method, headers:{ ...(body === undefined ? {} : { 'Content-Type':'application/json' }), ...(session?.cookie ? { Cookie:session.cookie } : {}), ...(session?.csrfToken ? { 'X-CSRF-Token':session.csrfToken } : {}),...headers },body:body === undefined ? undefined : JSON.stringify(body) });
+    const response = await fetch(`${base}/api${route}`,{ method, headers:{ ...(body === undefined ? {} : { 'Content-Type':'application/json' }), ...(session?.cookie ? { Cookie:session.cookie } : {}), ...(session?.csrfToken ? { 'X-CSRF-Token':session.csrfToken } : {}), ...(session?.accessToken ? { 'X-Private-Token':session.accessToken } : {}),...headers },body:body === undefined ? undefined : JSON.stringify(body) });
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('json') ? await response.json() : await response.text();
     const cookie = response.headers.get('set-cookie')?.split(';')[0];
@@ -28,7 +28,10 @@ async function fixture(t, options = {}) {
   async function setup() {
     const response = await request('/bootstrap',{ method:'POST',body:{ storeName:'테스트 미용실',name:'원장',email:'owner@example.com',password:PASSWORD,...(options.bootstrapToken ? { setupToken:options.bootstrapToken } : {}) },headers:options.production ? { Origin:options.origin } : {} });
     assert.equal(response.status,201,JSON.stringify(response.data));
-    return { ...response.data,cookie:response.cookie };
+    const session = { ...response.data,cookie:response.cookie };
+    const privateAccess = await request('/auth/private/unlock',{ method:'POST',session,body:{ scope:'owner',email:session.user.email,password:PASSWORD },headers:options.production ? { Origin:options.origin } : {} });
+    assert.equal(privateAccess.status,200,JSON.stringify(privateAccess.data));
+    return { ...session,accessToken:privateAccess.data.accessToken };
   }
   async function state(session) { const result = await request('/state',{ session }); assert.equal(result.status,200,JSON.stringify(result.data)); return result.data; }
   async function action(session,type,payload,extra={}) {
@@ -127,7 +130,7 @@ test('temporary account blocks state until password changed and disabling revoke
   assert.equal((await f.request('/auth/me',{ session:desk })).status,401);
 });
 
-test('designer sees own financial/payroll records only and cannot mutate payments or others appointments',async t => {
+test('designer work state hides payroll; personal reauthentication reveals own finalized slips only',async t => {
   const f = await fixture(t); const owner = await f.setup(); const designer = await addAccount(f,owner,'designer');
   const current = readState(f.db);
   current.data.transactions = [{ id:'own',staffId:designer.staffId,total:1000 },{ id:'other',staffId:owner.user.staffId,total:2000 }];
@@ -136,13 +139,17 @@ test('designer sees own financial/payroll records only and cannot mutate payment
   current.data.payroll = [{ id:'p-own',staffId:designer.staffId,status:'finalized' },{ id:'p-draft',staffId:designer.staffId,status:'draft' },{ id:'p-other',staffId:owner.user.staffId,status:'paid' }];
   current.data.legacyArchive = { private:'legacy salary and full sales' }; writeState(f.db,current.data,current.version+1);
   const state = await f.state(designer);
-  assert.deepEqual(state.data.transactions.map(x => x.id),['own']); assert.deepEqual(state.data.refunds.map(x => x.id),['r-own']); assert.deepEqual(state.data.appointments.map(x => x.id),['a-own']); assert.deepEqual(state.data.payroll.map(x => x.id),['p-own']); assert.equal(state.data.legacyArchive,undefined);
+  assert.deepEqual(state.data.transactions.map(x => x.id),['own']); assert.deepEqual(state.data.refunds.map(x => x.id),['r-own']); assert.deepEqual(state.data.appointments.map(x => x.id),['a-own']); assert.deepEqual(state.data.payroll,[]);
+  const unlocked = await f.request('/auth/private/unlock',{ method:'POST',session:designer,body:{ scope:'personal',email:designer.user.email,password:`${PASSWORD}-changed` } });
+  assert.equal(unlocked.status,200);
+  const personal = await f.request('/personal/state',{ session:{ ...designer,accessToken:unlocked.data.accessToken } });
+  assert.deepEqual(personal.data.data.payroll.map(x => x.id),['p-own']); assert.equal(state.data.legacyArchive,undefined);
   assert.equal((await f.state(owner)).data.legacyArchive,undefined);
   for (const endpoint of ['/users','/audit','/reports','/backup','/export']) assert.equal((await f.request(endpoint,{ session:designer })).status,403,endpoint);
   for (const [type,payload] of [['payment.create',{}],['inventory.receipt',{}],['payroll.save',{}],['appointment.status',{ id:'a-other',status:'cancelled' }]]) assert.equal((await f.action(designer,type,payload)).status,403,type);
 });
 
-test('reception sees only own finalized or paid payroll without mutation rights; manager cannot grant owner',async t => {
+test('reception payroll requires personal authentication; managers cannot manage accounts or wages',async t => {
   const f = await fixture(t); const owner = await f.setup(); const manager = await addAccount(f,owner,'manager'); const reception = await addAccount(f,owner,'reception');
   const current = readState(f.db);
   current.data.payroll = [
@@ -154,8 +161,13 @@ test('reception sees only own finalized or paid payroll without mutation rights;
   current.data.payrolls = structuredClone(current.data.payroll);
   writeState(f.db,current.data,current.version+1);
   const filtered = (await f.state(reception)).data;
-  assert.deepEqual(filtered.payroll.map(x => x.id),['p-own-final','p-own-paid']);
-  assert.deepEqual(filtered.payrolls.map(x => x.id),['p-own-final','p-own-paid']);
+  assert.deepEqual(filtered.payroll,[]);
+  assert.deepEqual(filtered.payrolls,[]);
+  const unlocked = await f.request('/auth/private/unlock',{ method:'POST',session:reception,body:{ scope:'personal',email:reception.user.email,password:`${PASSWORD}-changed` } });
+  assert.equal(unlocked.status,200);
+  const personal = await f.request('/personal/state',{ session:{ ...reception,accessToken:unlocked.data.accessToken } });
+  assert.deepEqual(personal.data.data.payroll.map(x => x.id),['p-own-final','p-own-paid']);
+  assert.deepEqual(personal.data.data.payrolls.map(x => x.id),['p-own-final','p-own-paid']);
   for (const type of ['payroll.save','payroll.finalize','payroll.reopen','payroll.paid']) assert.equal((await f.action(reception,type,{ id:'p-own-final' })).status,403,type);
   assert.equal((await f.action(reception,'inventory.item',{})).status,403);
   assert.equal((await f.request(`/users/${manager.user.id}`,{ method:'PATCH',session:manager,body:{ role:'owner' } })).status,403);
@@ -177,7 +189,7 @@ test('backup is valid SQLite snapshot and export escapes spreadsheet formulas',a
   const f = await fixture(t); const owner = await f.setup();
   const current = readState(f.db); current.data.transactions = [{ id:'sale',customerName:'=HYPERLINK("bad")',date:'2026-09-01',staffId:owner.user.staffId,method:'cash',total:1000,status:'paid',lines:[] }]; writeState(f.db,current.data,current.version+1);
   const exported = await f.request('/export?from=2026-09-01&to=2026-09-01',{ session:owner }); assert.equal(exported.status,200); assert.match(exported.data,/'=HYPERLINK/);
-  const response = await fetch(`${f.base}/api/backup`,{ headers:{ Cookie:owner.cookie } }); assert.equal(response.status,200);
+  const response = await fetch(`${f.base}/api/backup`,{ headers:{ Cookie:owner.cookie,'X-Private-Token':owner.accessToken } }); assert.equal(response.status,200);
   const backupPath = path.join(f.directory,'download.sqlite'); fs.writeFileSync(backupPath,Buffer.from(await response.arrayBuffer()));
   const snapshot = new DatabaseSync(backupPath,{ readOnly:true }); assert.equal(snapshot.prepare('PRAGMA integrity_check').get().integrity_check,'ok'); assert.equal(JSON.parse(snapshot.prepare('SELECT data FROM app_state').get().data).transactions.length,1); snapshot.close();
 });

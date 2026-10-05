@@ -94,7 +94,14 @@ test("failed preparation releases its port and leaves existing saved data untouc
   assert.equal((await request(retry.url + "/api/health")).status, 200);
 });
 
-test("a second launch during preparation waits for readiness and cancellation releases the listener", async (t) => {
+test("a second launch during preparation waits for readiness and cancellation releases the listener", { timeout: 10000 }, async (t) => {
+  // Capture the actual readiness notice instead of mixing raw console output
+  // with Node 24's child-v8 test-report stream. The notice also gives us a
+  // deterministic signal that the second launcher has observed preparation.
+  const waitingNotice = Promise.withResolvers();
+  t.mock.method(console, "log", (message) => {
+    if (message.includes("이미 같은 ERP를 준비 중입니다.")) waitingNotice.resolve(message);
+  });
   const f = fixture(t);
   const temporary = await f.launch();
   const port = portOf(temporary);
@@ -107,7 +114,7 @@ test("a second launch during preparation waits for readiness and cancellation re
   assert.equal((await request(url)).status, 503);
   let secondReady = false;
   const secondPending = f.launch({ port }).then((result) => { secondReady = true; return result; });
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.match(await waitingNotice.promise, /준비가 끝날 때까지 기다립니다/);
   assert.equal(secondReady, false);
   finish.resolve();
   const [first, second] = await Promise.all([firstPending, secondPending]);

@@ -1705,3 +1705,8 @@ input[type="radio"] {
     background: #fff;
   }
 }
+
+
+.work-access-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 32px; border-bottom: 1px solid var(--border, #dde3e8); background: #fff; color: var(--muted, #657180); font-size: 12px; }
+.work-access-bar .row { flex-wrap: wrap; gap: 8px; }
+@media (max-width: 760px) { .work-access-bar { align-items: flex-start; flex-direction: column; padding: 12px 18px; } }

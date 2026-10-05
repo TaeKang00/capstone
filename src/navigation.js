@@ -5,11 +5,7 @@ const pages = new Set([
   "appointments",
   "customers",
   "payments",
-  "sales",
   "inventory",
-  "staff",
-  "payroll",
-  "settings",
 ]);
 const fromLocation = () => {
   const candidate = window.location.hash.slice(2);
@@ -18,6 +14,7 @@ const fromLocation = () => {
     : "dashboard";
 };
 export function canVisit(page, role) {
+  if (!pages.has(page)) return false;
   if (role === "designer")
     return ["dashboard", "appointments", "customers", "payroll"].includes(page);
   if (role === "reception") return !["staff", "settings"].includes(page);

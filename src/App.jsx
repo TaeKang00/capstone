@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { api, getSession, setSession, roleLabel, today } from "./api";
+import {
+  api,
+  getSession,
+  getPrivateAccess,
+  setSession,
+  setPrivateAccess,
+  invalidateRequests,
+  roleLabel,
+  today,
+} from "./api";
 import {
   Button,
   Field,
@@ -15,20 +24,16 @@ import Appointments from "./pages/Appointments";
 import Customers from "./pages/Customers";
 import Payments from "./pages/Payments";
 import Inventory from "./pages/Inventory";
-import Sales from "./pages/Sales";
-import Staff from "./pages/Staff";
-import Settings from "./pages/Settings";
-import Payroll from "./pages/Payroll";
+import PrivateWorkspace from "./components/PrivateWorkspace";
+import { SharedDesk } from "./components/SharedDesk";
+import { AccessGate } from "./components/AccessGate";
+import { useAccessSecurity, broadcastAccess } from "./useAccessSecurity";
 const pages = {
   dashboard: Dashboard,
   appointments: Appointments,
   customers: Customers,
   payments: Payments,
-  sales: Sales,
   inventory: Inventory,
-  staff: Staff,
-  payroll: Payroll,
-  settings: Settings,
 };
 const navigation = [
   ["dashboard", "오늘의 매장", "workspace", "업무"],
@@ -92,10 +97,20 @@ export default function App() {
     cancelNavigation,
     resetNavigation,
   } = useWorkspaceNavigation(session?.user.role, notify);
+  const securityRef = useRef(null);
+  const [viewEpoch, setViewEpoch] = useState(0);
   const navigate = useCallback(
     (target, context = {}) => {
       setDrawer(false);
-      routeNavigate(target, context);
+      if (["staff", "payroll", "sales", "settings"].includes(target)) {
+        securityRef.current.requestPrivate(
+          target === "payroll" && getSession()?.user.role !== "owner"
+            ? "personal"
+            : "owner",
+          target,
+          context,
+        );
+      } else routeNavigate(target, context);
     },
     [routeNavigate],
   );
@@ -108,17 +123,23 @@ export default function App() {
     }
   };
   const refresh = useCallback(async (background = false) => {
+    if (getPrivateAccess()) return null;
     const requestedSession = getSession();
     let result;
     try {
       result = await api("/state");
     } catch (error) {
-      if (getSession() === requestedSession && error.status !== 401)
+      if (
+        getSession() === requestedSession &&
+        error.status !== 401 &&
+        error.code !== "STALE_RESPONSE"
+      )
         setSyncError(true);
       throw error;
     }
     if (
       getSession() === requestedSession &&
+      !getPrivateAccess() &&
       !(
         background &&
         (document.querySelector('[role="dialog"]') ||
@@ -130,7 +151,10 @@ export default function App() {
   }, []);
   const authenticate = useCallback(
     async (result) => {
-      if (getSession()?.user.id !== result.user.id) {
+      if (
+        getSession()?.user.id !== result.user.id ||
+        getSession()?.mode !== result.mode
+      ) {
         pending.current.clear();
         acceptState(null);
       }
@@ -140,7 +164,7 @@ export default function App() {
         requiresToken: false,
       });
       setSession(result);
-      updateSession(result);
+      updateSession({ ...getSession() });
       setLoadError("");
       if (!result.user.mustChangePassword) {
         try {
@@ -152,6 +176,45 @@ export default function App() {
     },
     [refresh],
   );
+  const clearWork = useCallback(() => {
+    acceptState(null);
+    pending.current.clear();
+    modalVersions.current.clear();
+    setDrawer(false);
+    setPasswordModal(false);
+    setLogoutModal(false);
+    setToast(null);
+    resetNavigation();
+    setViewEpoch((value) => value + 1);
+  }, []);
+  const security = useAccessSecurity({
+    session,
+    onSession: authenticate,
+    onClear: clearWork,
+    notify,
+    navigate: routeNavigate,
+  });
+  securityRef.current = security;
+  const securityGate = security.gate && (
+    <AccessGate
+      key={security.gate.kind}
+      kind={security.gate.kind}
+      session={session}
+      onAuthenticated={security.operatorAuthenticated}
+      onUnlocked={security.unlocked}
+      onClose={security.dismissGate}
+    />
+  );
+  useEffect(() => {
+    if (
+      session &&
+      !session.user.mustChangePassword &&
+      !security.access &&
+      !security.locking &&
+      !state
+    )
+      refresh().catch(() => {});
+  }, [session, security.access, security.locking, state, refresh]);
   const initialize = useCallback(async () => {
     setLoading(true);
     setLoadError("");
@@ -188,8 +251,9 @@ export default function App() {
   useEffect(() => {
     const expired = () => {
       setSession(null);
+      setPrivateAccess(null);
       updateSession(null);
-      acceptState(null);
+      clearWork();
       notify("로그인이 만료되었습니다. 다시 로그인해 주세요.", "warning");
     };
     const on = () => setOnline(true),
@@ -202,7 +266,7 @@ export default function App() {
       window.removeEventListener("online", on);
       window.removeEventListener("offline", off);
     };
-  }, [notify]);
+  }, [notify, clearWork]);
   useEffect(() => {
     if (!drawer) return;
     const previous = document.activeElement;
@@ -242,6 +306,7 @@ export default function App() {
     if (!session || session.user.mustChangePassword) return;
     const update = () => {
       if (
+        !getPrivateAccess() &&
         document.visibilityState === "visible" &&
         !document.querySelector('[role="dialog"]') &&
         !document.querySelector('[data-dirty="true"]')
@@ -300,6 +365,8 @@ export default function App() {
   );
   const doLogout = async () => {
     try {
+      security.closePrivate();
+      invalidateRequests();
       await api("/auth/logout", { method: "POST" });
       setSession(null);
       updateSession(null);
@@ -307,10 +374,20 @@ export default function App() {
       setLogoutModal(false);
       pending.current.clear();
       resetNavigation();
+      broadcastAccess("session-changed");
     } catch (e) {
       notify(e.message, "danger");
     }
   };
+  if (security.locking)
+    return (
+      <div className="loading-screen">
+        <Icon name="lock" size={24} />
+        <h1>화면이 잠겼습니다</h1>
+        <p>{security.lockError || "공용 화면으로 전환하고 있습니다."}</p>
+        <Button onClick={security.lockWork}>잠금 상태 다시 확인</Button>
+      </div>
+    );
   if (loading)
     return (
       <div className="loading-screen">
@@ -325,7 +402,7 @@ export default function App() {
       <>
         <AuthScreen
           bootstrap={bootstrap}
-          onSuccess={authenticate}
+          onSuccess={security.authenticated}
           error={loadError}
           retry={initialize}
         />
@@ -344,12 +421,40 @@ export default function App() {
           <p className="muted">
             처음 로그인하거나 관리자가 비밀번호를 재설정한 계정입니다.
           </p>
-          <PasswordForm forced onSuccess={authenticate} />
+          <PasswordForm forced onSuccess={security.authenticated} />
           <Button onClick={doLogout} variant="ghost">
             로그아웃
           </Button>
         </div>
       </div>
+    );
+  if (security.access)
+    return (
+      <ErrorBoundary key={security.access.accessToken}>
+        <PrivateWorkspace
+          key={security.access.accessToken}
+          access={security.access}
+          initialPage={security.target.page}
+          initialContext={security.target.context}
+          onLock={security.closePrivate}
+        />
+      </ErrorBoundary>
+    );
+  if (session.mode === "shared")
+    return (
+      <>
+        <SharedDesk
+          data={state?.data}
+          onLogin={security.operator}
+          onOwner={(target) => security.requestPrivate("owner", target)}
+        />
+        {securityGate}
+        {toast && (
+          <div role="status" className={`toast toast-${toast.tone}`}>
+            {toast.message}
+          </div>
+        )}
+      </>
     );
   const user = session.user,
     data = state?.data;
@@ -401,6 +506,31 @@ export default function App() {
               </button>
             </React.Fragment>
           ))}
+        <p className="nav-group">보호 영역</p>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setDrawer(false);
+            security.requestPrivate("personal", "payroll");
+          }}
+        >
+          <span className="nav-icon">
+            <Icon name="payroll" />
+          </span>
+          내 급여명세
+        </button>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setDrawer(false);
+            security.requestPrivate("owner", "staff");
+          }}
+        >
+          <span className="nav-icon">
+            <Icon name="lock" />
+          </span>
+          원장 관리
+        </button>
       </nav>
     </>
   );
@@ -503,6 +633,21 @@ export default function App() {
               </Button>
             </div>
           </header>
+          <div className="work-access-bar">
+            <span>
+              <strong>{user.name}</strong> 계정으로 업무 기록 중 · 5분간 미사용
+              시 잠금
+            </span>
+            <div className="row">
+              <Button variant="ghost" onClick={() => security.operator()}>
+                작업자 전환
+              </Button>
+              <Button onClick={security.lockWork}>
+                <Icon name="lock" size={15} />
+                공용 화면 잠금
+              </Button>
+            </div>
+          </div>
           {(!online || syncError) && (
             <div role="alert" className="connection-banner">
               <span>
@@ -547,7 +692,7 @@ export default function App() {
               </div>
             )}
             {data ? (
-              <ViewStateProvider key={user.id}>
+              <ViewStateProvider key={`${user.id}-${viewEpoch}`}>
                 <ErrorBoundary key={activePage}>
                   <Page
                     data={data}
@@ -604,6 +749,7 @@ export default function App() {
           </button>
         </div>
       )}
+      {securityGate}
       {pendingNavigation && (
         <ConfirmDialog
           title="저장하지 않은 내용이 있습니다"
@@ -619,7 +765,7 @@ export default function App() {
         <Modal title="내 비밀번호 변경" onClose={() => setPasswordModal(false)}>
           <PasswordForm
             onSuccess={async (result) => {
-              await authenticate(result);
+              await security.authenticated(result);
               setPasswordModal(false);
               notify("비밀번호를 변경했습니다. 다른 기기는 로그아웃됩니다.");
             }}
@@ -797,9 +943,8 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
               </Button>
               {!setup && (
                 <p className="help auth-help">
-                  비밀번호를 잊으셨나요? 원장 또는 매니저에게 계정 재설정을
-                  요청해 주세요. 원장 계정은 운영 안내서의 복구 절차를
-                  이용하세요.
+                  비밀번호를 잊으셨나요? 원장에게 계정 재설정을 요청해 주세요.
+                  원장 계정은 운영 안내서의 복구 절차를 이용하세요.
                 </p>
               )}
             </form>

@@ -1,6 +1,6 @@
 import { DateInput } from "../components/DateInput.jsx";
 import React, { useEffect, useRef, useState } from "react";
-import { api } from "../api";
+import { api, download } from "../api";
 import { Button, Field, Badge, EmptyState, Money } from "../components/ui";
 import {
   todayInSeoul,
@@ -24,7 +24,14 @@ function priorMonth(date) {
   return { from: monthStart(to), to };
 }
 
-export default function Sales({ data, user, navigate, version, routeContext }) {
+export default function Sales({
+  data,
+  user,
+  navigate,
+  version,
+  routeContext,
+  notify,
+}) {
   const today = todayInSeoul();
   const [draft, setDraft] = useViewState("sales", "draft", {
     from: monthStart(),
@@ -40,6 +47,7 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const [eventKind, setEventKind] = useViewState("sales", "eventKind", "all");
   const [eventMethod, setEventMethod] = useViewState(
     "sales",
@@ -182,7 +190,18 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
     ...days.map((d) => Math.max(d.gross, d.refunds)),
   );
   const chartDays = days.length <= 45 ? days : [];
-  const exportUrl = `/api/export?${new URLSearchParams({ from: range.from, to: range.to, ...(range.staffId ? { staffId: range.staffId } : {}) })}`;
+  const exportUrl = `/export?${new URLSearchParams({ from: range.from, to: range.to, ...(range.staffId ? { staffId: range.staffId } : {}) })}`;
+  const exportReport = async () => {
+    setExporting(true);
+    try {
+      await download(exportUrl, `매출_${range.from}_${range.to}.csv`);
+    } catch (err) {
+      if (notify) notify(err.message, "danger");
+      else setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
   return (
     <>
       <header className="page-header">
@@ -193,9 +212,9 @@ export default function Sales({ data, user, navigate, version, routeContext }) {
           </p>
         </div>
         {report && !busy && !error && (
-          <a href={exportUrl} className="btn btn-secondary" download>
+          <Button onClick={exportReport} busy={exporting}>
             조회 기간 CSV 내려받기
-          </a>
+          </Button>
         )}
       </header>
       <section className="card commerce-banner">

@@ -26,7 +26,14 @@ const {
 } = require("./auth.cjs");
 
 const ROLES = ["owner", "manager", "designer", "reception"];
-const FINANCE_ROLES = ["owner", "manager", "reception"];
+const {
+  createPrivacy,
+  PRIVATE_ACTIONS,
+  sharedState,
+  adminState,
+  personalState,
+  publicStaff,
+} = require("./privacy.cjs");
 const ALL_ACTIONS = new Set([
   "customer.save",
   "customer.archive",
@@ -76,26 +83,16 @@ function today() {
     day: "2-digit",
   }).format(new Date());
 }
-function roleOnly(req, roles) {
-  if (!roles.includes(req.user.role))
-    throw problem(403, "FORBIDDEN", "이 작업을 수행할 권한이 없습니다.");
-}
 function loopback(address) {
   return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
 }
 function filterState(envelope, user) {
   const data = structuredClone(envelope.data);
   delete data.legacyArchive;
-  if (["designer", "reception"].includes(user.role)) {
-    for (const key of ["payroll", "payrolls"]) {
-      if (Array.isArray(data[key]))
-        data[key] = data[key].filter(
-          (x) =>
-            x.staffId === user.staff_id &&
-            ["finalized", "paid"].includes(x.status),
-        );
-    }
-  }
+  data.payroll = [];
+  data.payrolls = [];
+  data.logs = [];
+  data.staff = (data.staff || []).map(publicStaff);
   if (user.role === "designer") {
     data.appointments = (data.appointments || []).filter(
       (x) => x.staffId === user.staff_id,
@@ -108,30 +105,12 @@ function filterState(envelope, user) {
     data.receipts = [];
     data.logs = [];
     data.inventoryOperations = [];
-    data.staff = (data.staff || []).map(({ phone, ...staff }) =>
-      staff.id === user.staff_id ? { ...staff, phone } : staff,
-    );
   }
   return { data, version: envelope.version };
 }
 function ensureActorStillActive(db, req) {
-  const current = db
-    .prepare("SELECT * FROM users WHERE id=? AND active=1")
-    .get(req.user.id);
-  if (
-    !current ||
-    current.password_hash !== req.user.password_hash ||
-    current.role !== req.user.role ||
-    !db
-      .prepare("SELECT 1 FROM sessions WHERE token_hash=? AND expires_at>?")
-      .get(req.user.token_hash, Date.now())
-  )
-    throw problem(
-      401,
-      "SESSION_EXPIRED",
-      "로그인이 만료되었습니다. 다시 로그인해 주세요.",
-    );
-  return current;
+  if (req.privateGrant) return req.privacy.requireOwner(req).user;
+  return req.privacy.requireWork(req);
 }
 function permission(type, payload, req, state) {
   if (!ALL_ACTIONS.has(type))
@@ -286,6 +265,12 @@ function createApp(options = {}) {
   const db = openDatabase(
     options.dbPath ?? process.env.DB_PATH ?? path.resolve("data/salon.sqlite"),
   );
+  const privacy = createPrivacy(db, options);
+  const newSession = (userId) =>
+    createSession(db, userId, sessionHours, {
+      now: privacy.now(),
+      idleMs: privacy.workIdleMs,
+    });
   const app = express();
   app.disable("x-powered-by");
   const asyncRoute = (fn) => (req, res, next) =>
@@ -360,6 +345,7 @@ function createApp(options = {}) {
         );
     }
     req.db = db;
+    req.privacy = privacy;
     next();
   });
   app.use(express.json({ limit: "2mb", strict: true }));
@@ -379,7 +365,12 @@ function createApp(options = {}) {
   });
   const respondSession = (res, user, session) => {
     setSessionCookie(res, session.token, production, sessionHours);
-    res.json({ user: publicUser(user), csrfToken: session.csrfToken });
+    res.json({
+      user: publicUser(user),
+      csrfToken: session.csrfToken,
+      mode: session.mode,
+      idleExpiresAt: session.idleExpiresAt,
+    });
   };
   app.post(
     "/api/bootstrap",
@@ -436,7 +427,7 @@ function createApp(options = {}) {
         initial.payroll ||= [];
         writeState(db, initial, 1);
         user = db.prepare("SELECT * FROM users WHERE id=?").get(id);
-        session = createSession(db, id, sessionHours);
+        session = newSession(id);
         audit(db, actorFor(user), "bootstrap", "매장 및 첫 원장 계정 등록");
       });
       res.status(201);
@@ -479,13 +470,25 @@ function createApp(options = {}) {
         const current = db
           .prepare("SELECT * FROM users WHERE id=? AND active=1")
           .get(user.id);
-        if (!current || current.password_hash !== user.password_hash)
+        if (
+          !current ||
+          current.password_hash !== user.password_hash ||
+          current.role !== user.role ||
+          current.must_change_password !== user.must_change_password
+        )
           throw problem(
             401,
             "INVALID_LOGIN",
             "계정 정보가 변경되었습니다. 다시 로그인해 주세요.",
           );
-        session = createSession(db, user.id, sessionHours);
+        const previous = getSession(db, req, privacy.now());
+        if (previous) {
+          privacy.revokeSession(previous.token_hash);
+          db.prepare("DELETE FROM sessions WHERE token_hash=?").run(
+            previous.token_hash,
+          );
+        }
+        session = newSession(user.id);
         audit(db, actorFor(user), "auth.login", "로그인");
       });
       respondSession(res, user, session);
@@ -493,13 +496,15 @@ function createApp(options = {}) {
   );
   app.use("/api", (req, res, next) => {
     try {
-      const session = getSession(db, req);
+      const session = getSession(db, req, privacy.now());
       if (!session) throw problem(401, "AUTH_REQUIRED", "로그인이 필요합니다.");
       const staff = readState(db)?.data.staff.find(
         (x) => x.id === session.staff_id,
       );
       if (!staff || staff.status !== "active")
         throw problem(401, "ACCOUNT_INACTIVE", "비활성화된 직원 계정입니다.");
+      privacy.refreshMode(session);
+      req.baseUser = session;
       req.user = session;
       if (
         !["GET", "HEAD"].includes(req.method) &&
@@ -511,8 +516,11 @@ function createApp(options = {}) {
           "로그인 정보가 변경되었습니다. 새로고침 후 다시 시도해 주세요.",
         );
       if (
+        session.mode === "work" &&
         session.must_change_password &&
-        !["/auth/me", "/auth/password", "/auth/logout"].includes(req.path)
+        !["/auth/me", "/auth/password", "/auth/logout", "/auth/lock"].includes(
+          req.path,
+        )
       )
         throw problem(
           403,
@@ -525,9 +533,10 @@ function createApp(options = {}) {
     }
   });
   app.get("/api/auth/me", (req, res) =>
-    res.json({ user: publicUser(req.user), csrfToken: req.user.csrf_token }),
+    res.json(privacy.sessionShape(req.baseUser)),
   );
   app.post("/api/auth/logout", (req, res) => {
+    privacy.revokeSession(req.baseUser.token_hash);
     db.prepare("DELETE FROM sessions WHERE token_hash=?").run(
       req.user.token_hash,
     );
@@ -542,6 +551,7 @@ function createApp(options = {}) {
   app.post(
     "/api/auth/password",
     asyncRoute(async (req, res) => {
+      privacy.requireWork(req);
       throttle(req, "password", 10, 15);
       if (
         !(await verifyPassword(
@@ -569,7 +579,8 @@ function createApp(options = {}) {
           "UPDATE users SET password_hash=?,must_change_password=0 WHERE id=?",
         ).run(hash, req.user.id);
         db.prepare("DELETE FROM sessions WHERE user_id=?").run(req.user.id);
-        session = createSession(db, req.user.id, sessionHours);
+        privacy.revokeUser(req.user.id);
+        session = newSession(req.user.id);
         user = db.prepare("SELECT * FROM users WHERE id=?").get(req.user.id);
         audit(
           db,
@@ -581,12 +592,99 @@ function createApp(options = {}) {
       respondSession(res, user, session);
     }),
   );
-  app.get("/api/state", (req, res) =>
-    res.json(filterState(readState(db), req.user)),
+  app.post("/api/auth/lock", (req, res) => {
+    audit(db, actorFor(req.baseUser), "auth.lock", "공용 화면으로 전환");
+    res.json(privacy.lock(req.baseUser));
+  });
+  app.post("/api/auth/activity", (req, res) => res.json(privacy.activity(req)));
+  app.post(
+    "/api/auth/private/unlock",
+    asyncRoute(async (req, res) => {
+      const { scope } = req.body;
+      if (!["owner", "personal"].includes(scope))
+        throw problem(422, "INVALID_SCOPE", "보호 영역을 확인해 주세요.");
+      throttle(req, "private-global", 100, 15);
+      const email =
+        typeof req.body.email === "string"
+          ? req.body.email.trim().toLowerCase().slice(0, 254)
+          : "";
+      throttle(req, `private-${digest(email).slice(0, 24)}`, 10, 15);
+      const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
+      const valid = await verifyPassword(
+        req.body.password,
+        user?.password_hash ||
+          "scrypt$00000000000000000000000000000000$" + "00".repeat(64),
+      );
+      if (
+        !valid ||
+        !user?.active ||
+        user.must_change_password ||
+        (scope === "owner" && user.role !== "owner")
+      )
+        throw problem(
+          403,
+          "PRIVATE_LOGIN_FAILED",
+          "이 영역에 접근할 수 있는 계정과 비밀번호를 확인해 주세요.",
+        );
+      let result;
+      transaction(db, () => {
+        const current = db
+          .prepare("SELECT * FROM users WHERE id=? AND active=1")
+          .get(user.id);
+        const staff =
+          current &&
+          readState(db)?.data.staff.find((s) => s.id === current.staff_id);
+        if (
+          !current ||
+          current.password_hash !== user.password_hash ||
+          current.role !== user.role ||
+          current.must_change_password ||
+          staff?.status !== "active"
+        )
+          throw problem(
+            403,
+            "PRIVATE_LOGIN_FAILED",
+            "계정이 변경되었습니다. 다시 인증해 주세요.",
+          );
+        result = privacy.issue(req, scope, current);
+        audit(
+          db,
+          actorFor(current),
+          `auth.private.${scope}`,
+          "보호 영역 본인 재인증",
+        );
+      });
+      res.json(result);
+    }),
   );
+  app.post("/api/auth/private/lock", (req, res) => {
+    privacy.privateLock(req);
+    res.status(204).end();
+  });
+  app.post("/api/auth/private/activity", (req, res) =>
+    res.json(privacy.privateActivity(req)),
+  );
+  app.get("/api/state", (req, res) => {
+    const session = privacy.liveBase(req);
+    const result =
+      session.mode === "shared"
+        ? sharedState(readState(db), today())
+        : filterState(readState(db), session);
+    res.json({ ...result, session: privacy.sessionShape(session) });
+  });
+  app.get("/api/admin/state", (req, res) => {
+    privacy.requireOwner(req);
+    res.json(adminState(readState(db)));
+  });
+  app.get("/api/personal/state", (req, res) => {
+    const { user } = privacy.grantFor(req, "personal");
+    res.json(personalState(readState(db), user));
+  });
   app.post("/api/actions/:type", (req, res, next) => {
     try {
       const { type } = req.params;
+      if (PRIVATE_ACTIONS.has(type)) privacy.requireOwner(req);
+      else privacy.requireWork(req);
       const { payload, version, requestId } = req.body;
       if (
         !payload ||
@@ -681,14 +779,21 @@ function createApp(options = {}) {
           ctx.now,
         );
       });
-      res.json(filterState(result, req.user));
+      res.json(
+        req.privateGrant
+          ? adminState(result)
+          : {
+              ...filterState(result, req.user),
+              session: privacy.sessionShape(req.baseUser),
+            },
+      );
     } catch (error) {
       next(error);
     }
   });
   app.get("/api/reports", (req, res, next) => {
     try {
-      roleOnly(req, FINANCE_ROLES);
+      privacy.requireOwner(req);
       res.json(
         require("./commerce.cjs").getReport(
           readState(db).data,
@@ -701,7 +806,7 @@ function createApp(options = {}) {
   });
   app.get("/api/export", (req, res, next) => {
     try {
-      roleOnly(req, FINANCE_ROLES);
+      privacy.requireOwner(req);
       const range = validRange(req.query);
       const report = require("./commerce.cjs").getReport(
         readState(db).data,
@@ -726,7 +831,7 @@ function createApp(options = {}) {
   });
   app.get("/api/users", (req, res, next) => {
     try {
-      roleOnly(req, ["owner", "manager"]);
+      privacy.requireOwner(req);
       const users = db
         .prepare("SELECT * FROM users ORDER BY created_at,id")
         .all()
@@ -739,7 +844,7 @@ function createApp(options = {}) {
   app.post(
     "/api/users",
     asyncRoute(async (req, res) => {
-      roleOnly(req, ["owner", "manager"]);
+      privacy.requireOwner(req);
       throttle(req, "users", 30, 15);
       const name = text(req.body.name, "이름", 80, true);
       const email = emailAddress(req.body.email);
@@ -803,7 +908,7 @@ function createApp(options = {}) {
   app.patch(
     "/api/users/:id",
     asyncRoute(async (req, res) => {
-      roleOnly(req, ["owner", "manager"]);
+      privacy.requireOwner(req);
       throttle(req, "users", 30, 15);
       const { active, role, password } = req.body;
       if (active === undefined && role === undefined && password === undefined)
@@ -876,6 +981,7 @@ function createApp(options = {}) {
           user.id,
         );
         db.prepare("DELETE FROM sessions WHERE user_id=?").run(user.id);
+        privacy.revokeUser(user.id);
         staff.role = nextRole;
         writeState(db, current.data, current.version + 1);
         updated = db.prepare("SELECT * FROM users WHERE id=?").get(user.id);
@@ -891,7 +997,7 @@ function createApp(options = {}) {
   );
   app.get("/api/audit", (req, res, next) => {
     try {
-      roleOnly(req, ["owner", "manager"]);
+      privacy.requireOwner(req);
       const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
       res.json({
         entries: db
@@ -907,12 +1013,13 @@ function createApp(options = {}) {
   app.get(
     "/api/backup",
     asyncRoute(async (req, res, next) => {
-      roleOnly(req, ["owner"]);
+      privacy.requireOwner(req);
       throttle(req, "backup", 5, 60);
       const directory = fs.mkdtempSync(path.join(os.tmpdir(), "salon-backup-"));
       const filename = path.join(directory, "salon.sqlite");
       try {
         await backup(db, filename);
+        privacy.requireOwner(req);
         fs.chmodSync(filename, 0o600);
         audit(
           db,
@@ -931,11 +1038,9 @@ function createApp(options = {}) {
     }),
   );
   app.use("/api", (req, res) =>
-    res
-      .status(404)
-      .json({
-        error: { code: "NOT_FOUND", message: "요청한 API를 찾을 수 없습니다." },
-      }),
+    res.status(404).json({
+      error: { code: "NOT_FOUND", message: "요청한 API를 찾을 수 없습니다." },
+    }),
   );
   const dist = options.distPath ?? path.resolve(__dirname, "../dist");
   if (fs.existsSync(path.join(dist, "index.html"))) {
@@ -974,16 +1079,14 @@ function createApp(options = {}) {
           ? "요청 JSON 형식이 올바르지 않습니다."
           : error.message;
     if (status === 500 && options.onError) options.onError(error);
-    res
-      .status(status)
-      .json({
-        error: {
-          code:
-            error.code ||
-            (status === 500 ? "INTERNAL_ERROR" : "INVALID_REQUEST"),
-          message,
-        },
-      });
+    res.status(status).json({
+      error: {
+        code:
+          error.code || (status === 500 ? "INTERNAL_ERROR" : "INVALID_REQUEST"),
+        message,
+        ...(error.session ? { session: error.session } : {}),
+      },
+    });
   });
   return { app, db, close: () => db.close() };
 }

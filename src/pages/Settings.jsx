@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, timeLabel } from "../api";
+import { api, download, timeLabel, today } from "../api";
 import { useViewState } from "../components/ViewState";
 import Icon from "../components/Icon";
 import {
@@ -750,6 +750,17 @@ function DataSettings({ data, runAction, notify }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [confirm, setConfirm] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const downloadBackup = async () => {
+    setDownloading(true);
+    try {
+      await download("/backup", `salon-backup-${today()}.sqlite`);
+    } catch (err) {
+      notify(err.message, "danger");
+    } finally {
+      setDownloading(false);
+    }
+  };
   let localAvailable = false;
   try {
     localAvailable = !!localStorage.getItem("salon-erp-prototype-v2");
@@ -845,9 +856,13 @@ function DataSettings({ data, runAction, notify }) {
             접근이 제한된 외부 저장소에 보관해 주세요.
           </p>
           <div>
-            <a className="btn btn-primary" href="/api/backup" download>
+            <Button
+              variant="primary"
+              onClick={downloadBackup}
+              busy={downloading}
+            >
               데이터베이스 백업 다운로드
-            </a>
+            </Button>
           </div>
           <p className="help">
             백업에는 고객·직원 개인정보가 포함됩니다. 복원은 서버를 중지한 뒤
@@ -942,7 +957,9 @@ function Help({ data }) {
           style={{ fontSize: 14, lineHeight: 2.2, paddingLeft: 20 }}
         >
           <li>매장 이름·영업시간·휴무일을 설정합니다.</li>
-          <li>직원을 등록하고 근무시간과 로그인 계정을 발급합니다.</li>
+          <li>
+            직원 정보를 등록한 뒤 ‘로그인 권한’에서 개인 계정을 발급합니다.
+          </li>
           <li>재고 품목과 입고 기준을 등록하고 실제 입고 수량을 입력합니다.</li>
           <li>시술별 가격·소요시간·소모 재료를 설정합니다.</li>
           <li>고객을 등록하고 담당자와 시술을 선택해 예약합니다.</li>
@@ -966,9 +983,11 @@ function Help({ data }) {
         <div className="alert">
           <strong>계정과 개인정보</strong>
           <br />
-          계정은 직원별로 사용하고 퇴사 시 비활성화해 주세요. 고객의 민감정보와
-          카드번호는 메모에 입력하지 마세요. 일상 업무 중 자리를 비울 때는
-          로그아웃합니다.
+          공용 PC에서는 직원 본인 인증 후 업무를 기록합니다. 계정·전체
+          급여·백업은 원장 관리에서만 열 수 있으며, 직원은 본인 인증 후 자신의
+          확정된 급여만 확인할 수 있습니다. 확인 후 ‘지금 잠그기’를 누르고,
+          퇴사자의 계정은 비활성화해 주세요. 고객의 민감정보와 카드번호는 메모에
+          입력하지 마세요.
         </div>
         <p className="help">
           급여의 세금·사회보험 공제는 검토한 금액을 직접 입력합니다. 외부 카드

@@ -1,7 +1,8 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useContext, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import { DateInput } from "./DateInput.jsx";
+import { PrivateWorkspaceContext } from "./PrivateWorkspaceContext";
 let scrollLocks = 0,
   originalOverflow = "";
 export function lockBodyScroll() {
@@ -123,6 +124,7 @@ export function Modal({
   size,
 }) {
   const ref = useRef(null);
+  const lockPrivateWorkspace = useContext(PrivateWorkspaceContext);
   const titleId = useId();
   const [discard, setDiscard] = useState(false);
   const dirtyRef = useRef(dirty);
@@ -221,6 +223,17 @@ export function Modal({
         >
           <header className="modal-header">
             <h2 id={titleId}>{title}</h2>
+            {lockPrivateWorkspace && (
+              <button
+                type="button"
+                className="icon-btn private-dialog-lock"
+                aria-label="보호 화면 잠그기"
+                title="보호 화면 잠그기"
+                onClick={() => lockPrivateWorkspace()}
+              >
+                <Icon name="lock" />
+              </button>
+            )}
             <button
               type="button"
               className="icon-btn"

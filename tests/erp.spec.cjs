@@ -1,5 +1,5 @@
 'use strict';
-const { test, expect } = require('@playwright/test');
+const { test, expect, adminAction, adminState, adminHeaders, goTo: nav, openPersonal, trackPrivateAccess } = require('./ux-fixture.cjs');
 const { randomUUID } = require('node:crypto');
 const EMAIL = 'owner@example.test';
 const PASSWORD = 'Owner-test-password-2026!';
@@ -13,6 +13,7 @@ async function action(page, type, payload) {
   expect(response.ok(), await response.text()).toBeTruthy(); return response.json();
 }
 async function ensureSetup(page) {
+  trackPrivateAccess(page);
   const bootstrap = await (await page.request.get('/api/bootstrap')).json();
   if (bootstrap.needsSetup) {
     const response = await page.request.post('/api/bootstrap', { data: { storeName: '브라우저 테스트 미용실', name: '테스트 원장', email: EMAIL, password: PASSWORD } });
@@ -28,10 +29,9 @@ async function login(page, email = EMAIL, password = PASSWORD) {
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '로그인' })).toBeHidden();
 }
-async function nav(page, name) { await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name, exact: false }).click(); }
 async function closeDialog(page) { await page.getByRole('dialog').getByRole('button', { name: '닫기', exact: true }).first().click(); }
 async function catalog(page, tag, { material = false, product = false } = {}) {
-  let result = await action(page, 'staff.save', { name: `${tag} 디자이너`, phone: '', role: 'designer', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
+  let result = await adminAction(page, 'staff.save', { name: `${tag} 디자이너`, phone: '', role: 'designer', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
   const staff = result.data.staff.find(row => row.name === `${tag} 디자이너`);
   let materialItem, productItem;
   if (material) {
@@ -44,7 +44,7 @@ async function catalog(page, tag, { material = false, product = false } = {}) {
     productItem = result.data.items.find(row => row.name === `${tag} 샴푸`);
     await action(page, 'inventory.receipt', { itemId: productItem.id, qty: 5, date: TODAY, memo: '테스트 입고' });
   }
-  result = await action(page, 'service.save', { name: `${tag} 염색`, price: 20000, duration: 30, materials: materialItem ? [{ itemId: materialItem.id, quantity: 10 }] : [], active: true });
+  result = await adminAction(page, 'service.save', { name: `${tag} 염색`, price: 20000, duration: 30, materials: materialItem ? [{ itemId: materialItem.id, quantity: 10 }] : [], active: true });
   const service = result.data.services.find(row => row.name === `${tag} 염색`);
   await page.reload();
   return { staff, service, materialItem, productItem };
@@ -161,7 +161,7 @@ test('급여명세서를 작성·확정·지급 처리하고 출력할 수 있�
   await page.getByRole('button', { name: '급여 확정', exact: true }).click();
   await page.getByRole('button', { name: '최신 매출로 계산 후 확정' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  let snapshot = await state(page); const payroll = snapshot.data.payroll.find(row => row.staffId === staff.id);
+  let snapshot = await adminState(page); const payroll = snapshot.data.payroll.find(row => row.staffId === staff.id);
   expect(payroll.status).toBe('finalized'); expect(payroll.netPay).toBe(2400000);
   await page.getByRole('button', { name: `${staff.name} ${TODAY.slice(0, 7)} 급여명세서 보기` }).click();
   await page.evaluate(() => { window.__printCalls = 0; window.print = () => { window.__printCalls++; }; });
@@ -171,7 +171,7 @@ test('급여명세서를 작성·확정·지급 처리하고 출력할 수 있�
   await page.getByRole('button', { name: '지급 완료 기록', exact: true }).click();
   await page.getByRole('button', { name: '실제 지급 확인 · 완료 기록' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  snapshot = await state(page);
+  snapshot = await adminState(page);
   expect(snapshot.data.payroll.find(row => row.id === payroll.id).status).toBe('paid');
 });
 
@@ -184,6 +184,7 @@ test('디자이너는 첫 비밀번호를 변경하고 본인 업무와 확정 �
   await dialog.getByRole('button', { name: '직원 저장', exact: true }).click();
   await expect(dialog).toBeHidden();
   const { data } = await state(page); const staff = data.staff.find(row => row.name === '권한 디자이너');
+  await page.getByRole('navigation', { name: '직원 관리 메뉴' }).getByRole('button', { name: '로그인 권한', exact: true }).click();
   await page.locator('.staff-card').filter({ hasText: '권한 디자이너' }).getByRole('button', { name: '계정 발급', exact: true }).click();
   dialog = page.getByRole('dialog');
   await dialog.getByLabel('로그인 이메일', { exact: true }).fill('designer@example.test');
@@ -203,9 +204,9 @@ test('디자이너는 첫 비밀번호를 변경하고 본인 업무와 확정 �
   const own = await state(page);
   expect(own.data.appointments.every(row => row.staffId === staff.id)).toBeTruthy();
   expect(own.data.transactions.every(row => row.staffId === staff.id)).toBeTruthy();
-  expect(own.data.payroll.every(row => row.staffId === staff.id && row.status !== 'draft')).toBeTruthy();
+  expect(own.data.payroll).toEqual([]);
   const reports = await page.request.get(`/api/reports?from=${TODAY}&to=${TODAY}`); expect(reports.status()).toBe(403);
-  await nav(page, '급여명세');
+  await openPersonal(page, 'designer@example.test', 'Designer-final-password-2026!');
   await expect(page.getByRole('heading', { name: '내 급여명세서' })).toBeVisible();
 });
 
@@ -350,21 +351,21 @@ test('수납 저장 응답이 끊겨도 재시도하면 결제와 재료 사용�
 
 test('접수 직원도 확정된 본인 급여명세서를 조회·출력할 수 있다', async ({ page }) => {
   await ensureSetup(page); await login(page);
-  let result = await action(page, 'staff.save', { name: '급여 조회 접수 직원', phone: '', role: 'reception', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
+  let result = await adminAction(page, 'staff.save', { name: '급여 조회 접수 직원', phone: '', role: 'reception', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
   const staff = result.data.staff.find(row => row.name === '급여 조회 접수 직원');
   const { csrfToken } = await session(page);
-  const created = await page.request.post('/api/users', { headers: { 'X-CSRF-Token': csrfToken }, data: { name: staff.name, email: 'reception@example.test', role: 'reception', staffId: staff.id, password: 'Reception-temporary-2026!' } });
+  const created = await page.request.post('/api/users', { headers: await adminHeaders(page), data: { name: staff.name, email: 'reception@example.test', role: 'reception', staffId: staff.id, password: 'Reception-temporary-2026!' } });
   expect(created.ok()).toBeTruthy();
-  result = await action(page, 'payroll.save', { staffId: staff.id, month: TODAY.slice(0, 7), payDate: TODAY, basePay: 2100000, commissionRate: 0, allowances: [], deductions: [], workDays: '', workHours: '', overtimeHours: '', basis: '접수 직원 월 정액 급여', notes: '' });
+  result = await adminAction(page, 'payroll.save', { staffId: staff.id, month: TODAY.slice(0, 7), payDate: TODAY, basePay: 2100000, commissionRate: 0, allowances: [], deductions: [], workDays: '', workHours: '', overtimeHours: '', basis: '접수 직원 월 정액 급여', notes: '' });
   const payroll = result.data.payroll.find(row => row.staffId === staff.id);
-  await action(page, 'payroll.finalize', { id: payroll.id });
+  await adminAction(page, 'payroll.finalize', { id: payroll.id });
   await page.request.post('/api/auth/logout', { headers: { 'X-CSRF-Token': csrfToken } });
   await login(page, 'reception@example.test', 'Reception-temporary-2026!');
   await page.getByLabel('임시 비밀번호', { exact: true }).fill('Reception-temporary-2026!');
   await page.getByLabel('새 비밀번호', { exact: true }).fill('Reception-final-password-2026!');
   await page.getByLabel('새 비밀번호 확인', { exact: true }).fill('Reception-final-password-2026!');
   await page.getByRole('button', { name: '비밀번호 변경', exact: true }).click();
-  await nav(page, '급여명세');
+  await openPersonal(page, 'reception@example.test', 'Reception-final-password-2026!');
   await expect(page.getByRole('heading', { name: '내 급여명세서' })).toBeVisible();
   await expect(page.getByRole('button', { name: '급여명세서 작성', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: `${staff.name} ${TODAY.slice(0, 7)} 급여명세서 보기`, exact: true }).click();
@@ -372,5 +373,5 @@ test('접수 직원도 확정된 본인 급여명세서를 조회·출력할 수
   await expect(page.getByRole('button', { name: '인쇄 / PDF 저장', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /급여 확정|확정 취소|지급 완료 기록/ })).toHaveCount(0);
   const own = await state(page);
-  expect(own.data.payroll.map(row => row.id)).toEqual([payroll.id]);
+  expect(own.data.payroll).toEqual([]);
 });

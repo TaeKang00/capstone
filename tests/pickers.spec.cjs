@@ -1,5 +1,5 @@
 "use strict";
-const { test, expect, setupOwner, action, goTo, today } = require("./ux-fixture.cjs");
+const { test, expect, setupOwner, adminAction, action, goTo, today } = require("./ux-fixture.cjs");
 
 function previousMonth() {
   const [year, month] = today().split("-").map(Number);
@@ -8,7 +8,7 @@ function previousMonth() {
 
 test("드롭다운은 펼친 목록과 키보드로 선택하고 Escape가 작성 창을 닫지 않는다", async ({ page }) => {
   await setupOwner(page);
-  const result = await action(page, "staff.save", {
+  const result = await adminAction(page, "staff.save", {
     name: "선택 확인 디자이너", phone: "", role: "designer", status: "active",
     workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200,
     breakStart: null, breakEnd: null,
@@ -120,7 +120,7 @@ test("작은 화면에서도 달력이 화면 안에 열리고 바깥 클릭으�
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(740);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const before = await page.getByLabel("조회 종료일", { exact: true }).inputValue();
-  await page.getByRole("heading", { name: "매출 · 정산", exact: true }).click();
+  await page.locator(".private-workspace-identity").click();
   await expect(picker).toBeHidden();
   await expect(page.getByLabel("조회 종료일", { exact: true })).toHaveValue(before);
 });

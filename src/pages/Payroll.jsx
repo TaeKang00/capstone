@@ -703,12 +703,23 @@ export default function Payroll({
   notify,
   navigate,
   routeContext,
+  personalOnly = false,
 }) {
-  const manager = ["owner", "manager"].includes(user.role);
+  const manager = !personalOnly && user.role === "owner";
+  const availableRecords = useMemo(
+    () =>
+      (data.payroll || []).filter(
+        (record) =>
+          manager ||
+          (record.staffId === user.staffId &&
+            ["finalized", "paid"].includes(record.status)),
+      ),
+    [data.payroll, manager, user.staffId],
+  );
   const [month, setMonth] = useViewState("payroll", "month", () =>
     manager
       ? today().slice(0, 7)
-      : (data.payroll || [])
+      : availableRecords
           .map((record) => record.month)
           .sort()
           .at(-1) || today().slice(0, 7),
@@ -716,7 +727,7 @@ export default function Payroll({
   const [staffId, setStaffId] = useViewState(
     "payroll",
     "staffId",
-    routeContext?.staffId || "",
+    manager ? routeContext?.staffId || "" : "",
   );
   const [status, setStatus] = useViewState("payroll", "status", "");
   const [dialog, setDialog] = useState(null);
@@ -732,7 +743,7 @@ export default function Payroll({
   }, [routeContext?.staffId]);
   const records = useMemo(
     () =>
-      (data.payroll || [])
+      availableRecords
         .filter(
           (item) =>
             item.month === month &&
@@ -745,10 +756,10 @@ export default function Payroll({
             "ko",
           ),
         ),
-    [data.payroll, month, staffId, status],
+    [availableRecords, month, staffId, status],
   );
   const selected = dialog?.id
-    ? (data.payroll || []).find((item) => item.id === dialog.id)
+    ? availableRecords.find((item) => item.id === dialog.id)
     : null;
   const open = (value) => {
     setError("");
@@ -804,11 +815,15 @@ export default function Payroll({
       );
     }
   }
-  if (!manager && !["designer", "reception"].includes(user.role))
+  if (
+    !manager &&
+    !personalOnly &&
+    !["manager", "designer", "reception"].includes(user.role)
+  )
     return (
       <EmptyState
         title="급여 조회 권한이 없습니다"
-        description="원장 또는 매니저에게 문의해 주세요."
+        description="원장에게 문의해 주세요."
       />
     );
   return (
@@ -909,7 +924,11 @@ export default function Payroll({
           <div className="stat-value">
             {format(records.reduce((sum, item) => sum + item.netPay, 0))}원
           </div>
-          <small>작성 중·확정·지급 완료 포함</small>
+          <small>
+            {manager
+              ? "작성 중·확정·지급 완료 포함"
+              : "본인의 확정·지급 완료 명세서 기준"}
+          </small>
         </div>
         <div className="stat-card">
           <div className="stat-label">확정 후 지급 대기</div>

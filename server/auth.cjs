@@ -80,29 +80,36 @@ function setSessionCookie(res, token, production, hours) {
     maxAge: hours * 60 * 60 * 1000,
   });
 }
-function createSession(db, userId, hours) {
+function createSession(
+  db,
+  userId,
+  hours,
+  { now = Date.now(), idleMs = 300000 } = {},
+) {
   const token = randomBytes(32).toString("base64url");
   const csrfToken = randomBytes(32).toString("base64url");
-  db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(Date.now());
+  db.prepare("DELETE FROM sessions WHERE expires_at < ?").run(now);
   db.prepare(
-    "INSERT INTO sessions(token_hash,user_id,csrf_token,expires_at,created_at) VALUES(?,?,?,?,?)",
+    "INSERT INTO sessions(token_hash,user_id,csrf_token,expires_at,created_at,mode,idle_expires_at) VALUES(?,?,?,?,?,?,?)",
   ).run(
     digest(token),
     userId,
     csrfToken,
-    Date.now() + hours * 60 * 60 * 1000,
-    new Date().toISOString(),
+    now + hours * 60 * 60 * 1000,
+    new Date(now).toISOString(),
+    "work",
+    now + idleMs,
   );
-  return { token, csrfToken };
+  return { token, csrfToken, mode: "work", idleExpiresAt: now + idleMs };
 }
-function getSession(db, req) {
+function getSession(db, req, now = Date.now()) {
   const token = cookieToken(req);
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT u.*,s.csrf_token,s.token_hash,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`,
+      `SELECT u.*,s.csrf_token,s.token_hash,s.expires_at,s.mode,s.idle_expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`,
     )
-    .get(digest(token), Date.now());
+    .get(digest(token), now);
   return row || null;
 }
 function constantEqual(a, b) {

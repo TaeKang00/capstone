@@ -31,6 +31,7 @@ export default function Staff({
   refresh,
   notify,
   navigate,
+  routeContext,
 }) {
   const [users, setUsers] = useState([]),
     [error, setError] = useState(""),
@@ -40,6 +41,12 @@ export default function Staff({
     [busy, setBusy] = useState(false);
   const [filter, setFilter] = useViewState("staff", "filter", "active");
   const [query, setQuery] = useViewState("staff", "query", "");
+  const [tab, setTab] = useViewState(
+    "staff",
+    "tab",
+    routeContext?.tab === "accounts" ? "accounts" : "staff",
+  );
+  const accounts = tab === "accounts";
   const load = () =>
     api("/users")
       .then((r) => {
@@ -97,8 +104,9 @@ export default function Staff({
         <div>
           <h1 className="page-title">직원 관리</h1>
           <p className="page-description">
-            근무 일정과 로그인 권한을 관리합니다. 퇴사 기록과 과거 매출은
-            보관됩니다.
+            {accounts
+              ? "원장만 계정을 발급하고 로그인 권한을 변경할 수 있습니다."
+              : "직원 정보와 근무 일정을 관리합니다. 계정 발급은 로그인 권한에서 진행하세요."}
           </p>
         </div>
         <div className="page-actions">
@@ -118,6 +126,24 @@ export default function Staff({
           </Button>
         </div>
       </div>
+      <nav className="tabs" aria-label="직원 관리 메뉴">
+        <button
+          type="button"
+          className={`tab ${!accounts ? "active" : ""}`}
+          aria-current={!accounts ? "page" : undefined}
+          onClick={() => setTab("staff")}
+        >
+          직원 정보
+        </button>
+        <button
+          type="button"
+          className={`tab ${accounts ? "active" : ""}`}
+          aria-current={accounts ? "page" : undefined}
+          onClick={() => setTab("accounts")}
+        >
+          <Icon name="lock" size={14} /> 로그인 권한
+        </button>
+      </nav>
       <div className="stat-grid">
         <div className="stat-card">
           <div className="stat-label">재직 직원</div>
@@ -239,55 +265,64 @@ export default function Staff({
                       : `${timeLabel(staff.breakStart)}–${timeLabel(staff.breakEnd)}`}
                   </dd>
                 </div>
-                <div>
-                  <dt>계정</dt>
-                  <dd>
-                    {login
-                      ? `${login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
-                      : "로그인 계정 미발급"}
-                  </dd>
-                </div>
+                {accounts && (
+                  <div>
+                    <dt>계정</dt>
+                    <dd>
+                      {login
+                        ? `${login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
+                        : "로그인 계정 미발급"}
+                    </dd>
+                  </div>
+                )}
               </dl>
               <div className="staff-actions">
-                <Button
-                  onClick={() => setEditing({ ...staff })}
-                  disabled={locked}
-                >
-                  직원 정보
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("payroll", { staffId: staff.id })}
-                >
-                  급여 보기
-                </Button>
-                {!login ? (
-                  <Button
-                    onClick={() => setAccount({ staff, mode: "create" })}
-                    disabled={locked || staff.status !== "active"}
-                  >
-                    계정 발급
-                  </Button>
-                ) : (
+                {!accounts && (
                   <>
                     <Button
-                      variant="ghost"
-                      onClick={() => setAccount({ staff, login, mode: "edit" })}
+                      onClick={() => setEditing({ ...staff })}
                       disabled={locked}
                     >
-                      계정 관리
+                      직원 정보
                     </Button>
-                    {login.id !== user.id && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => setChange(login)}
-                        disabled={locked}
-                      >
-                        {login.active ? "로그인 차단" : "차단 해제"}
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      onClick={() => navigate("payroll", { staffId: staff.id })}
+                    >
+                      급여 보기
+                    </Button>
                   </>
                 )}
+                {accounts &&
+                  (!login ? (
+                    <Button
+                      onClick={() => setAccount({ staff, mode: "create" })}
+                      disabled={locked || staff.status !== "active"}
+                    >
+                      계정 발급
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          setAccount({ staff, login, mode: "edit" })
+                        }
+                        disabled={locked}
+                      >
+                        계정 관리
+                      </Button>
+                      {login.id !== user.id && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setChange(login)}
+                          disabled={locked}
+                        >
+                          {login.active ? "로그인 차단" : "차단 해제"}
+                        </Button>
+                      )}
+                    </>
+                  ))}
               </div>
             </section>
           );
@@ -308,9 +343,10 @@ export default function Staff({
       <div className="alert" style={{ marginTop: 24 }}>
         <strong>권한 안내</strong>
         <br />
-        원장: 매장 전체·백업 / 매니저: 운영·직원·급여 / 접수 직원:
-        예약·수납·재고·확정된 본인 급여명세 / 디자이너: 본인 예약·고객·확정된
-        본인 급여명세. 계정과 연결된 직원의 역할은 계정 관리에서 변경합니다.
+        계정 발급·권한 변경·전체 급여·백업은 원장 본인 인증이 필요합니다.
+        매니저와 접수 직원은 운영 업무를, 디자이너는 예약·고객 업무를
+        담당합니다. 모든 직원은 개인 인증 후 자신의 확정된 급여만 확인할 수
+        있습니다.
       </div>
       {editing && (
         <StaffForm
@@ -318,11 +354,6 @@ export default function Staff({
           user={user}
           linked={users.some((u) => u.staffId === editing.id)}
           save={save}
-          staffIds={data.staff.map((staff) => staff.id)}
-          issueAccount={(staff) => {
-            setEditing(null);
-            setAccount({ staff, mode: "create" });
-          }}
           close={() => setEditing(null)}
           notify={notify}
         />
@@ -359,16 +390,7 @@ export default function Staff({
     </>
   );
 }
-function StaffForm({
-  initial,
-  user,
-  linked,
-  save,
-  close,
-  notify,
-  staffIds,
-  issueAccount,
-}) {
+function StaffForm({ initial, user, linked, save, close, notify }) {
   const [form, setForm] = useState(initial),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -380,21 +402,11 @@ function StaffForm({
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
-    const needsAccount = e.nativeEvent.submitter?.value === "account";
     setBusy(true);
     setError("");
     try {
-      const result = await save(form);
+      await save(form);
       notify("직원 정보를 저장했습니다.");
-      if (needsAccount) {
-        const saved = result.data.staff.find((staff) =>
-          initial.id ? staff.id === initial.id : !staffIds.includes(staff.id),
-        );
-        if (saved) {
-          issueAccount(saved);
-          return;
-        }
-      }
       close();
     } catch (err) {
       setError(err.message);
@@ -412,11 +424,6 @@ function StaffForm({
           <Button form="staff-form" type="submit" variant="primary" busy={busy}>
             직원 저장
           </Button>
-          {!linked && form.status === "active" && (
-            <Button form="staff-form" type="submit" value="account" busy={busy}>
-              저장하고 계정 발급
-            </Button>
-          )}
         </>
       }
     >

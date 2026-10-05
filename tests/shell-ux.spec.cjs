@@ -2,7 +2,7 @@
 const {
   test,
   expect,
-  setupOwner,
+  setupOwner, adminAction,
   state,
   action,
   goTo,
@@ -85,7 +85,7 @@ test("완료된 오전 예약 뒤에 오후 고객이 숨지 않으며 1인 매�
   page,
 }) => {
   await setupOwner(page);
-  let envelope = await action(page, "service.save", {
+  let envelope = await adminAction(page, "service.save", {
     name: "대시보드 확인 시술",
     price: 1000,
     duration: 30,
@@ -134,6 +134,10 @@ test("완료된 오전 예약 뒤에 오후 고객이 숨지 않으며 1인 매�
     page.getByRole("button", { name: "남은 2건 더 보기 →" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "오늘 정산 확인 →" }).click();
+  const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
+  await gate.getByLabel("원장 계정 이메일", { exact: true }).fill("owner@example.test");
+  await gate.getByLabel("비밀번호", { exact: true }).fill("Owner-test-password-2026!");
+  await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
   await expect(page.getByLabel("조회 시작일", { exact: true })).toHaveValue(
     today(),
   );

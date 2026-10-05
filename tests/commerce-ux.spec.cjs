@@ -1,5 +1,5 @@
 'use strict';
-const { test, expect, setupOwner, state, action, goTo, today } = require('./ux-fixture.cjs');
+const { test, expect, setupOwner, adminAction, state, action, goTo, today } = require('./ux-fixture.cjs');
 
 test('연속 입고는 날짜와 메모를 유지하고 실패한 다음 품목의 입력을 지킨다', async ({ page }) => {
   await setupOwner(page);
@@ -45,8 +45,8 @@ test('수납에서 연락처와 시술을 검색해 선택하고 모바일에서
   let snapshot = await action(page, 'customer.save', { name: '검색 고객', phone: '010-9876-5432', memo: '', warning: '' });
   const customer = snapshot.data.customers[0];
   await action(page, 'customer.save', { name: '다른 고객', phone: '010-1111-2222', memo: '', warning: '' });
-  await action(page, 'service.save', { name: '남성 커트', price: 15000, duration: 30, materials: [], active: true });
-  snapshot = await action(page, 'service.save', { name: '프리미엄 염색', price: 70000, duration: 60, materials: [], active: true });
+  await adminAction(page, 'service.save', { name: '남성 커트', price: 15000, duration: 30, materials: [], active: true });
+  snapshot = await adminAction(page, 'service.save', { name: '프리미엄 염색', price: 70000, duration: 60, materials: [], active: true });
   const service = snapshot.data.services.find(row => row.name === '프리미엄 염색');
   const staff = snapshot.data.staff[0];
   await page.reload();
@@ -75,9 +75,9 @@ test('수납에서 연락처와 시술을 검색해 선택하고 모바일에서
   await expect(page.getByRole('button', { name: '검색 고객 결제 상세', exact: true })).toBeVisible();
 });
 
-test('정산 승인번호 검색은 연결 환불까지 합산하고 상세 왕복 후 조건을 유지한다', async ({ page }) => {
+test('정산 검색은 관리 영역 안에서 유지하고 업무 화면으로 나가면 민감한 조건을 지운다', async ({ page }) => {
   await setupOwner(page);
-  let snapshot = await action(page, 'service.save', { name: '정산 커트', price: 10000, duration: 30, materials: [], active: true });
+  let snapshot = await adminAction(page, 'service.save', { name: '정산 커트', price: 10000, duration: 30, materials: [], active: true });
   const staff = snapshot.data.staff[0];
   const service = snapshot.data.services[0];
   snapshot = await action(page, 'payment.create', { guestName: '대조 고객', staffId: staff.id, lines: [{ type: 'service', refId: service.id, quantity: 2 }], discount: 0, method: 'card', reference: 'CARD-APPROVAL-A', notes: '' });
@@ -95,15 +95,17 @@ test('정산 승인번호 검색은 연결 환불까지 합산하고 상세 왕�
   await page.getByLabel('거래 유형', { exact: true }).selectOption('refund');
   await expect(summary).toContainText('검색 결과 1건');
   await expect(summary).toContainText('순수납 -10,000원');
+  await goTo(page, '직원 관리');
+  await goTo(page, '매출 · 정산');
+  await expect(page.getByLabel('정산 거래 검색', { exact: true })).toHaveValue('CARD-APPROVAL-A');
+  await expect(page.getByLabel('거래 유형', { exact: true })).toHaveValue('refund');
   await page.getByRole('button', { name: '상세', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '수납 상세', exact: true });
   await expect(dialog).toContainText('대조 고객');
   await dialog.getByRole('button', { name: '닫기', exact: true }).first().click();
   await goTo(page, '매출 · 정산');
-  await expect(page.getByLabel('정산 거래 검색', { exact: true })).toHaveValue('CARD-APPROVAL-A');
-  await expect(page.getByLabel('거래 유형', { exact: true })).toHaveValue('refund');
-  await expect(summary).toContainText('검색 결과 1건');
-  await page.getByRole('button', { name: '거래 검색 초기화', exact: true }).click();
+  await expect(page.getByLabel('정산 거래 검색', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('거래 유형', { exact: true })).toHaveValue('all');
   await expect(summary).toContainText('검색 결과 3건');
   await expect(summary).toContainText('순수납 15,000원');
 });

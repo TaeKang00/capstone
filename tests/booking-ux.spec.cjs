@@ -1,12 +1,12 @@
 'use strict';
-const { test, expect, setupOwner, state, action, goTo, today } = require('./ux-fixture.cjs');
+const { test, expect, setupOwner, adminAction, state, action, goTo, today } = require('./ux-fixture.cjs');
 
 async function prepare(page) {
   await setupOwner(page);
-  let result = await action(page, 'staff.save', { name: '시간 확인 디자이너', role: 'designer', phone: '', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: 720, breakEnd: 780 });
+  let result = await adminAction(page, 'staff.save', { name: '시간 확인 디자이너', role: 'designer', phone: '', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: 720, breakEnd: 780 });
   const staff = result.data.staff.find(item => item.name === '시간 확인 디자이너');
-  await action(page, 'staff.save', { name: '예약 불가 접수 직원', role: 'reception', phone: '', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
-  result = await action(page, 'service.save', { name: '한시간 상담 시술', price: 50000, duration: 60, materials: [], active: true });
+  await adminAction(page, 'staff.save', { name: '예약 불가 접수 직원', role: 'reception', phone: '', status: 'active', workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 600, endMinutes: 1200, breakStart: null, breakEnd: null });
+  result = await adminAction(page, 'service.save', { name: '한시간 상담 시술', price: 50000, duration: 60, materials: [], active: true });
   const service = result.data.services.find(item => item.name === '한시간 상담 시술');
   await action(page, 'appointment.save', { date: today(), start: 600, duration: 60, staffId: staff.id, serviceIds: [service.id], guestName: '기존 예약', guestPhone: '', notes: '' });
   await page.reload();
