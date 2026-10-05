@@ -1396,7 +1396,7 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
             </div>
           )}
           <h3 className="commerce-section-title">
-            {tx.customerName || "방문 고객"} · 환불 항목
+            <span>{tx.customerName || "방문 고객"} · 환불 항목</span>
             <Button variant="secondary" onClick={full}>
               남은 수량 전체
             </Button>

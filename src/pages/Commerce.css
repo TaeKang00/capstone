@@ -121,7 +121,7 @@
 .commerce-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 18px;
+  gap: 16px 18px;
 }
 .commerce-form-grid .full {
   grid-column: 1/-1;
@@ -133,6 +133,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+.commerce-section-title > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.commerce-section-title > .btn {
+  flex-shrink: 0;
 }
 .commerce-line {
   display: grid;
@@ -147,6 +155,11 @@
 }
 .commerce-line .line-label {
   align-self: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.commerce-line + .field {
+  margin-top: 16px;
 }
 .commerce-line .remove-line {
   min-height: 42px;
@@ -181,8 +194,9 @@
   padding-top: 12px;
   border-top: 1px solid var(--line, #e3e7eb);
 }
-.commerce-totals input {
+.commerce-totals input.input {
   width: 150px;
+  flex: 0 1 150px;
   text-align: right;
 }
 .commerce-check {
@@ -287,6 +301,11 @@
   margin: 12px 0 0;
 }
 .commerce-low-list button {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  max-width: 100%;
   border: 1px solid #e3d3b9;
   border-radius: 4px;
   color: #795c2c;
@@ -296,6 +315,14 @@
   font-size: 0.8rem;
   min-height: 34px;
   cursor: pointer;
+  text-align: left;
+}
+.commerce-low-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.commerce-low-status {
+  white-space: nowrap;
 }
 .commerce-low-list button:hover {
   background: #f8f0e1;
@@ -537,6 +564,15 @@
 }
 .commerce-fieldset:disabled {
   opacity: 0.75;
+}
+.commerce-fieldset > .commerce-note,
+.commerce-fieldset > .commerce-section-title,
+.commerce-fieldset > .commerce-refund-line {
+  margin: 0;
+}
+.commerce-fieldset > .commerce-totals,
+.commerce-fieldset > section > .commerce-section-title:first-child {
+  margin-top: 0;
 }
 
 @media (max-width: 600px) {

@@ -21,6 +21,7 @@
   --surface-soft: #f7f8fa;
   --danger: #ad4140;
   --radius: 8px;
+  --control-height: 40px;
 }
 * {
   box-sizing: border-box;
@@ -248,6 +249,11 @@ textarea,
   min-height: 39px;
   line-height: 1.4;
   font-size: 14px;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+select:not([multiple]):not([size]) {
+  height: var(--control-height);
+  padding-block: 8px;
 }
 input:not([type="checkbox"]):not([type="radio"]):hover,
 select:hover,
@@ -576,6 +582,8 @@ input[type="radio"] {
   color: var(--muted);
   margin: 0;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .page-actions {
   display: flex;
@@ -667,12 +675,17 @@ input[type="radio"] {
   color: #79848f;
   margin: 5px 0 0;
   line-height: 1.6;
+  word-break: keep-all;
 }
 .stat-card.featured {
   background: #fff;
   color: var(--ink);
 }
 .stat-link {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   font: inherit;
   text-align: left;
   width: 100%;
@@ -685,10 +698,20 @@ input[type="radio"] {
 }
 .toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 18px;
+}
+.toolbar > .btn,
+.commerce-filters > .btn,
+.service-material-row > .btn {
+  min-height: var(--control-height);
+}
+.toolbar-count {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
 }
 .toolbar input,
 .toolbar select {
@@ -1094,8 +1117,13 @@ input[type="radio"] {
 .quick-action:nth-child(even) {
   border-right: 0;
 }
-.quick-action:nth-last-child(-n + 2) {
+.quick-action:nth-last-child(2):nth-child(odd),
+.quick-action:last-child {
   border-bottom: 0;
+}
+.quick-action:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  border-right: 0;
 }
 .quick-action:hover {
   background: #f7f9fb;
@@ -1132,6 +1160,7 @@ input[type="radio"] {
   color: #303c48;
   font-weight: 550;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 .timeline-row strong .badge {
   margin-left: 4px;
@@ -1142,6 +1171,8 @@ input[type="radio"] {
   display: block;
   margin-top: 4px;
   line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .dashboard-schedule-tabs {
   display: flex;
@@ -1183,14 +1214,25 @@ input[type="radio"] {
 }
 .staff-card {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
 .staff-card h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .staff-card > .row {
   align-items: flex-start;
+  flex-wrap: nowrap;
+}
+.staff-card > .row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.staff-card > .row > div:last-child {
+  flex-shrink: 0;
 }
 .staff-meta {
   font-size: 13px;
@@ -1218,6 +1260,7 @@ input[type="radio"] {
   flex-wrap: wrap;
   border-top: 1px solid var(--line);
   padding-top: 15px;
+  margin-top: auto;
 }
 .staff-actions .btn {
   font-size: 12px;
@@ -1275,6 +1318,12 @@ input[type="radio"] {
 .form-section h3 {
   padding-bottom: 13px;
   border-bottom: 1px solid var(--line);
+}
+.service-material-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 0.45fr) auto;
+  align-items: end;
+  gap: 12px;
 }
 .separator {
   height: 1px;
@@ -1362,6 +1411,9 @@ input[type="radio"] {
   }
 }
 @media (max-width: 640px) {
+  :root {
+    --control-height: 44px;
+  }
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea,
@@ -1509,7 +1561,10 @@ input[type="radio"] {
     padding: 13px 17px;
   }
   .modal-footer .btn {
-    flex: 1;
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    min-height: var(--control-height);
+    white-space: normal;
   }
   .app-footer {
     padding: 16px;
@@ -1554,6 +1609,12 @@ input[type="radio"] {
   }
   .staff-grid {
     grid-template-columns: 1fr;
+  }
+  .service-material-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .service-material-row > .field:first-child {
+    grid-column: 1 / -1;
   }
   .settings-layout {
     grid-template-columns: 1fr;

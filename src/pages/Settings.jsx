@@ -602,7 +602,7 @@ function ServiceForm({ initial, data, runAction, notify, close }) {
             </Button>
           </div>
           {form.materials.map((m, index) => (
-            <div className="row" key={index}>
+            <div className="service-material-row" key={index}>
               <Field label="재료">
                 <select
                   required

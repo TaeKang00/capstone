@@ -236,9 +236,12 @@ export default function Inventory({
                       setFilter("active"))
                 }
               >
-                {item.name} · {quantity(item.qty)} / {quantity(item.min)}
-                {item.unit}
-                {canWrite ? " + 입고" : ""}
+                <span className="commerce-low-name">{item.name}</span>
+                <span className="commerce-low-status">
+                  {quantity(item.qty)} / {quantity(item.min)}
+                  {item.unit}
+                  {canWrite ? " · + 입고" : ""}
+                </span>
               </button>
             ))}
             {low.length > 8 && (

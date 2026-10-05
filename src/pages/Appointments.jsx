@@ -1251,7 +1251,9 @@ export default function Appointments({
                   aria-label={`${appointment.date} ${timeLabel(appointment.start)} ${customerName(appointment, data)} 예약`}
                 >
                   <div className="ops-booking-time">
-                    {mode !== "day" && <span>{appointment.date}</span>}
+                    {mode !== "day" && (
+                      <span className="ops-booking-date">{appointment.date}</span>
+                    )}
                     <strong>{timeLabel(appointment.start)}</strong>
                     <span>
                       ~ {timeLabel(appointment.start + appointment.duration)}

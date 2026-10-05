@@ -191,7 +191,7 @@ export default function Staff({
             onChange={(event) => setQuery(event.target.value)}
           />
         </Field>
-        <span className="help" role="status">
+        <span className="help toolbar-count" role="status">
           {filteredStaff.length}명 표시
         </span>
         {query && (
@@ -408,7 +408,7 @@ function StaffForm({
       onClose={busy ? undefined : close}
       dirty={dirty}
       footer={
-        <div className="row">
+        <>
           <Button form="staff-form" type="submit" variant="primary" busy={busy}>
             직원 저장
           </Button>
@@ -417,7 +417,7 @@ function StaffForm({
               저장하고 계정 발급
             </Button>
           )}
-        </div>
+        </>
       }
     >
       <form id="staff-form" className="stack" onSubmit={submit}>
