@@ -46,7 +46,7 @@ async function payslip(page, staffId, { finalized = true, basePay = 2100000, mon
 async function workerLogin(page, employee) {
   await page.getByRole("button", { name: "작업자 로그인", exact: true }).click();
   const gate = page.getByRole("dialog", { name: "작업자 로그인", exact: true });
-  await gate.getByLabel("계정 이메일", { exact: true }).fill(employee.email);
+  await gate.getByLabel("계정 아이디", { exact: true }).fill(employee.email);
   await gate.getByLabel("비밀번호", { exact: true }).fill(employee.password);
   await gate.getByRole("button", { name: "작업자 로그인", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "주 메뉴" })).toBeVisible();
@@ -64,7 +64,7 @@ test("원장으로 로그인해도 급여는 별도 인증하고 잠금·뒤로�
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
   const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 이메일", { exact: true }).fill(OWNER_EMAIL);
+  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
   await gate.getByLabel("비밀번호", { exact: true }).fill("incorrect-password");
   await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
   await expect(gate.getByRole("alert")).toBeVisible();
@@ -224,7 +224,7 @@ test("매니저도 원장 비밀번호 인증 없이 계정 권한이나 전체 
   await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: /^(급여명세|직원 관리|매장 설정)$/ })).toHaveCount(0);
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
   const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 이메일", { exact: true }).fill(manager.email);
+  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(manager.email);
   await gate.getByLabel("비밀번호", { exact: true }).fill(manager.password);
   await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
   await expect(gate.getByRole("alert")).toBeVisible();
@@ -303,7 +303,7 @@ test("화면 이탈 후 도착한 원장 인증 응답으로 보호 화면을 �
   }, { times: 1 });
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
   const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 이메일", { exact: true }).fill(OWNER_EMAIL);
+  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
   await gate.getByLabel("비밀번호", { exact: true }).fill(OWNER_PASSWORD);
   try {
     await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
@@ -318,4 +318,29 @@ test("화면 이탈 후 도착한 원장 인증 응답으로 보호 화면을 �
   await expect(page.locator(".private-workspace")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "주 메뉴" })).toBeVisible();
   expect((await page.request.get("/api/admin/state")).status()).toBe(403);
+});
+
+test("admin 아이디와 admin 비밀번호로 초기 설정·로그인·원장 재인증을 한다", async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('매장 이름',{exact:true}).fill('아이디 시연 매장');
+  await page.getByLabel('원장 이름',{exact:true}).fill('시연 원장');
+  await expect(page.getByLabel('아이디',{exact:true})).toHaveValue('admin');
+  await page.getByLabel('비밀번호',{exact:true}).fill('admin');
+  await page.getByLabel('비밀번호 확인',{exact:true}).fill('admin');
+  await page.getByRole('button',{name:'매장 만들고 시작하기',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'주 메뉴'})).toBeVisible();
+  await page.getByRole('button',{name:'원장 관리',exact:true}).click();
+  const gate=page.getByRole('dialog',{name:'원장 관리 잠금 해제',exact:true});
+  await gate.getByLabel('원장 계정 아이디',{exact:true}).fill('admin');
+  await gate.getByLabel('비밀번호',{exact:true}).fill('admin');
+  await gate.getByRole('button',{name:'원장 인증',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'원장 관리 메뉴'})).toBeVisible();
+  await page.getByRole('button',{name:'지금 잠그기',exact:true}).click();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+  await page.getByRole('dialog',{name:'로그아웃할까요?',exact:true}).getByRole('button',{name:'로그아웃',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'로그인',exact:true})).toBeVisible();
+  await page.getByLabel('아이디',{exact:true}).fill('admin');
+  await page.getByLabel('비밀번호',{exact:true}).fill('admin');
+  await page.getByRole('button',{name:'로그인',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'주 메뉴'})).toBeVisible();
 });

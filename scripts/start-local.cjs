@@ -133,8 +133,10 @@ async function startLocal(options = {}) {
       distPath: options.distPath || path.join(root, "dist"),
       onError(error) { console.error("요청 처리 오류:", error.code || error.name); },
     });
-    app = created.app;
     closeDatabase = created.close;
+    if (options.demoAccount)
+      await require("../server/demo.cjs").configureDemoAccount(created.db);
+    app = created.app;
     ready = true;
     return { url, reused: false, stop };
   } catch (error) { await stop(); throw error; }
@@ -156,7 +158,7 @@ async function main() {
   process.once("SIGINT", interrupted);
   process.once("SIGTERM", interrupted);
   try {
-    const running = await startLocal({ signal: controller.signal });
+    const running = await startLocal({ signal: controller.signal, demoAccount: true });
     console.log(running.reused ? "이미 실행 중인 ERP를 엽니다." : "[3/3] ERP 실행 준비가 완료되었습니다.");
     console.log(`\n접속 주소: ${running.url}`);
     if (!running.reused) console.log("사용하는 동안 이 창을 열어 두세요. 종료: Ctrl+C 또는 이 창 닫기\n");

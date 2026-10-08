@@ -200,3 +200,62 @@ test('login throttles repeated attempts',async t => {
   for (let n=0;n<16;n++) result = await f.request('/auth/login',{ method:'POST',body:{ email:'missing@example.com',password:'invalid' } });
   assert.equal(result.status,429);
 });
+
+test('username admin authenticates local demo login and owner reauthentication; production still requires a strong password', async t => {
+  const f = await fixture(t);
+  const created = await f.request('/bootstrap', {method:'POST', body:{storeName:'시연 매장',name:'원장',loginId:'admin',password:'admin'}});
+  assert.equal(created.status,201,JSON.stringify(created.data));
+  assert.equal(created.data.user.loginId,'admin');
+  const login = await f.request('/auth/login',{method:'POST',body:{loginId:' ADMIN ',password:'admin'}});
+  assert.equal(login.status,200);
+  const session = {...login.data,cookie:login.cookie};
+  const unlock = await f.request('/auth/private/unlock',{method:'POST',session,body:{scope:'owner',loginId:'admin',password:'admin'}});
+  assert.equal(unlock.status,200);
+  assert.equal((await f.request('/users',{session:{...session,accessToken:unlock.data.accessToken}})).status,200);
+  const stored = f.db.prepare('SELECT password_hash FROM users WHERE email=?').get('admin').password_hash;
+  assert.ok(stored.startsWith('scrypt$')); assert.ok(!stored.includes('admin'));
+  assert.equal((await f.request('/auth/login',{method:'POST',body:{loginId:'admin',password:'wrong'}})).status,401);
+  const prod = await fixture(t,{production:true,origin:'https://salon.example.com',bootstrapToken:'production-bootstrap-secret-2026'});
+  const weak = await prod.request('/bootstrap',{method:'POST',headers:{Origin:'https://salon.example.com'},body:{storeName:'운영 매장',name:'원장',loginId:'admin',password:'admin',setupToken:'production-bootstrap-secret-2026'}});
+  assert.equal(weak.status,422); assert.equal(weak.data.error.code,'INVALID_PASSWORD');
+  assert.equal(prod.db.prepare('SELECT COUNT(*) n FROM users').get().n,0);
+});
+
+test('demo setup preserves business records and other employees, revokes old owner sessions, and never resets an existing password on restart', async t => {
+  const {configureDemoAccount} = require('../server/demo.cjs');
+  const {hashPassword,verifyPassword} = require('../server/auth.cjs');
+  const f = await fixture(t); const owner = await f.setup();
+  const employee = await addAccount(f,owner,'designer','staff01');
+  const saved = await f.action(owner,'customer.save',{name:'보존할 고객',phone:'01012345678',memo:'방문 기록',warning:''});
+  assert.equal(saved.status,200);
+  const before = readState(f.db);
+  const changed = await configureDemoAccount(f.db,{resetExisting:true});
+  assert.equal(changed.userId,owner.user.id);
+  assert.equal((await f.request('/state',{session:owner})).status,401);
+  assert.equal((await f.request('/state',{session:employee})).status,200);
+  const current = readState(f.db);
+  assert.deepEqual(current.data.customers,before.data.customers);
+  assert.deepEqual(current.data.staff,before.data.staff);
+  assert.equal(current.version,before.version+1);
+  const hash = await hashPassword('custom-owner-password-2026');
+  f.db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash,owner.user.id);
+  assert.equal((await configureDemoAccount(f.db)).changed,false);
+  assert.equal(await verifyPassword('admin',f.db.prepare('SELECT password_hash FROM users WHERE id=?').get(owner.user.id).password_hash),false);
+  assert.equal((await f.request('/auth/login',{method:'POST',body:{loginId:'admin',password:'custom-owner-password-2026'}})).status,200);
+});
+
+test('demo setup cannot take over an employee admin ID, and username validation rejects malformed IDs', async t => {
+  const {configureDemoAccount} = require('../server/demo.cjs');
+  const f = await fixture(t); const owner = await f.setup();
+  await addAccount(f,owner,'designer','admin');
+  const original = f.db.prepare('SELECT email,password_hash FROM users WHERE id=?').get(owner.user.id);
+  await assert.rejects(configureDemoAccount(f.db,{resetExisting:true}),/다른 직원/);
+  assert.deepEqual(f.db.prepare('SELECT email,password_hash FROM users WHERE id=?').get(owner.user.id),original);
+  assert.equal((await f.request('/auth/login',{method:'POST',body:{email:original.email,password:PASSWORD}})).status,200);
+  const empty = await fixture(t);
+  for (const loginId of ['a','staff name','ab/cd','<admin>']) {
+    const response = await empty.request('/bootstrap',{method:'POST',body:{storeName:'매장',name:'원장',loginId,password:PASSWORD}});
+    assert.equal(response.status,422); assert.equal(response.data.error.code,'INVALID_LOGIN_ID');
+  }
+  assert.equal(empty.db.prepare('SELECT COUNT(*) n FROM users').get().n,0);
+});

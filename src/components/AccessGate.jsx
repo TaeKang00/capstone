@@ -7,13 +7,15 @@ import "./AccessGate.css";
 const COPY = {
   operator: {
     title: "작업자 로그인",
-    description: "본인 계정으로 업무를 시작해 주세요. 저장한 내용에는 실제 작업자가 기록됩니다.",
+    description:
+      "본인 계정으로 업무를 시작해 주세요. 저장한 내용에는 실제 작업자가 기록됩니다.",
     submit: "작업자 로그인",
     note: "업무가 끝나거나 자리를 비울 때는 공용 화면으로 돌아가 주세요.",
   },
   owner: {
     title: "원장 관리 잠금 해제",
-    description: "급여와 계정 권한을 관리하려면 원장 계정으로 다시 인증해 주세요.",
+    description:
+      "급여와 계정 권한을 관리하려면 원장 계정으로 다시 인증해 주세요.",
     submit: "원장 인증",
     note: "관리 화면을 나가거나 사용하지 않으면 자동으로 잠깁니다.",
   },
@@ -35,11 +37,13 @@ export function AccessGate({
   const copy = COPY[kind] || COPY.operator;
   const personal = kind === "personal";
   const personalAvailable =
-    !personal || (session?.mode === "work" && Boolean(session?.user?.email));
+    !personal ||
+    (session?.mode === "work" &&
+      Boolean(session?.user?.loginId || session?.user?.email));
   const formId = useId();
   const passwordRef = useRef(null);
   const pending = useRef(false);
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -52,7 +56,9 @@ export function AccessGate({
     setError("");
     try {
       const credentials = {
-        email: personal ? session.user.email : email.trim(),
+        loginId: personal
+          ? session.user.loginId || session.user.email
+          : loginId.trim(),
         password,
       };
       const result = await api(
@@ -106,7 +112,8 @@ export function AccessGate({
         )}
         {!personalAvailable ? (
           <div className="alert alert-warning" role="alert">
-            먼저 직원 본인 계정으로 작업자 로그인한 뒤 내 급여명세를 열어 주세요.
+            먼저 직원 본인 계정으로 작업자 로그인한 뒤 내 급여명세를 열어
+            주세요.
           </div>
         ) : (
           <>
@@ -114,18 +121,20 @@ export function AccessGate({
               <div className="access-gate-account">
                 <span className="access-gate-account-label">인증할 계정</span>
                 <strong>{session.user.name}</strong>
-                <span>{session.user.email}</span>
+                <span>{session.user.loginId || session.user.email}</span>
               </div>
             ) : (
-              <Field label={kind === "owner" ? "원장 계정 이메일" : "계정 이메일"}>
+              <Field
+                label={kind === "owner" ? "원장 계정 아이디" : "계정 아이디"}
+              >
                 <input
-                  type="email"
-                  name="email"
+                  type="text"
+                  name="loginId"
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  value={loginId}
+                  onChange={(event) => setLoginId(event.target.value)}
                   disabled={busy}
                   maxLength={254}
                   required

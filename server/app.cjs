@@ -66,11 +66,26 @@ function text(value, label, max = 200, required = false) {
     throw problem(422, "INVALID_FIELD", `${label}을(를) 확인해 주세요.`);
   return value.trim();
 }
-function emailAddress(value) {
-  const v = text(value, "이메일", 254, true).toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
-    throw problem(422, "INVALID_EMAIL", "올바른 이메일을 입력해 주세요.");
-  return v;
+function loginIdentifier(body) {
+  const value = body.loginId ?? body.email;
+  const identifier = text(value, "아이디", 254, true).toLowerCase();
+  // Existing email-based accounts continue to work after the UI switches to IDs.
+  if (
+    !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(identifier) &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
+  )
+    throw problem(
+      422,
+      "INVALID_LOGIN_ID",
+      "아이디는 영문·숫자·점·밑줄·하이픈으로 3~32자 입력해 주세요.",
+    );
+  return identifier;
+}
+function loginInput(body) {
+  const value = body.loginId ?? body.email;
+  return typeof value === "string"
+    ? value.trim().toLowerCase().slice(0, 254)
+    : "";
 }
 function actorFor(row) {
   return { id: row.id, name: row.name, role: row.role, staffId: row.staff_id };
@@ -395,8 +410,10 @@ function createApp(options = {}) {
         );
       const name = text(req.body.name, "이름", 80, true);
       const storeName = text(req.body.storeName, "매장명", 100, true);
-      const email = emailAddress(req.body.email);
-      const hash = await hashPassword(req.body.password);
+      const email = loginIdentifier(req.body);
+      const hash = await hashPassword(req.body.password, {
+        allowDemo: !production && email === "admin",
+      });
       const id = randomUUID();
       const staffId = randomUUID();
       let session;
@@ -438,10 +455,7 @@ function createApp(options = {}) {
     "/api/auth/login",
     asyncRoute(async (req, res) => {
       throttle(req, "login-global", 100, 15);
-      const email =
-        typeof req.body.email === "string"
-          ? req.body.email.trim().toLowerCase().slice(0, 254)
-          : "";
+      const email = loginInput(req.body);
       throttle(req, `login-${digest(email).slice(0, 24)}`, 15, 15);
       const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
       const dummyHash =
@@ -454,7 +468,7 @@ function createApp(options = {}) {
         throw problem(
           401,
           "INVALID_LOGIN",
-          "이메일 또는 비밀번호가 올바르지 않습니다.",
+          "아이디 또는 비밀번호가 올바르지 않습니다.",
         );
       const staff = readState(db)?.data.staff.find(
         (x) => x.id === user.staff_id,
@@ -463,7 +477,7 @@ function createApp(options = {}) {
         throw problem(
           401,
           "INVALID_LOGIN",
-          "이메일 또는 비밀번호가 올바르지 않습니다.",
+          "아이디 또는 비밀번호가 올바르지 않습니다.",
         );
       let session;
       transaction(db, () => {
@@ -604,10 +618,7 @@ function createApp(options = {}) {
       if (!["owner", "personal"].includes(scope))
         throw problem(422, "INVALID_SCOPE", "보호 영역을 확인해 주세요.");
       throttle(req, "private-global", 100, 15);
-      const email =
-        typeof req.body.email === "string"
-          ? req.body.email.trim().toLowerCase().slice(0, 254)
-          : "";
+      const email = loginInput(req.body);
       throttle(req, `private-${digest(email).slice(0, 24)}`, 10, 15);
       const user = db.prepare("SELECT * FROM users WHERE email=?").get(email);
       const valid = await verifyPassword(
@@ -847,7 +858,7 @@ function createApp(options = {}) {
       privacy.requireOwner(req);
       throttle(req, "users", 30, 15);
       const name = text(req.body.name, "이름", 80, true);
-      const email = emailAddress(req.body.email);
+      const email = loginIdentifier(req.body);
       const role = req.body.role;
       const staffId = text(req.body.staffId, "직원", 100, true);
       if (
@@ -885,7 +896,7 @@ function createApp(options = {}) {
           throw problem(
             409,
             "ACCOUNT_EXISTS",
-            "이 이메일 또는 직원은 이미 로그인 계정이 있습니다.",
+            "이 아이디 또는 직원은 이미 로그인 계정이 있습니다.",
           );
         const id = randomUUID();
         db.prepare(

@@ -16,6 +16,7 @@ const PRIVATE_ACTIONS = new Set([
 const SHARED_USER = Object.freeze({
   id: "shared",
   name: "공용 업무",
+  loginId: "",
   email: "",
   role: "shared",
   staffId: null,

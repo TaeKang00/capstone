@@ -12,7 +12,8 @@
     "test": "node --test tests/*.test.cjs",
     "test:e2e": "playwright test",
     "backup": "node scripts/backup.cjs",
-    "reset-owner": "node scripts/reset-owner.cjs"
+    "reset-owner": "node scripts/reset-owner.cjs",
+    "setup:demo": "node scripts/setup-demo.cjs"
   },
   "dependencies": {
     "express": "5.2.1",

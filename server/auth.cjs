@@ -11,7 +11,8 @@ const COOKIE_NAME = "salon_session";
 const publicUser = (u) => ({
   id: u.id,
   name: u.name,
-  email: u.email,
+  loginId: u.email,
+  email: u.email, // Legacy API compatibility; this column stores the login identifier.
   role: u.role,
   staffId: u.staff_id,
   active: !!u.active,
@@ -20,7 +21,8 @@ const publicUser = (u) => ({
 function problem(status, code, message) {
   return Object.assign(new Error(message), { status, code });
 }
-function validPassword(password) {
+function validPassword(password, { allowDemo = false } = {}) {
+  if (allowDemo && password === "admin") return;
   if (
     typeof password !== "string" ||
     password.length < 12 ||
@@ -32,8 +34,8 @@ function validPassword(password) {
       "비밀번호는 12~128자로 입력해 주세요.",
     );
 }
-async function hashPassword(password) {
-  validPassword(password);
+async function hashPassword(password, options) {
+  validPassword(password, options);
   const salt = randomBytes(16).toString("hex");
   const key = await derive(password, salt, 64, {
     N: 16384,

@@ -73,10 +73,11 @@ export default function Staff({
     return (
       matchesStatus &&
       (!search ||
-        [staff.name, staff.phone, login?.email].some((value) =>
-          String(value || "")
-            .toLocaleLowerCase()
-            .includes(search),
+        [staff.name, staff.phone, login?.loginId || login?.email].some(
+          (value) =>
+            String(value || "")
+              .toLocaleLowerCase()
+              .includes(search),
         ))
     );
   });
@@ -213,7 +214,7 @@ export default function Staff({
           <input
             type="search"
             value={query}
-            placeholder="이름 · 연락처 · 로그인 이메일"
+            placeholder="이름 · 연락처 · 로그인 아이디"
             onChange={(event) => setQuery(event.target.value)}
           />
         </Field>
@@ -270,7 +271,7 @@ export default function Staff({
                     <dt>계정</dt>
                     <dd>
                       {login
-                        ? `${login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
+                        ? `${login.loginId || login.email} · ${login.active ? "계정 활성" : "로그인 차단"}`
                         : "로그인 계정 미발급"}
                     </dd>
                   </div>
@@ -333,7 +334,7 @@ export default function Staff({
           title="해당하는 직원이 없습니다"
           description={
             query
-              ? "이름·연락처·이메일을 다시 확인하거나 검색 조건을 지워 주세요."
+              ? "이름·연락처·아이디를 다시 확인하거나 검색 조건을 지워 주세요."
               : filter === "pending"
                 ? "재직 직원 모두에게 로그인 계정이 발급되어 있습니다."
                 : "직원을 등록하고 근무 요일·시간을 설정하세요."
@@ -560,7 +561,7 @@ function StaffForm({ initial, user, linked, save, close, notify }) {
 function AccountForm({ staff, login, mode, user, close, done }) {
   const initial = {
     name: staff.name,
-    email: login?.email || "",
+    loginId: login?.loginId || login?.email || "",
     role: login?.role || staff.role,
     password: "",
     staffId: staff.id,
@@ -617,13 +618,17 @@ function AccountForm({ staff, login, mode, user, close, done }) {
             {error}
           </div>
         )}
-        <Field label="로그인 이메일">
+        <Field label="로그인 아이디">
           <input
             required
-            type="email"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            maxLength={32}
             disabled={mode === "edit"}
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            value={form.loginId}
+            onChange={(e) => setForm({ ...form, loginId: e.target.value })}
           />
         </Field>
         <Field label="접근 권한">

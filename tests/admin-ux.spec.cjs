@@ -39,7 +39,7 @@ test('직원 정보와 로그인 권한을 구분해 계정을 발급하고 급�
   await page.locator('.staff-card').filter({ hasText: '연속 등록 직원' }).getByRole('button', { name: '계정 발급', exact: true }).click();
   const account = page.getByRole('dialog', { name: '연속 등록 직원 · 계정 발급', exact: true });
   await expect(account).toBeVisible();
-  await account.getByLabel('로그인 이메일', { exact: true }).fill('staff.ux@example.test');
+  await account.getByLabel('로그인 아이디', { exact: true }).fill('staff.ux@example.test');
   await account.getByLabel('임시 비밀번호', { exact: true }).fill('Staff-temporary-2026!');
   await account.getByRole('button', { name: '계정 저장', exact: true }).click();
   await expect(account).toBeHidden();

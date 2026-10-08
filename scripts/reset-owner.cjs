@@ -15,7 +15,7 @@ const {
 async function main() {
   if (process.argv.length > 2)
     throw new Error(
-      "인자를 사용하지 마세요. 이메일과 비밀번호는 실행 후 표준 입력으로 입력합니다.",
+      "인자를 사용하지 마세요. 아이디와 비밀번호는 실행 후 표준 입력으로 입력합니다.",
     );
   const filename = path.resolve(process.env.DB_PATH || "data/salon.sqlite");
   if (!fs.existsSync(filename))
@@ -52,13 +52,13 @@ async function main() {
     console.log(
       "서버 운영자가 기존 원장 계정을 복구하는 도구입니다. 해당 원장의 모든 기기 로그인이 종료됩니다.",
     );
-    const email = (await ask("원장 이메일: ")).trim().toLowerCase();
+    const email = (await ask("원장 아이디: ")).trim().toLowerCase();
     const user = db
       .prepare("SELECT * FROM users WHERE email=? AND role='owner'")
       .get(email);
     if (!user)
       throw new Error(
-        "해당 이메일의 원장 계정이 없습니다. 일반 직원을 원장으로 승격하지 않습니다.",
+        "해당 아이디의 원장 계정이 없습니다. 일반 직원을 원장으로 승격하지 않습니다.",
       );
     const password = await ask(
       "새 비밀번호 (12~128자, 화면에 표시되지 않음): ",

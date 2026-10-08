@@ -105,7 +105,7 @@ async function unlockOwner(page) {
   if (await navigation.isVisible()) return;
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await dialog.getByLabel("원장 계정 이메일", { exact: true }).fill(OWNER_EMAIL);
+  await dialog.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
   await dialog.getByLabel("비밀번호", { exact: true }).fill(OWNER_PASSWORD);
   const granted = page.waitForResponse(response => response.url().endsWith("/api/auth/private/unlock") && response.ok());
   await dialog.getByRole("button", { name: "원장 인증", exact: true }).click();

@@ -791,7 +791,7 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
   const [form, setForm] = useState({
       storeName: "",
       name: "",
-      email: "",
+      loginId: "admin",
       password: "",
       confirm: "",
       setupToken: "",
@@ -812,7 +812,7 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
     try {
       const result = await api(setup ? "/bootstrap" : "/auth/login", {
         method: "POST",
-        body: setup ? form : { email: form.email, password: form.password },
+        body: setup ? form : { loginId: form.loginId, password: form.password },
       });
       await onSuccess(result);
     } catch (err) {
@@ -874,26 +874,39 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
                   </Field>
                 </div>
               )}
-              <Field label="이메일">
+              <Field label="아이디">
                 <input
                   required
-                  type="email"
+                  type="text"
                   maxLength={254}
                   autoComplete="username"
-                  placeholder="name@salon.com"
-                  {...field("email")}
+                  placeholder="예: admin"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  {...field("loginId")}
                 />
               </Field>
               <Field
                 label="비밀번호"
                 help={
-                  setup ? "12자 이상, 128자 이하로 입력해 주세요." : undefined
+                  setup
+                    ? !bootstrap?.requiresToken &&
+                      form.loginId.trim().toLowerCase() === "admin"
+                      ? "로컬 시연 계정은 admin을 사용할 수 있습니다. 운영 비밀번호는 12자 이상으로 설정해 주세요."
+                      : "12자 이상, 128자 이하로 입력해 주세요."
+                    : undefined
                 }
               >
                 <div className="password-input">
                   <input
                     required
-                    minLength={setup ? 12 : undefined}
+                    minLength={
+                      setup &&
+                      (bootstrap?.requiresToken ||
+                        form.loginId.trim().toLowerCase() !== "admin")
+                        ? 12
+                        : undefined
+                    }
                     maxLength={128}
                     type={show ? "text" : "password"}
                     aria-label="비밀번호"

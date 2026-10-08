@@ -126,3 +126,21 @@ test("a second launch during preparation waits for readiness and cancellation re
   const retry = await f.launch({ port });
   assert.equal((await request(retry.url + "/api/health")).status, 200);
 });
+
+test("local demo launch seeds admin once, preserves the configured store, and logs in without an email address", async t => {
+  const f = fixture(t);
+  const first = await f.launch({demoAccount:true});
+  assert.equal((await (await request(first.url+'/api/bootstrap')).json()).needsSetup,false);
+  const login = await request(first.url+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:first.url},body:JSON.stringify({loginId:'admin',password:'admin'})});
+  assert.equal(login.status,200);
+  const data = await login.json(); assert.equal(data.user.loginId,'admin');
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const changed = await request(first.url+'/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json',Origin:first.url,Cookie:cookie,'X-CSRF-Token':data.csrfToken},body:JSON.stringify({currentPassword:'admin',newPassword:'owner-custom-password-2026'})});
+  assert.equal(changed.status,200);
+  const port=portOf(first); await first.stop();
+  const second=await f.launch({port,demoAccount:true});
+  const old=await request(second.url+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loginId:'admin',password:'admin'})});
+  assert.equal(old.status,401);
+  const current=await request(second.url+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({loginId:'admin',password:'owner-custom-password-2026'})});
+  assert.equal(current.status,200);
+});

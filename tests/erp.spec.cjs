@@ -24,7 +24,7 @@ async function ensureSetup(page) {
 }
 async function login(page, email = EMAIL, password = PASSWORD) {
   await page.goto('/');
-  await page.getByLabel('이메일', { exact: true }).fill(email);
+  await page.getByLabel('아이디', { exact: true }).fill(email);
   await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '로그인' })).toBeHidden();
@@ -55,7 +55,7 @@ test('첫 설치는 관리자 등록부터 시작하고 로그인과 푸터가 �
   await expect(page.getByRole('heading', { name: '매장 초기 설정' })).toBeVisible();
   await page.getByLabel('매장 이름', { exact: true }).fill('브라우저 테스트 미용실');
   await page.getByLabel('원장 이름', { exact: true }).fill('테스트 원장');
-  await page.getByLabel('이메일', { exact: true }).fill(EMAIL);
+  await page.getByLabel('아이디', { exact: true }).fill(EMAIL);
   await page.getByLabel('비밀번호', { exact: true }).fill(PASSWORD);
   await page.getByLabel('비밀번호 확인', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: '매장 만들고 시작하기' }).click();
@@ -68,7 +68,7 @@ test('첫 설치는 관리자 등록부터 시작하고 로그인과 푸터가 �
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
   await expect(page.getByRole('heading', { name: '로그인' })).toBeVisible();
-  await page.getByLabel('이메일', { exact: true }).fill(EMAIL);
+  await page.getByLabel('아이디', { exact: true }).fill(EMAIL);
   await page.getByLabel('비밀번호', { exact: true }).fill('incorrect-test-password');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
@@ -187,7 +187,7 @@ test('디자이너는 첫 비밀번호를 변경하고 본인 업무와 확정 �
   await page.getByRole('navigation', { name: '직원 관리 메뉴' }).getByRole('button', { name: '로그인 권한', exact: true }).click();
   await page.locator('.staff-card').filter({ hasText: '권한 디자이너' }).getByRole('button', { name: '계정 발급', exact: true }).click();
   dialog = page.getByRole('dialog');
-  await dialog.getByLabel('로그인 이메일', { exact: true }).fill('designer@example.test');
+  await dialog.getByLabel('로그인 아이디', { exact: true }).fill('designer@example.test');
   await dialog.getByLabel('임시 비밀번호', { exact: true }).fill('Temporary-password-2026!');
   await dialog.getByRole('button', { name: '계정 저장', exact: true }).click();
   await expect(dialog).toBeHidden();
