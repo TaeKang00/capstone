@@ -37,12 +37,18 @@ export default function Inventory({
   runAction,
   notify,
   routeContext,
+  navigate,
 }) {
   const canWrite = user.role !== "designer";
   const canManage = ["owner", "manager"].includes(user.role);
   const [tab, setTab] = useViewState("inventory", "tab", "stock");
   const [query, setQuery] = useViewState("inventory", "query", "");
   const [filter, setFilter] = useViewState("inventory", "filter", "active");
+  const [categoryFilter, setCategoryFilter] = useViewState(
+    "inventory",
+    "category",
+    "",
+  );
   const [itemFilter, setItemFilter] = useViewState(
     "inventory",
     "itemFilter",
@@ -77,6 +83,10 @@ export default function Inventory({
           (filter === "inactive"
             ? item.active === false
             : item.active !== false)) &&
+        (!categoryFilter ||
+          (item.categoryId ||
+            (item.kind === "판매 상품" ? "cat-sale" : "cat-service")) ===
+            categoryFilter) &&
         (filter !== "low" || Number(item.qty) <= Number(item.min)) &&
         (!query ||
           `${item.name} ${item.kind} ${item.unit}`
@@ -164,6 +174,12 @@ export default function Inventory({
           </p>
         </div>
         <div className="page-actions">
+          <Button onClick={() => navigate("purchases")}>발주 · 거래처</Button>
+          {canManage && (
+            <Button onClick={() => navigate("settings", { tab: "services" })}>
+              시술 · 재료 설정
+            </Button>
+          )}
           {canManage && (
             <Button
               variant="secondary"
@@ -305,6 +321,22 @@ export default function Inventory({
                 />
               </Field>
             </div>
+            {tab === "stock" && (
+              <Field label="품목 분류별 조회">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="">전체 분류</option>
+                  {(data.itemCategories || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.active ? "" : " · 미사용"}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
             {tab === "stock" ? (
               <Field label="품목 상태">
                 <select
@@ -385,7 +417,19 @@ export default function Inventory({
                         <td>
                           <strong>{item.name}</strong>
                           <span className="commerce-secondary">
-                            {item.kind} · {item.unit}
+                            {data.itemCategories?.find(
+                              (c) =>
+                                c.id ===
+                                (item.categoryId ||
+                                  (item.kind === "판매 상품"
+                                    ? "cat-sale"
+                                    : "cat-service")),
+                            )?.name || item.kind}{" "}
+                            · {item.kind}
+                            <span className="commerce-secondary">
+                              1개 입고 = {quantity(item.packSize || 1)}
+                              {item.unit}
+                            </span>
                           </span>
                         </td>
                         <td data-label="상태">
@@ -673,6 +717,7 @@ export default function Inventory({
       </section>
       {dialog?.kind === "item" && (
         <ItemForm
+          data={data}
           item={currentItem}
           runAction={runAction}
           onClose={() => setDialog(null)}
@@ -713,7 +758,7 @@ export default function Inventory({
         <ReceiptDetail
           receipt={currentReceipt}
           item={currentItem}
-          canWrite={canWrite}
+          canWrite={canWrite && !currentReceipt.orderId}
           onClose={() => setDialog(null)}
           onCorrect={() =>
             setDialog({ kind: "correct", receiptId: currentReceipt.id })
@@ -745,9 +790,15 @@ export default function Inventory({
   );
 }
 
-function ItemForm({ item, runAction, onClose, onSaved }) {
+function ItemForm({ data, item, runAction, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: item?.name || "",
+    categoryId:
+      item?.categoryId ||
+      (item?.kind === "판매 상품" ? "cat-sale" : "cat-service"),
+    supplierId: item?.supplierId || "",
+    packSize: String(item?.packSize || 1),
+    purchasePrice: String(item?.purchasePrice || 0),
     kind: item?.kind || "시술 재료",
     unit: item?.unit || "개",
     min: String(item?.min || 0),
@@ -770,6 +821,8 @@ function ItemForm({ item, runAction, onClose, onSaved }) {
       await runAction("inventory.item", {
         ...form,
         ...(item ? { id: item.id } : {}),
+        packSize: Number(form.packSize),
+        purchasePrice: Number(form.purchasePrice),
         min: Number(form.min),
         price: Number(form.price),
       });
@@ -817,6 +870,38 @@ function ItemForm({ item, runAction, onClose, onSaved }) {
             />
           </Field>
           <div className="commerce-form-grid">
+            <Field label="품목 분류">
+              <select
+                required
+                value={form.categoryId}
+                onChange={(e) => update("categoryId", e.target.value)}
+              >
+                {(data.itemCategories || [])
+                  .filter((c) => c.active || c.id === form.categoryId)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.active ? "" : " · 미사용"}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <Field label="기본 거래처">
+              <select
+                value={form.supplierId}
+                onChange={(e) => update("supplierId", e.target.value)}
+              >
+                <option value="">미지정</option>
+                {(data.suppliers || [])
+                  .filter((s) => s.active || s.id === form.supplierId)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.active ? "" : " · 미사용"}
+                    </option>
+                  ))}
+              </select>
+            </Field>
             <Field label="품목 구분">
               <select
                 className="select"
@@ -839,12 +924,44 @@ function ItemForm({ item, runAction, onClose, onSaved }) {
                 className="select"
                 disabled={!!item}
                 value={form.unit}
-                onChange={(e) => update("unit", e.target.value)}
+                onChange={(e) => {
+                  update("unit", e.target.value);
+                  if (e.target.value === "개") update("packSize", "1");
+                }}
               >
                 <option>개</option>
                 <option>g</option>
                 <option>ml</option>
               </select>
+            </Field>
+            <Field
+              label={`1개당 용량 (${form.unit})`}
+              help="예: 500ml 제품은 500 입력. 3개 입고하면 1,500ml로 반영됩니다."
+            >
+              <input
+                required
+                type="number"
+                min={unitStep(form)}
+                max="1000000000"
+                step={unitStep(form)}
+                disabled={form.unit === "개"}
+                value={form.packSize}
+                onChange={(e) => update("packSize", e.target.value)}
+              />
+            </Field>
+            <Field
+              label="1개 입고 단가 (원)"
+              help="발주 금액 계산에 사용하며, 발주할 때 수정할 수 있습니다."
+            >
+              <input
+                required
+                type="number"
+                min="0"
+                max="1000000000"
+                step="1"
+                value={form.purchasePrice}
+                onChange={(e) => update("purchasePrice", e.target.value)}
+              />
             </Field>
             <Field
               label={`보충 기준 (${form.unit})`}
@@ -907,6 +1024,7 @@ function ItemForm({ item, runAction, onClose, onSaved }) {
 function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
   const [form, setForm] = useState({
     itemId: initialItem?.id || "",
+    packageMode: (initialItem?.packSize || 1) > 1,
     qty: "",
     date: todayInSeoul(),
     memo: "",
@@ -936,10 +1054,14 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
     setBusy(true);
     setError("");
     try {
-      await runAction("inventory.receipt", { ...form, qty: Number(form.qty) });
+      await runAction("inventory.receipt", {
+        ...form,
+        qty: Number(form.qty),
+        ...(form.packageMode ? { packQty: Number(form.qty) } : {}),
+      });
       if (keepOpen) {
         setSavedMessage(
-          `${item?.name || "품목"} ${quantity(form.qty)}${item?.unit || ""} 입고를 저장했습니다. 다음 품목을 선택하세요.`,
+          `${item?.name || "품목"} ${quantity(form.qty)}${form.packageMode ? "개" : item?.unit || ""} 입고를 저장했습니다. 다음 품목을 선택하세요.`,
         );
         setForm((current) => ({ ...current, itemId: "", qty: "" }));
         setItemQuery("");
@@ -1019,6 +1141,11 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
               value={form.itemId}
               onChange={(e) => {
                 update("itemId", e.target.value);
+                update(
+                  "packageMode",
+                  (items.find((i) => i.id === e.target.value)?.packSize || 1) >
+                    1,
+                );
                 update("qty", "");
               }}
             >
@@ -1049,16 +1176,37 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
                 확인하세요.
               </p>
             )}
+          {item && item.unit !== "개" && (
+            <Field label="입고 입력 방식">
+              <select
+                value={form.packageMode ? "package" : "volume"}
+                onChange={(e) => {
+                  update("packageMode", e.target.value === "package");
+                  update("qty", "");
+                }}
+              >
+                <option value="package">
+                  개수로 입력 (1개 = {quantity(item.packSize || 1)}
+                  {item.unit})
+                </option>
+                <option value="volume">
+                  총 용량으로 직접 입력 ({item.unit})
+                </option>
+              </select>
+            </Field>
+          )}
           <div className="commerce-form-grid">
-            <Field label={`추가할 수량${item ? ` (${item.unit})` : ""}`}>
+            <Field
+              label={`추가할 수량${item ? ` (${form.packageMode ? "개" : item.unit})` : ""}`}
+            >
               <input
                 className="input"
                 type="number"
                 inputMode="decimal"
                 required
-                min={unitStep(item)}
+                min={form.packageMode ? "1" : unitStep(item)}
                 max="1000000000"
-                step={unitStep(item)}
+                step={form.packageMode ? "1" : unitStep(item)}
                 value={form.qty}
                 placeholder="이번에 받은 수량"
                 onChange={(e) => update("qty", e.target.value)}
@@ -1078,10 +1226,18 @@ function ReceiptForm({ items, initialItem, runAction, onClose, onSaved }) {
           {item && (
             <div className="alert">
               현재 {quantity(item.qty)}
-              {item.unit} + 입고 {quantity(form.qty)}
+              {item.unit} + 입고{" "}
+              {quantity(
+                Number(form.qty) * (form.packageMode ? item.packSize || 1 : 1),
+              )}
               {item.unit} →{" "}
               <strong>
-                저장 후 {quantity(Number(item.qty) + Number(form.qty || 0))}
+                저장 후{" "}
+                {quantity(
+                  Number(item.qty) +
+                    Number(form.qty || 0) *
+                      (form.packageMode ? item.packSize || 1 : 1),
+                )}
                 {item.unit}
               </strong>
             </div>
@@ -1266,6 +1422,12 @@ function ReceiptDetail({
         <dt>메모</dt>
         <dd className="commerce-prewrap">{receipt.memo || "없음"}</dd>
       </dl>
+      {receipt.orderId && (
+        <p className="alert">
+          발주에 연결된 입고입니다. 발주 · 거래처의 발주 상세에서 입고 취소 및
+          재등록을 할 수 있습니다.
+        </p>
+      )}
       <h3 className="commerce-section-title">입고 · 정정 이력</h3>
       <ul className="commerce-timeline">
         {(receipt.changes || []).map((change, index) => (

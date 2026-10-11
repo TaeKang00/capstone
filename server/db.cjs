@@ -18,6 +18,7 @@ function openDatabase(filename) {
     CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, actor_id TEXT, actor_name TEXT NOT NULL, action TEXT NOT NULL, summary TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS requests (actor_id TEXT NOT NULL, request_id TEXT NOT NULL, signature TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(actor_id,request_id));
     PRAGMA user_version=2;`);
+  require("./procurement-db.cjs").initialize(db);
   const sessionColumns = new Set(
     db
       .prepare("PRAGMA table_info(sessions)")
@@ -52,12 +53,22 @@ function transaction(db, fn) {
 }
 function readState(db) {
   const row = db.prepare("SELECT version,data FROM app_state WHERE id=1").get();
-  return row ? { version: row.version, data: JSON.parse(row.data) } : null;
+  return row
+    ? {
+        version: row.version,
+        data: {
+          ...JSON.parse(row.data),
+          ...require("./procurement-db.cjs").read(db),
+        },
+      }
+    : null;
 }
 function writeState(db, data, version) {
+  require("./procurement-db.cjs").write(db, data);
+  const { suppliers, itemCategories, purchaseOrders, ...businessData } = data;
   db.prepare(
     "INSERT INTO app_state(id,version,data) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version,data=excluded.data",
-  ).run(version, JSON.stringify(data));
+  ).run(version, JSON.stringify(businessData));
 }
 function audit(db, actor, action, summary) {
   db.prepare(

@@ -63,3 +63,12 @@ UI date helpers local Intl Asia/Seoul, not UTC split now. Customer warning promi
 ## 로그인 아이디 호환
 
 로그인·최초 등록·직원 계정 발급·보호 영역 인증은 `loginId`를 사용합니다. 아이디는 영문·숫자·점·밑줄·하이픈 3~32자이며 대소문자를 구분하지 않습니다. 기존 이메일 형식 아이디와 `email` 요청 필드는 호환을 위해 유지합니다. SQLite `users.email` 컬럼은 기존 데이터 보존을 위해 로그인 식별자 저장용으로 재사용하며 공개 사용자 응답에 `loginId`를 제공합니다. 로컬 실행기만 빈 DB에 `admin / admin` 원장 계정을 만들고, 운영 서버에는 자동 생성하지 않습니다. 기존 계정의 시연 전환은 `npm run setup:demo`를 명시적으로 실행하며 고객·예약·매출·재고·급여를 보존합니다.
+
+
+## Procurement and capacity inventory (2026-10-12)
+
+See [PROCUREMENT.md](PROCUREMENT.md) for requirements, roles and API examples. SQLite schema version 3 adds suppliers, item_categories, purchase_orders and purchase_order_lines. The order/supplier relationships have SQL foreign keys; inventory items/receipts remain in app_state JSON. readState hydrates these tables for the existing API and writeState persists them without duplicating them in JSON. All writes share the business transaction and version lock.
+
+Orders capture immutable supplier/item names, unit, pack size, quantity and unit cost. Received quantities derive from active linked receipts; partial receipts remain waiting, full receipt completes the line/order. Per-order full payment status is independent of delivery. Managers and owners may manage procurement; reception may read and receive/cancel receipts but cannot create orders or mark payments; designer/shared/personal views expose no procurement records. Inventory logs in work views are limited to known inventory fields and existing items.
+
+Package quantities are integers, converted to base ml/g stock (three decimal precision). Direct manual receipt also accepts packQty; legacy qty continues to mean base stock units. Service consumption still occurs exactly once at settlement. Purchase-linked receipts must be cancelled/re-entered from the order; direct receipt correction cannot bypass order quantities. Historical orders retain their original pack size even after catalog changes.

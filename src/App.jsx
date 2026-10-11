@@ -23,6 +23,7 @@ import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
 import Customers from "./pages/Customers";
 import Payments from "./pages/Payments";
+import Purchases from "./pages/Purchases";
 import Inventory from "./pages/Inventory";
 import PrivateWorkspace from "./components/PrivateWorkspace";
 import { SharedDesk } from "./components/SharedDesk";
@@ -34,6 +35,7 @@ const pages = {
   customers: Customers,
   payments: Payments,
   inventory: Inventory,
+  purchases: Purchases,
 };
 const navigation = [
   ["dashboard", "오늘의 매장", "workspace", "업무"],
@@ -42,6 +44,7 @@ const navigation = [
   ["payments", "수납 · 환불", "credit-card"],
   ["sales", "매출 · 정산", "chart", "운영"],
   ["inventory", "재고 · 입고", "inventory"],
+  ["purchases", "발주 · 거래처", "inventory"],
   ["staff", "직원 관리", "staff"],
   ["payroll", "급여명세", "payroll"],
   ["settings", "매장 설정", "settings"],

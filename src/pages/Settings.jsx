@@ -574,6 +574,10 @@ function ServiceForm({ initial, data, runAction, notify, close }) {
             예약·결제 기록은 보관됩니다.
           </p>
           <div className="separator" />
+          <p className="help">
+            시술 수납을 기록할 때 아래 사용량을 총 재고에서 차감합니다. 예:
+            1,500ml 보유 중 100ml 사용 → 1,400ml.
+          </p>
           <div className="row">
             <h3 style={{ margin: 0 }}>시술 1회 소모 재료</h3>
             <Button

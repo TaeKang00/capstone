@@ -35,6 +35,14 @@ const {
   publicStaff,
 } = require("./privacy.cjs");
 const ALL_ACTIONS = new Set([
+  "supplier.save",
+  "category.save",
+  "purchase.create",
+  "purchase.ship",
+  "purchase.receive",
+  "purchase.receiptCancel",
+  "purchase.cancel",
+  "purchase.payment",
   "customer.save",
   "customer.archive",
   "appointment.save",
@@ -106,7 +114,48 @@ function filterState(envelope, user) {
   delete data.legacyArchive;
   data.payroll = [];
   data.payrolls = [];
-  data.logs = [];
+  // Only inventory fields are exposed; legacy/unstructured logs may contain private data.
+  data.logs = (data.logs || [])
+    .filter(
+      (log) =>
+        data.items?.some((i) => i.id === log.itemId) &&
+        Number.isFinite(log.delta),
+    )
+    .map(
+      ({
+        id,
+        dt,
+        at,
+        itemId,
+        delta,
+        kind,
+        after,
+        beforeStock,
+        ref,
+        actorId,
+        actorName,
+        reason,
+        receiptId,
+        beforeMin,
+        afterMin,
+      }) => ({
+        id,
+        dt,
+        at,
+        itemId,
+        delta,
+        kind,
+        after,
+        beforeStock,
+        ref,
+        actorId,
+        actorName,
+        reason,
+        receiptId,
+        beforeMin,
+        afterMin,
+      }),
+    );
   data.staff = (data.staff || []).map(publicStaff);
   if (user.role === "designer") {
     data.appointments = (data.appointments || []).filter(
@@ -117,6 +166,8 @@ function filterState(envelope, user) {
     );
     const ids = new Set(data.transactions.map((x) => x.id));
     data.refunds = (data.refunds || []).filter((x) => ids.has(x.transactionId));
+    data.suppliers = [];
+    data.purchaseOrders = [];
     data.receipts = [];
     data.logs = [];
     data.inventoryOperations = [];
@@ -151,7 +202,8 @@ function permission(type, payload, req, state) {
   }
   if (
     role === "reception" &&
-    (!/^(customer|appointment|payment|inventory)\./.test(type) ||
+    ((!/^(customer|appointment|payment|inventory)\./.test(type) &&
+      !["purchase.receive", "purchase.receiptCancel"].includes(type)) ||
       type === "inventory.item")
   )
     throw problem(403, "FORBIDDEN", "이 작업을 수행할 권한이 없습니다.");
@@ -199,6 +251,14 @@ function permission(type, payload, req, state) {
 }
 function summary(type, payload) {
   const labels = {
+    "supplier.save": "거래처 저장",
+    "category.save": "품목 분류 저장",
+    "purchase.create": "발주 등록",
+    "purchase.ship": "발주 배송 시작",
+    "purchase.receive": "발주 입고",
+    "purchase.receiptCancel": "발주 입고 취소",
+    "purchase.cancel": "발주 취소",
+    "purchase.payment": "거래처 대금 지급 기록",
     "customer.save": "고객 정보 저장",
     "customer.archive": "고객 보관 상태 변경",
     "appointment.save": "예약 저장",
@@ -744,7 +804,14 @@ function createApp(options = {}) {
           requestId,
         };
         let data;
-        if (/^(payment|inventory)\./.test(type))
+        if (/^(supplier|category|purchase)\./.test(type))
+          data = require("./procurement.cjs").applyProcurement(
+            current.data,
+            type,
+            payload,
+            ctx,
+          );
+        else if (/^(payment|inventory)\./.test(type))
           data = require("./commerce.cjs").applyCommerce(
             current.data,
             type,

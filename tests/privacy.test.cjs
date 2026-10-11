@@ -631,7 +631,10 @@ test("existing databases retain business data and migrate previous sessions into
   try {
     assert.deepEqual(readState(upgraded), {
       version: 17,
-      data: { customers: [{ id: "preserved" }] },
+      data: {
+        customers: [{ id: "preserved" }],
+        ...require("../server/procurement-db.cjs").read(upgraded),
+      },
     });
     const session = upgraded.prepare("SELECT * FROM sessions").get();
     assert.equal(session.token_hash, "legacy-token");
@@ -646,7 +649,7 @@ test("existing databases retain business data and migrate previous sessions into
       upgraded.prepare("SELECT mode FROM sessions").get().mode,
       "shared",
     );
-    assert.equal(upgraded.prepare("PRAGMA user_version").get().user_version, 2);
+    assert.equal(upgraded.prepare("PRAGMA user_version").get().user_version, 3);
   } finally {
     upgraded.close();
   }

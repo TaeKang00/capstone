@@ -6,6 +6,7 @@ const pages = new Set([
   "customers",
   "payments",
   "inventory",
+  "purchases",
 ]);
 const fromLocation = () => {
   const candidate = window.location.hash.slice(2);

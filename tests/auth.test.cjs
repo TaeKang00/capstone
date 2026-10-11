@@ -259,3 +259,124 @@ test('demo setup cannot take over an employee admin ID, and username validation 
   }
   assert.equal(empty.db.prepare('SELECT COUNT(*) n FROM users').get().n,0);
 });
+
+test("procurement API persists relational orders, rejects repeated and stale mutations and protects management permissions", async (t) => {
+  const f = await fixture(t),
+    owner = await f.setup();
+  let r = await f.action(owner, "supplier.save", {
+    name: "발주 공급사",
+    contact: "담당자",
+    phone: "010-0000-0000",
+    note: "",
+    active: true,
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const supplierId = r.data.data.suppliers[0].id;
+  r = await f.action(owner, "category.save", {
+    name: "염색 제품",
+    active: true,
+  });
+  assert.equal(r.status, 200);
+  const categoryId = r.data.data.itemCategories.find(
+    (c) => c.name === "염색 제품",
+  ).id;
+  r = await f.action(owner, "inventory.item", {
+    name: "용량 재료",
+    kind: "시술 재료",
+    unit: "ml",
+    packSize: 500,
+    purchasePrice: 12000,
+    supplierId,
+    categoryId,
+    min: 100,
+    price: 0,
+    active: true,
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const itemId = r.data.data.items[0].id;
+  r = await f.action(owner, "purchase.create", {
+    supplierId,
+    date: new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(
+      new Date(),
+    ),
+    lines: [{ itemId, quantity: 3, unitCost: 12000 }],
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const order = r.data.data.purchaseOrders[0],
+    version = r.data.version,
+    requestId = randomUUID();
+  const payload = {
+    id: order.id,
+    date: order.date,
+    lines: [{ lineId: order.lines[0].id, quantity: 1 }],
+  };
+  r = await f.request("/actions/purchase.receive", {
+    method: "POST",
+    session: owner,
+    body: { version, requestId, payload },
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.data.items[0].qty, 500);
+  const duplicate = await f.request("/actions/purchase.receive", {
+    method: "POST",
+    session: owner,
+    body: { version, requestId, payload },
+  });
+  assert.equal(duplicate.status, 200);
+  assert.equal(duplicate.data.data.items[0].qty, 500);
+  assert.equal(duplicate.data.data.receipts.length, 1);
+  const stale = await f.request("/actions/purchase.receive", {
+    method: "POST",
+    session: owner,
+    body: { version, requestId: randomUUID(), payload },
+  });
+  assert.equal(stale.status, 409);
+  assert.equal(
+    f.db.prepare("SELECT count(*) n FROM purchase_orders").get().n,
+    1,
+  );
+  assert.equal(
+    f.db.prepare("SELECT pack_size FROM purchase_order_lines").get().pack_size,
+    500,
+  );
+  assert.equal(
+    JSON.parse(f.db.prepare("SELECT data FROM app_state").get().data)
+      .purchaseOrders,
+    undefined,
+  );
+  const desk = await addAccount(f, owner, "reception");
+  assert.equal((await f.action(desk, "purchase.create", {})).status, 403);
+  assert.equal(
+    (
+      await f.action(desk, "purchase.payment", {
+        id: order.id,
+        paid: true,
+        paidDate: order.date,
+        reason: "이체",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await f.action(desk, "purchase.receive", {
+        ...payload,
+        lines: [{ lineId: order.lines[0].id, quantity: 2 }],
+      })
+    ).status,
+    200,
+  );
+  const designer = await addAccount(f, owner, "designer");
+  const designerState = await f.state(designer);
+  assert.deepEqual(designerState.data.purchaseOrders, []);
+  assert.deepEqual(designerState.data.suppliers, []);
+  assert.equal(
+    (await f.action(designer, "purchase.receive", payload)).status,
+    403,
+  );
+  const before = readState(f.db);
+  assert.equal(before.data.items[0].qty, 1500);
+  const over = await f.action(owner, "purchase.receive", payload);
+  assert.equal(over.status, 422);
+  assert.deepEqual(readState(f.db), before);
+});

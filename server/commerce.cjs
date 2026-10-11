@@ -526,6 +526,32 @@ function inventoryItem(data, payload, ctx) {
   const price = money(payload.price, "가격", 0);
   const active = payload.active == null ? true : payload.active;
   if (typeof active !== "boolean") fail("품목 사용 여부를 확인해 주세요.");
+  const categoryId =
+    payload.categoryId ??
+    item?.categoryId ??
+    (kind === "판매 상품" ? "cat-sale" : "cat-service");
+  if (
+    d.itemCategories?.length &&
+    !d.itemCategories.some(
+      (c) => c.id === categoryId && (c.active || item?.categoryId === c.id),
+    )
+  )
+    fail("사용 중인 품목 분류를 선택해 주세요.");
+  const supplierId = payload.supplierId ?? item?.supplierId ?? "";
+  if (
+    supplierId &&
+    !(d.suppliers || []).some(
+      (s) => s.id === supplierId && (s.active || item?.supplierId === s.id),
+    )
+  )
+    fail("사용 중인 거래처를 선택해 주세요.");
+  const packSize = quantity(payload.packSize ?? item?.packSize ?? 1, { unit });
+  if (unit === "개" && packSize !== 1)
+    fail("개 단위 품목은 1개를 기준으로 입고합니다.");
+  const purchasePrice = money(
+    payload.purchasePrice ?? item?.purchasePrice ?? 0,
+    "포장 1개 입고 단가",
+  );
   const materialServices = item
     ? d.services.filter((service) =>
         (service.materials || []).some(
@@ -535,6 +561,9 @@ function inventoryItem(data, payload, ctx) {
     : [];
   if (item && (item.unit !== unit || item.kind !== kind)) {
     const referenced =
+      (d.purchaseOrders || []).some((o) =>
+        o.lines.some((l) => l.itemId === item.id),
+      ) ||
       item.qty !== 0 ||
       d.logs.some((entry) => entry.itemId === item.id) ||
       (d.receipts || []).some((entry) => entry.itemId === item.id) ||
@@ -555,7 +584,18 @@ function inventoryItem(data, payload, ctx) {
     );
   if (item) {
     const beforeMin = item.min;
-    Object.assign(item, { name, kind, unit, min, price, active });
+    Object.assign(item, {
+      name,
+      kind,
+      unit,
+      min,
+      price,
+      active,
+      categoryId,
+      supplierId,
+      packSize,
+      purchasePrice,
+    });
     if (beforeMin !== min) {
       d.logs ||= [];
       stockLog(
@@ -576,6 +616,10 @@ function inventoryItem(data, payload, ctx) {
       kind,
       unit,
       qty: 0,
+      categoryId,
+      supplierId,
+      packSize,
+      purchasePrice,
       min,
       price,
       active,
@@ -601,6 +645,22 @@ function inventoryAction(data, type, payload, ctx) {
     fail(
       "사용 중지된 품목입니다. 품목을 다시 사용으로 변경한 뒤 입고해 주세요.",
     );
+  if (
+    ["inventory.correct", "inventory.cancel"].includes(type) &&
+    data.receipts.find((r) => r.id === payload.receiptId)?.orderId
+  )
+    fail(
+      "발주에 연결된 입고입니다. 발주 상세에서 해당 입고를 취소한 뒤 올바른 수량을 다시 입고해 주세요.",
+    );
+  let packReceipt = null;
+  if (type === "inventory.receipt" && payload.packQty != null) {
+    const item = data.items.find((i) => i.id === payload.itemId);
+    if (!item) fail("품목을 찾을 수 없습니다.");
+    const packs = quantity(payload.packQty, { unit: "개" });
+    form.qty = roundQuantity(packs * (item.packSize || 1));
+    quantity(form.qty, item);
+    packReceipt = { packQty: packs, packSize: item.packSize || 1 };
+  }
   if (payload.memo != null) form.memo = text(payload.memo, "입고 메모", 2000);
   if (payload.reason != null)
     form.reason = text(payload.reason, "변경 사유", 1000);
@@ -611,6 +671,10 @@ function inventoryAction(data, type, payload, ctx) {
       actorId: ctx.actor.id,
       actorName: ctx.actor.name,
     });
+    if (packReceipt) {
+      const receipt = d.receipts.find((r) => r.token === form.token);
+      if (receipt) Object.assign(receipt, packReceipt);
+    }
     const oldLogIds = new Set((data.logs || []).map((entry) => entry.id));
     for (const log of d.logs)
       if (!oldLogIds.has(log.id))
