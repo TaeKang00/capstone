@@ -412,6 +412,7 @@ export default function Payments({
           onClose={() => setDialog(null)}
           onCorrect={() => setDialog({ kind: "correct", id: currentTx.id })}
           onRefund={() => setDialog({ kind: "refund", id: currentTx.id })}
+          onReprice={() => setDialog({ kind: "reprice", id: currentTx.id })}
           navigate={navigate}
         />
       )}
@@ -423,6 +424,18 @@ export default function Payments({
           onClose={() => setDialog({ kind: "detail", id: currentTx.id })}
           onSaved={() =>
             saved("수납 정보를 정정했습니다. 재고와 결제 금액은 유지됩니다.")
+          }
+        />
+      )}
+      {currentTx && dialog.kind === "reprice" && (
+        <RepriceForm
+          tx={currentTx}
+          runAction={runAction}
+          onClose={() => setDialog({ kind: "detail", id: currentTx.id })}
+          onSaved={() =>
+            saved(
+              "금액 정정을 기록했습니다. 시술 재료와 상품 재고는 유지됩니다.",
+            )
           }
         />
       )}
@@ -459,6 +472,8 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
         unitPrice: String(service?.price || 0),
       };
     }),
+    materialQuantities: {},
+    materialReason: "",
     discount: "0",
     method: "card",
     reference: "",
@@ -521,9 +536,14 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
     });
     return Object.entries(uses).map(([id, used]) => ({
       item: data.items.find((i) => i.id === id),
-      used,
+      standard: used,
+      used:
+        data.items.find((i) => i.id === id)?.kind === "시술 재료" &&
+        form.materialQuantities[id] !== undefined
+          ? numeric(form.materialQuantities[id])
+          : used,
     }));
-  }, [form.lines, data.services, data.items]);
+  }, [form.lines, form.materialQuantities, data.services, data.items]);
   const insufficient = stockUse.filter(
     ({ item, used }) => !item || used > item.qty + 0.00001,
   );
@@ -580,6 +600,10 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
           quantity: Number(line.quantity),
           unitPrice: Number(line.unitPrice),
         })),
+        materialUsage: stockUse
+          .filter(({ item }) => item?.kind === "시술 재료")
+          .map(({ item, used }) => ({ itemId: item.id, quantity: used })),
+        materialReason: form.materialReason,
         discount: Number(form.discount || 0),
       });
       onSaved();
@@ -879,6 +903,47 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                   .join(" / ")}
               </p>
             )}
+            {stockUse.some(({ item }) => item?.kind === "시술 재료") && (
+              <details className="stack">
+                <summary>실제 재료 사용량 조정</summary>
+                <p className="help">
+                  이번 시술 전체에서 사용한 양을 입력하세요. 기본량과 다르면
+                  사유를 남깁니다.
+                </p>
+                {stockUse
+                  .filter(({ item }) => item?.kind === "시술 재료")
+                  .map(({ item, standard }) => (
+                    <Field
+                      key={item.id}
+                      label={`${item.name} 실제 사용량 (${item.unit})`}
+                      help={`기본 사용량 ${quantity(standard)}${item.unit}`}
+                    >
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        step={item.unit === "개" ? "1" : ".001"}
+                        value={form.materialQuantities[item.id] ?? standard}
+                        onChange={(e) =>
+                          update("materialQuantities", {
+                            ...form.materialQuantities,
+                            [item.id]: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </Field>
+                  ))}
+                <Field label="사용량 변경 사유">
+                  <input
+                    className="input"
+                    maxLength={500}
+                    value={form.materialReason}
+                    onChange={(e) => update("materialReason", e.target.value)}
+                  />
+                </Field>
+              </details>
+            )}
             {insufficient.length > 0 && (
               <div role="alert" className="alert alert-warning">
                 {insufficient
@@ -978,6 +1043,7 @@ function PaymentDetail({
   onClose,
   onCorrect,
   onRefund,
+  onReprice,
   navigate,
 }) {
   const refunds = (data.refunds || []).filter((r) => r.transactionId === tx.id);
@@ -996,6 +1062,11 @@ function PaymentDetail({
           {canWrite && (
             <Button variant="secondary" onClick={onCorrect}>
               수납 정보 정정
+            </Button>
+          )}
+          {canWrite && tx.status === "paid" && !refunds.length && (
+            <Button variant="secondary" onClick={onReprice}>
+              금액 정정·재수납
             </Button>
           )}
           {canWrite && tx.status !== "refunded" && (
@@ -1017,6 +1088,22 @@ function PaymentDetail({
           {paymentNames[tx.status] || tx.status}
         </Badge>
       </div>
+      {(tx.correctsTransactionId || tx.replacedBy) && (
+        <p className="alert">
+          {tx.correctsTransactionId
+            ? `기존 수납 ${tx.correctsTransactionId}의 금액 정정 기록입니다. 재고는 재차감하지 않았습니다.`
+            : `수납 ${tx.replacedBy}로 금액이 정정되었습니다.`}
+        </p>
+      )}
+      {tx.materialUsage?.length > 0 && (
+        <p className="help">
+          실제 재료:{" "}
+          {tx.materialUsage
+            .map((m) => `${m.name} ${quantity(m.quantity)}${m.unit}`)
+            .join(" / ")}
+          {tx.materialReason && ` · ${tx.materialReason}`}
+        </p>
+      )}
       <dl className="commerce-definition">
         <dt>결제 번호</dt>
         <dd>{tx.id}</dd>
@@ -1135,7 +1222,7 @@ function PaymentDetail({
                   {r.lines
                     .map(
                       (l) =>
-                        `${tx.lines.find((t) => t.id === l.lineId)?.name || "품목"} ${quantity(l.quantity)}${l.restock ? " (재입고)" : ""}`,
+                        `${tx.lines.find((t) => t.id === l.lineId)?.name || "품목"} ${l.mode === "amount" ? `${money(l.amount)} 금액 환불` : quantity(l.quantity)}${l.restock ? " (재입고)" : ""}`,
                     )
                     .join(", ")}
                 </p>
@@ -1223,8 +1310,8 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
         <fieldset disabled={busy} className="commerce-fieldset">
           <div className="alert">
             담당자·결제 수단·거래번호의 오입력을 바로잡습니다. 결제액과 재고
-            사용량은 유지됩니다. 금액을 변경하려면 환불 또는 추가 수납을
-            기록하세요.
+            사용량은 유지됩니다. 금액 변경은 수납 상세의 ‘금액 정정·재수납’을
+            이용하세요.
           </div>
           {error && (
             <div className="alert alert-danger" role="alert">
@@ -1290,6 +1377,8 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
     lines: tx.lines.map((line) => ({
       lineId: line.id,
       quantity: "0",
+      mode: "quantity",
+      amount: "0",
       restock: false,
     })),
     method: tx.method,
@@ -1308,11 +1397,13 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
   const total = form.lines.reduce(
     (sum, line) =>
       sum +
-      refundEstimate(
-        tx.lines.find((l) => l.id === line.lineId),
-        line.quantity,
-        previous[line.lineId],
-      ),
+      (line.mode === "amount"
+        ? numeric(line.amount)
+        : refundEstimate(
+            tx.lines.find((l) => l.id === line.lineId),
+            line.quantity,
+            previous[line.lineId],
+          )),
     0,
   );
   const full = () =>
@@ -1342,8 +1433,16 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
     e.preventDefault();
     if (busy) return;
     const lines = form.lines
-      .filter((l) => Number(l.quantity) > 0)
-      .map((l) => ({ ...l, quantity: Number(l.quantity) }));
+      .filter((l) => Number(l.mode === "amount" ? l.amount : l.quantity) > 0)
+      .map((l) =>
+        l.mode === "amount"
+          ? { lineId: l.lineId, amount: Number(l.amount) }
+          : {
+              lineId: l.lineId,
+              quantity: Number(l.quantity),
+              restock: l.restock,
+            },
+      );
     if (!lines.length) return setError("환불할 항목의 수량을 입력해 주세요.");
     if (!confirmed) return setError("실제 환불 완료 여부를 확인해 주세요.");
     setBusy(true);
@@ -1375,7 +1474,10 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
             form="payment-refund"
             busy={busy}
             disabled={
-              !confirmed || !form.lines.some((l) => Number(l.quantity) > 0)
+              !confirmed ||
+              !form.lines.some(
+                (l) => Number(l.mode === "amount" ? l.amount : l.quantity) > 0,
+              )
             }
           >
             환불 {money(total)} 기록
@@ -1408,6 +1510,10 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
                 (line.quantity - (previous[line.id]?.quantity || 0)) * 1000,
               ) / 1000,
             );
+            const remainingAmount = Math.max(
+              0,
+              line.total - (previous[line.id]?.amount || 0),
+            );
             const draft = form.lines.find((l) => l.lineId === line.id);
             const item =
               line.type === "product"
@@ -1418,40 +1524,71 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
                 <strong>{line.name}</strong>
                 <span className="commerce-secondary">
                   원 수량 {quantity(line.quantity)} · 남은 환불 가능 수량{" "}
-                  {quantity(remaining)} · 할인 반영액 {money(line.total)}
+                  {quantity(remaining)} · 남은 금액 {money(remainingAmount)}
                 </span>
-                {remaining > 0 ? (
+                {remaining > 0 && (line.total === 0 || remainingAmount > 0) ? (
                   <>
-                    <div className="refund-fields">
-                      <Field label="이번 환불 수량">
+                    {line.type === "service" && (
+                      <Field label={`${line.name} 환불 기준`}>
+                        <select
+                          className="select"
+                          value={draft.mode || "quantity"}
+                          onChange={(e) =>
+                            setLine(line.id, "mode", e.target.value)
+                          }
+                        >
+                          <option value="quantity">시술 횟수</option>
+                          <option value="amount">금액 직접 입력</option>
+                        </select>
+                      </Field>
+                    )}
+                    {draft.mode === "amount" ? (
+                      <Field label={`${line.name} 이번 환불 금액 (원)`}>
                         <input
                           className="input"
                           type="number"
-                          inputMode="decimal"
                           min="0"
-                          max={remaining}
-                          step={
-                            line.type === "product" && item?.unit !== "개"
-                              ? ".001"
-                              : "1"
-                          }
+                          max={remainingAmount}
+                          step="1"
+                          value={draft.amount || "0"}
                           required
-                          value={draft.quantity}
                           onChange={(e) =>
-                            setLine(line.id, "quantity", e.target.value)
+                            setLine(line.id, "amount", e.target.value)
                           }
                         />
                       </Field>
-                      <div className="refund-preview">
-                        {money(
-                          refundEstimate(
-                            line,
-                            draft.quantity,
-                            previous[line.id],
-                          ),
-                        )}
+                    ) : (
+                      <div className="refund-fields">
+                        <Field label="이번 환불 수량">
+                          <input
+                            className="input"
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            max={remaining}
+                            step={
+                              line.type === "product" && item?.unit !== "개"
+                                ? ".001"
+                                : "1"
+                            }
+                            required
+                            value={draft.quantity}
+                            onChange={(e) =>
+                              setLine(line.id, "quantity", e.target.value)
+                            }
+                          />
+                        </Field>
+                        <div className="refund-preview">
+                          {money(
+                            refundEstimate(
+                              line,
+                              draft.quantity,
+                              previous[line.id],
+                            ),
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     {line.type === "product" && (
                       <label className="commerce-check">
                         <input
@@ -1532,6 +1669,174 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
               고객에게 {money(total)} 환불을 완료했으며 수량과 상품 회수 여부를
               확인했습니다.
             </span>
+          </label>
+        </fieldset>
+      </form>
+    </Modal>
+  );
+}
+
+function RepriceForm({ tx, runAction, onClose, onSaved }) {
+  const [prices, setPrices] = useState(
+    tx.lines.map((l) => String(l.unitPrice)),
+  );
+  const [discount, setDiscount] = useState(String(tx.discount));
+  const [method, setMethod] = useState(tx.method),
+    [reference, setReference] = useState(""),
+    [refundReference, setRefundReference] = useState(""),
+    [reason, setReason] = useState("");
+  const [confirmed, setConfirmed] = useState(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [dirty, setDirty] = useState(false);
+  const total =
+    tx.lines.reduce(
+      (s, l, i) => s + Math.round(l.quantity * Number(prices[i] || 0)),
+      0,
+    ) - Number(discount || 0);
+  async function submit(e) {
+    e.preventDefault();
+    if (busy || !confirmed) return;
+    setBusy(true);
+    setError("");
+    try {
+      await runAction("payment.reprice", {
+        id: tx.id,
+        lines: tx.lines.map((l, i) => ({
+          lineId: l.id,
+          unitPrice: Number(prices[i]),
+        })),
+        discount: Number(discount),
+        method,
+        reference,
+        refundReference,
+        reason,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title="금액 정정·재수납"
+      size="wide"
+      dirty={dirty}
+      onClose={busy ? undefined : onClose}
+      footer={
+        <Button
+          type="submit"
+          form="payment-reprice"
+          busy={busy}
+          disabled={!confirmed}
+          variant="primary"
+        >
+          정정 기록 저장
+        </Button>
+      }
+    >
+      <form
+        id="payment-reprice"
+        onSubmit={submit}
+        onChange={() => {
+          setDirty(true);
+          setConfirmed(false);
+        }}
+      >
+        <fieldset className="stack commerce-fieldset" disabled={busy}>
+          <p className="alert">
+            동일한 시술·상품의 단가와 할인액을 정정합니다. 기존 결제{" "}
+            {money(tx.total)}의 취소와 새 결제를 단말기에서 처리한 뒤
+            기록하세요. 재료와 상품 재고는 추가 차감하지 않습니다.
+          </p>
+          {error && (
+            <p role="alert" className="alert alert-danger">
+              {error}
+            </p>
+          )}
+          {tx.lines.map((l, i) => (
+            <Field
+              key={l.id}
+              label={`${l.name} 정정 단가 (원)`}
+              help={`기존 ${money(l.unitPrice)} · 수량 ${quantity(l.quantity)}`}
+            >
+              <input
+                className="input"
+                type="number"
+                min="0"
+                step="1"
+                required
+                value={prices[i]}
+                onChange={(e) =>
+                  setPrices((p) =>
+                    p.map((v, j) => (i === j ? e.target.value : v)),
+                  )
+                }
+              />
+            </Field>
+          ))}
+          <Field label="정정 할인액 (원)">
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="1"
+              required
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+            />
+          </Field>
+          <Field label="새 결제 수단">
+            <select
+              className="select"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
+              {Object.entries(methodNames).map(([v, n]) => (
+                <option key={v} value={v}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="기존 결제 취소 번호">
+            <input
+              className="input"
+              maxLength={120}
+              value={refundReference}
+              onChange={(e) => setRefundReference(e.target.value)}
+            />
+          </Field>
+          <Field label="새 결제 승인번호">
+            <input
+              className="input"
+              maxLength={120}
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </Field>
+          <Field label="금액 정정 사유">
+            <textarea
+              className="textarea"
+              required
+              maxLength={1000}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </Field>
+          <strong>새 결제액 {money(total)}</strong>
+          <label className="commerce-check">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => {
+                e.stopPropagation();
+                setConfirmed(e.target.checked);
+              }}
+            />
+            <span>기존 결제 취소와 새 금액 결제를 실제로 완료했습니다.</span>
           </label>
         </fieldset>
       </form>

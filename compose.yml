@@ -8,6 +8,8 @@ services:
       HOST: 0.0.0.0
       PORT: 3001
       DB_PATH: /app/data/salon.sqlite
+      AUTO_BACKUP: ${AUTO_BACKUP:-1}
+      BACKUP_DIR: /app/data/backups
       APP_ORIGIN: https://${DOMAIN:?Set DOMAIN in .env}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set BOOTSTRAP_TOKEN in .env}
     volumes:

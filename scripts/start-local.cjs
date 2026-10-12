@@ -105,9 +105,9 @@ async function startLocal(options = {}) {
     ready = false;
     const timer = setTimeout(() => server.closeAllConnections(), 5000);
     timer.unref();
-    server.close(() => {
+    server.close(async () => {
       clearTimeout(timer);
-      if (closeDatabase) { closeDatabase(); closeDatabase = null; }
+      if (closeDatabase) { await closeDatabase(); closeDatabase = null; }
       resolve();
     });
   });
@@ -130,6 +130,7 @@ async function startLocal(options = {}) {
     signal.throwIfAborted();
     const created = require("../server/app.cjs").createApp({
       production: false, origin: url, bootstrapToken: "", dbPath,
+      autoBackup: options.autoBackup ?? process.env.AUTO_BACKUP !== "0",
       distPath: options.distPath || path.join(root, "dist"),
       onError(error) { console.error("요청 처리 오류:", error.code || error.name); },
     });

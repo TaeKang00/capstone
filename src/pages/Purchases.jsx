@@ -13,11 +13,21 @@ import { todayInSeoul, quantity } from "./commerce-utils";
 import "../procurement.js";
 import "./Commerce.css";
 import "./Purchases.css";
-const { received, total, status, labels } = globalThis.SalonProcurement;
+const {
+  received,
+  total,
+  status,
+  labels,
+  cancelled,
+  returned,
+  pending,
+  paidAmount,
+  balance,
+} = globalThis.SalonProcurement;
 const lineStatus = (o, l, receipts) =>
-  o.cancelled
+  o.cancelled || cancelled(o, l) >= l.quantity
     ? "cancelled"
-    : received(l, receipts) >= l.quantity
+    : pending(o, l, receipts) === 0
       ? "delivered"
       : received(l, receipts) > 0
         ? "waiting"
@@ -131,7 +141,9 @@ export default function Purchases({
           <strong>
             {
               orders.filter(
-                (o) => !o.cancelled && status(o, receipts) !== "delivered",
+                (o) =>
+                  !o.cancelled &&
+                  !["delivered", "cancelled"].includes(status(o, receipts)),
               ).length
             }
             <small>건</small>
@@ -152,7 +164,7 @@ export default function Purchases({
             <Money
               value={orders
                 .filter((o) => !o.cancelled && !o.paid)
-                .reduce((s, o) => s + total(o), 0)}
+                .reduce((s, o) => s + Math.max(0, balance(o)), 0)}
             />
           </strong>
           <span className="muted">실제 이체 후 지급 기록</span>
@@ -309,11 +321,16 @@ export default function Purchases({
                           {l.quantity}개 발주
                           <span className="commerce-secondary">
                             {received(l, receipts)}개 입고 · 잔량{" "}
-                            {l.quantity - received(l, receipts)}개
+                            {pending(o, l, receipts)}개
                           </span>
                         </td>
                         <td data-label="제품 총 금액">
-                          <Money value={l.quantity * l.unitCost} />
+                          <Money
+                            value={
+                              (l.quantity - cancelled(o, l) - returned(o, l)) *
+                              l.unitCost
+                            }
+                          />
                           <span className="commerce-secondary">
                             개당 <Money value={l.unitCost} />
                           </span>
@@ -329,7 +346,13 @@ export default function Purchases({
                             </span>
                           )}
                           <span className="commerce-secondary">
-                            {o.paid ? "대금 지급 완료" : "대금 미지급"}
+                            {balance(o) < 0
+                              ? "거래처 환급 대기"
+                              : o.paid
+                                ? "대금 지급 완료"
+                                : paidAmount(o) > 0
+                                  ? "일부 지급"
+                                  : "대금 미지급"}
                           </span>
                         </td>
                         <td>
@@ -352,7 +375,13 @@ export default function Purchases({
                         <Money
                           value={rows.reduce(
                             (s, { o, l }) =>
-                              s + (o.cancelled ? 0 : l.quantity * l.unitCost),
+                              s +
+                              (o.cancelled
+                                ? 0
+                                : (l.quantity -
+                                    cancelled(o, l) -
+                                    returned(o, l)) *
+                                  l.unitCost),
                             0,
                           )}
                         />{" "}
@@ -481,9 +510,16 @@ export default function Purchases({
           }
         />
       )}
-      {["receive", "ship", "cancel", "payment", "receiptCancel"].includes(
-        dialog?.kind,
-      ) &&
+      {[
+        "receive",
+        "ship",
+        "cancel",
+        "payment",
+        "receiptCancel",
+        "closeRemaining",
+        "return",
+        "settlement",
+      ].includes(dialog?.kind) &&
         current && (
           <OrderAction
             kind={dialog.kind}
@@ -885,24 +921,41 @@ function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
       onClose={onClose}
       footer={
         <>
-          {!o.cancelled && state !== "delivered" && (
+          {!o.cancelled && o.lines.some((l) => pending(o, l, receipts) > 0) && (
             <Button variant="primary" onClick={() => onAction("receive")}>
               입고 수량 입력
             </Button>
           )}
           {canManage && !o.cancelled && (
             <>
-              <Button onClick={() => onAction("payment")}>
-                {o.paid ? "지급 기록 정정" : "대금 지급 기록"}
+              <Button onClick={() => onAction("settlement")}>
+                분할 지급·환급
               </Button>
-              {!o.shipped && state !== "delivered" && (
-                <Button onClick={() => onAction("ship")}>배송 시작 기록</Button>
-              )}
-              {!o.paid && !o.lines.some((l) => received(l, receipts) > 0) && (
-                <Button variant="danger" onClick={() => onAction("cancel")}>
-                  발주 취소
+              {o.lines.some((l) => pending(o, l, receipts) > 0) && (
+                <Button onClick={() => onAction("closeRemaining")}>
+                  미입고 잔량 취소
                 </Button>
               )}
+              {o.lines.some((l) => received(l, receipts) > returned(o, l)) && (
+                <Button onClick={() => onAction("return")}>거래처 반품</Button>
+              )}
+              {balance(o) > 0 && (
+                <Button onClick={() => onAction("payment")}>
+                  대금 지급 기록
+                </Button>
+              )}
+              {!o.shipped &&
+                o.lines.some((l) => pending(o, l, receipts) > 0) && (
+                  <Button onClick={() => onAction("ship")}>
+                    배송 시작 기록
+                  </Button>
+                )}
+              {paidAmount(o) === 0 &&
+                !o.lines.some((l) => received(l, receipts) > 0) && (
+                  <Button variant="danger" onClick={() => onAction("cancel")}>
+                    발주 취소
+                  </Button>
+                )}
             </>
           )}
         </>
@@ -942,11 +995,15 @@ function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
                   </td>
                   <td>{l.quantity}개</td>
                   <td>
-                    {received(l, receipts)}개 /{" "}
-                    {l.quantity - received(l, receipts)}개
+                    {received(l, receipts)}개 / {pending(o, l, receipts)}개
                   </td>
                   <td>
-                    <Money value={l.quantity * l.unitCost} />
+                    <Money
+                      value={
+                        (l.quantity - cancelled(o, l) - returned(o, l)) *
+                        l.unitCost
+                      }
+                    />
                   </td>
                 </tr>
               ))}
@@ -960,6 +1017,22 @@ function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
             </tfoot>
           </table>
         </div>
+        <p className="alert">
+          정산 금액 <Money value={total(o)} /> · 순지급액{" "}
+          <Money value={paidAmount(o)} /> ·{" "}
+          {balance(o) < 0 ? "돌려받을 금액" : "남은 지급액"}{" "}
+          <Money value={Math.abs(balance(o))} />
+        </p>
+        {o.lines.some((l) => cancelled(o, l) || returned(o, l)) && (
+          <p className="help">
+            {o.lines
+              .map(
+                (l) =>
+                  `${l.itemName}: 잔량 취소 ${cancelled(o, l)}개, 반품 ${returned(o, l)}개`,
+              )
+              .join(" / ")}
+          </p>
+        )}
         {o.notes && <p className="purchase-note">{o.notes}</p>}
         <h3>실제 입고 내역</h3>
         {history.length ? (
@@ -1004,6 +1077,12 @@ function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
               <p key={i}>
                 {c.at.slice(0, 10)} · {c.actorName} · {c.action}
                 {c.reason ? ` · ${c.reason}` : ""}
+                {Number.isSafeInteger(c.paymentDelta)
+                  ? ` · ${c.paymentDelta.toLocaleString("ko-KR")}원`
+                  : ""}
+                {c.lines
+                  ?.map((l) => ` · ${l.itemName || "품목"} ${l.quantity}개`)
+                  .join("")}
               </p>
             ))}
         </details>
@@ -1024,11 +1103,23 @@ function OrderAction({
     [reason, setReason] = useState(""),
     [reference, setReference] = useState(""),
     [amounts, setAmounts] = useState({});
+  const [settlementKind, setSettlementKind] = useState(
+      balance(o) < 0 ? "refund" : "payment",
+    ),
+    [paymentAmount, setPaymentAmount] = useState(String(Math.abs(balance(o)))),
+    [paymentId, setPaymentId] = useState("");
+  const maxFor = (l) =>
+    kind === "return"
+      ? received(l, receipts) - returned(o, l)
+      : pending(o, l, receipts);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [dirty, setDirty] = useState(false);
   const titles = {
     receive: "발주 입고",
+    closeRemaining: "미입고 잔량 취소",
+    return: "거래처 반품",
+    settlement: "분할 지급·환급",
     ship: "배송 시작 기록",
     cancel: "발주 취소",
     payment: o.paid ? "지급 기록 정정" : "대금 지급 기록",
@@ -1041,14 +1132,25 @@ function OrderAction({
     setError("");
     try {
       let p = { id: o.id };
-      if (kind === "receive")
+      if (["receive", "closeRemaining", "return"].includes(kind))
         p = {
           ...p,
           date,
           memo: reason,
+          reason,
           lines: Object.entries(amounts)
             .filter(([, v]) => Number(v) > 0)
             .map(([lineId, v]) => ({ lineId, quantity: Number(v) })),
+        };
+      if (kind === "settlement")
+        p = {
+          ...p,
+          kind: settlementKind,
+          amount: Number(paymentAmount),
+          date,
+          reason,
+          reference,
+          paymentId,
         };
       if (kind === "payment")
         p = { ...p, paid: !o.paid, paidDate: date, reason, reference };
@@ -1095,13 +1197,16 @@ function OrderAction({
             <strong>{o.supplierName}</strong> · 발주 총 금액{" "}
             <Money value={total(o)} />
           </p>
-          {kind === "receive" && (
+          {["receive", "closeRemaining", "return"].includes(kind) && (
             <>
               <p className="help">
-                수령하지 않은 품목은 비워 두세요. 미입고 잔량보다 많이 입력할 수
-                없습니다.
+                {kind === "return"
+                  ? "실제로 거래처에 반품한 개수를 입력하세요. 재고와 매입 금액이 줄며 환급은 별도로 기록합니다."
+                  : kind === "closeRemaining"
+                    ? "더 이상 받지 않을 잔량만 취소합니다. 이미 받은 물품의 재고는 유지됩니다."
+                    : "실제 받은 개수만 입력하세요. 미입고 잔량을 초과할 수 없습니다."}
               </p>
-              <Field label="입고일">
+              <Field label={kind === "receive" ? "입고일" : "처리일"}>
                 <DateInput
                   required
                   min={o.date}
@@ -1111,17 +1216,17 @@ function OrderAction({
                 />
               </Field>
               {o.lines
-                .filter((l) => received(l, receipts) < l.quantity)
+                .filter((l) => maxFor(l) > 0)
                 .map((l) => (
                   <Field
                     key={l.id}
-                    label={`${l.itemName} 이번 입고 개수`}
-                    help={`미입고 ${l.quantity - received(l, receipts)}개 · 입력 시 ${quantity(Number(amounts[l.id] || 0) * l.packSize)}${l.unit} 증가`}
+                    label={`${l.itemName} ${kind === "return" ? "반품" : kind === "closeRemaining" ? "취소" : "이번 입고"} 개수`}
+                    help={`처리 가능 ${maxFor(l)}개`}
                   >
                     <input
                       type="number"
                       min="0"
-                      max={l.quantity - received(l, receipts)}
+                      max={maxFor(l)}
                       step="1"
                       value={amounts[l.id] || ""}
                       placeholder="실제 받은 개수"
@@ -1131,6 +1236,95 @@ function OrderAction({
                     />
                   </Field>
                 ))}
+            </>
+          )}
+          {kind === "settlement" && (
+            <>
+              <p className="help">
+                실제 송금·환급 결과를 기록합니다. 잘못 입력한 기록은 ‘입력
+                정정’으로 취소 이력을 남깁니다.
+              </p>
+              <p>
+                현재 순지급액 <Money value={paidAmount(o)} /> · 남은 지급액{" "}
+                <Money value={Math.max(0, balance(o))} /> · 환급받을 금액{" "}
+                <Money value={Math.max(0, -balance(o))} />
+              </p>
+              <Field label="정산 구분">
+                <select
+                  value={settlementKind}
+                  onChange={(e) => {
+                    setSettlementKind(e.target.value);
+                    setPaymentAmount(
+                      String(
+                        e.target.value === "refund"
+                          ? Math.max(0, -balance(o))
+                          : Math.max(0, balance(o)),
+                      ),
+                    );
+                  }}
+                >
+                  <option value="payment">대금 지급</option>
+                  <option value="refund">거래처 환급 수령</option>
+                  <option value="void">입력 정정</option>
+                </select>
+              </Field>
+              {settlementKind === "void" ? (
+                <Field label="정정할 기록">
+                  <select
+                    required
+                    value={paymentId}
+                    onChange={(e) => setPaymentId(e.target.value)}
+                  >
+                    <option value="">선택하세요</option>
+                    {o.changes
+                      .filter(
+                        (c) =>
+                          c.paymentId &&
+                          c.paymentDelta &&
+                          !c.voids &&
+                          !o.changes.some((v) => v.voids === c.paymentId),
+                      )
+                      .map((c) => (
+                        <option key={c.paymentId} value={c.paymentId}>
+                          {c.date || c.at.slice(0, 10)} ·{" "}
+                          {c.paymentDelta.toLocaleString("ko-KR")}원 ·{" "}
+                          {c.reason || c.action}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+              ) : (
+                <Field label="이번 정산 금액 (원)">
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    step="1"
+                    max={
+                      settlementKind === "refund"
+                        ? Math.max(0, -balance(o))
+                        : Math.max(0, balance(o))
+                    }
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                  />
+                </Field>
+              )}
+              <Field label="정산일">
+                <DateInput
+                  required
+                  max={todayInSeoul()}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </Field>
+              <Field label="거래 참조번호">
+                <input
+                  value={reference}
+                  maxLength={100}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </Field>
             </>
           )}
           {kind === "ship" && (
@@ -1144,8 +1338,14 @@ function OrderAction({
               <p>
                 {o.paid
                   ? "ERP의 지급 기록을 미지급으로 정정합니다. 실제 이체 취소나 환불은 거래처와 별도로 처리하세요."
-                  : "실제로 발주 대금 전액을 지급한 뒤 기록하세요. 이 화면에서 은행 이체가 실행되지는 않습니다."}
+                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부 금액만 지급했다면 분할 지급·환급을 이용하세요."}
               </p>
+              {!o.paid && (
+                <p>
+                  이번에 기록할 남은 대금:{" "}
+                  <Money value={Math.max(0, balance(o))} />
+                </p>
+              )}
               {!o.paid && (
                 <Field label="대금 지급일">
                   <DateInput

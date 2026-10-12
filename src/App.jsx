@@ -1,3 +1,4 @@
+import { AccountRecoveryDialog } from "./components/AccountRecovery";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   api,
@@ -791,6 +792,7 @@ export default function App() {
 }
 function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
   const setup = bootstrap?.needsSetup;
+  const [recovering, setRecovering] = useState(false);
   const [form, setForm] = useState({
       storeName: "",
       name: "",
@@ -826,6 +828,16 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
   };
   return (
     <div className="auth-layout">
+      {recovering && (
+        <AccountRecoveryDialog
+          onClose={() => setRecovering(false)}
+          onRecovered={(loginId) => {
+            setRecovering(false);
+            setForm((f) => ({ ...f, loginId, password: "" }));
+            setError("");
+          }}
+        />
+      )}
       <header className="auth-header">
         <div className="brand">
           <span className="brand-mark">
@@ -959,8 +971,13 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
               </Button>
               {!setup && (
                 <p className="help auth-help">
-                  비밀번호를 잊으셨나요? 원장에게 계정 재설정을 요청해 주세요.
-                  원장 계정은 운영 안내서의 복구 절차를 이용하세요.
+                  <button
+                    type="button"
+                    className="commerce-tag-button"
+                    onClick={() => setRecovering(true)}
+                  >
+                    아이디·비밀번호 찾기
+                  </button>
                 </p>
               )}
             </form>

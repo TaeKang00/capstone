@@ -221,6 +221,7 @@ function paymentCreate(data, payload, ctx) {
     fail("수납할 시술 또는 상품을 1~100개 선택해 주세요.");
   const txId = nextId(d, "transaction", "TX", d.transactions);
   const consumption = new Map();
+  const materialDefaults = new Map();
   function consume(item, amount, allowInactive = false) {
     if (!item || (item.active === false && !allowInactive))
       fail(
@@ -272,7 +273,14 @@ function paymentCreate(data, payload, ctx) {
         if (!item || item.kind !== "시술 재료")
           fail(`${catalog.name}의 재료 설정을 확인해 주세요.`);
         const amount = quantity(material.quantity, item);
-        consume(item, roundQuantity(amount * count), previouslyReserved);
+        const old = materialDefaults.get(item.id) || {
+          item,
+          amount: 0,
+          allowInactive: false,
+        };
+        old.amount = roundQuantity(old.amount + amount * count);
+        old.allowInactive ||= previouslyReserved;
+        materialDefaults.set(item.id, old);
       }
     }
     return {
@@ -283,6 +291,34 @@ function paymentCreate(data, payload, ctx) {
       unitPrice,
       quantity: count,
       gross,
+    };
+  });
+  const overrides = new Map();
+  if (payload.materialUsage != null) {
+    if (
+      !Array.isArray(payload.materialUsage) ||
+      payload.materialUsage.length > 100
+    )
+      fail("실제 재료 사용량을 확인해 주세요.");
+    for (const row of payload.materialUsage) {
+      const entry = materialDefaults.get(row?.itemId);
+      if (!entry || overrides.has(row.itemId))
+        fail("해당 시술의 재료를 중복 없이 선택해 주세요.");
+      overrides.set(row.itemId, quantity(row.quantity, entry.item, true));
+    }
+  }
+  const materialReason = text(payload.materialReason, "사용량 변경 사유", 500);
+  const materialUsage = [...materialDefaults].map(([itemId, entry]) => {
+    const actual = overrides.has(itemId) ? overrides.get(itemId) : entry.amount;
+    if (actual !== entry.amount && !materialReason)
+      fail("기본 사용량과 다른 이유를 입력해 주세요.");
+    if (actual > 0) consume(entry.item, actual, entry.allowInactive);
+    return {
+      itemId,
+      name: entry.item.name,
+      unit: entry.item.unit,
+      standard: entry.amount,
+      quantity: actual,
     };
   });
   const subtotal = safeMoney(
@@ -313,6 +349,8 @@ function paymentCreate(data, payload, ctx) {
     reference: text(payload.reference, "승인 번호 또는 이체 참조", 120),
     notes: text(payload.notes, "메모", 2000),
     status: "paid",
+    materialUsage,
+    materialReason,
     actorId: ctx.actor.id,
     createdAt: ctx.now,
     changes: [],
@@ -340,7 +378,7 @@ function paymentCorrect(data, payload, ctx) {
   for (const key of Object.keys(payload))
     if (!["id", "staffId", "method", "reference", "reason"].includes(key))
       fail(
-        "수납 정보 정정에서는 담당 직원·결제 수단·승인 번호만 변경할 수 있습니다. 금액 변경은 환불 후 새로 수납해 주세요.",
+        "수납 정보 정정에서는 담당 직원·결제 수단·승인 번호만 변경할 수 있습니다. 금액 변경은 금액 정정·재수납을 이용해 주세요.",
       );
   const d = clone(data);
   const transaction = d.transactions.find(
@@ -429,7 +467,17 @@ function paymentRefund(data, payload, ctx) {
       original.type === "service"
         ? { unit: "개" }
         : item || { unit: Number.isInteger(original.quantity) ? "개" : "g" };
-    const count = quantity(raw.quantity, unit);
+    const byAmount = raw.amount != null;
+    if (
+      byAmount &&
+      (original.type !== "service" ||
+        raw.restock ||
+        (raw.quantity != null && raw.quantity !== 0))
+    )
+      fail(
+        "금액 환불은 시술 항목에만 사용하며 수량·재입고를 함께 입력할 수 없습니다.",
+      );
+    const count = byAmount ? 0 : quantity(raw.quantity, unit);
     const previous = refundedLine(d, transaction.id, lineId);
     const cumulative = roundQuantity(previous.quantity + count);
     if (cumulative > original.quantity)
@@ -442,7 +490,15 @@ function paymentRefund(data, payload, ctx) {
       (BigInt(original.total) * BigInt(Math.round(cumulative * 1000))) /
         BigInt(Math.round(original.quantity * 1000)),
     );
-    const amount = safeMoney(target - previous.amount, "환불 금액");
+    const amount = byAmount
+      ? money(raw.amount, "환불 금액")
+      : safeMoney(Math.max(0, target - previous.amount), "환불 금액");
+    if ((byAmount && amount === 0) || amount > original.total - previous.amount)
+      fail(
+        "환불 금액은 남은 결제액 이내로 입력해 주세요.",
+        "REFUND_EXCEEDS_REMAINING",
+        409,
+      );
     if (raw.restock != null && typeof raw.restock !== "boolean")
       fail("재입고 여부를 확인해 주세요.");
     if (raw.restock && original.type !== "product")
@@ -452,7 +508,13 @@ function paymentRefund(data, payload, ctx) {
       if (!item) fail("재입고할 상품이 없습니다. 상품 정보를 확인해 주세요.");
       stockLog(d, item, count, "환불 재입고", refundId, reason, ctx);
     }
-    return { lineId, quantity: count, amount, restock };
+    return {
+      lineId,
+      quantity: count,
+      amount,
+      restock,
+      ...(byAmount ? { mode: "amount" } : {}),
+    };
   });
   const amount = safeMoney(
     lines.reduce((sum, line) => sum + line.amount, 0),
@@ -480,9 +542,10 @@ function paymentRefund(data, payload, ctx) {
     actorId: ctx.actor.id,
     createdAt: ctx.now,
   });
-  const complete = transaction.lines.every(
-    (line) =>
-      refundedLine(d, transaction.id, line.id).quantity === line.quantity,
+  const complete = transaction.lines.every((line) =>
+    line.total > 0
+      ? refundedLine(d, transaction.id, line.id).amount === line.total
+      : refundedLine(d, transaction.id, line.id).quantity === line.quantity,
   );
   transaction.status = complete ? "refunded" : "partially_refunded";
   transaction.changes ||= [];
@@ -495,6 +558,128 @@ function paymentRefund(data, payload, ctx) {
     amount,
     reason,
   });
+  return d;
+}
+
+// A replacement changes the recorded payment, never the already performed service or stock.
+function paymentReprice(data, payload, ctx) {
+  const original = data.transactions.find(
+    (t) => t.id === id(payload.id, "수납"),
+  );
+  if (!original) fail("수납 내역을 찾을 수 없습니다.");
+  if (
+    original.status !== "paid" ||
+    data.refunds.some((r) => r.transactionId === original.id)
+  )
+    fail(
+      "환불 이력이 있는 수납은 재수납할 수 없습니다. 남은 금액 환불을 이용해 주세요.",
+      "PAYMENT_HAS_REFUNDS",
+      409,
+    );
+  const reason = text(payload.reason, "금액 정정 사유", 1000, true);
+  if (
+    !Array.isArray(payload.lines) ||
+    payload.lines.length !== original.lines.length
+  )
+    fail("기존 시술·상품은 유지하고 단가만 변경해 주세요.");
+  const prices = new Map();
+  for (const line of payload.lines) {
+    if (
+      !original.lines.some((l) => l.id === line?.lineId) ||
+      prices.has(line.lineId)
+    )
+      fail("정정 항목을 확인해 주세요.");
+    prices.set(line.lineId, money(line.unitPrice, "정정 단가"));
+  }
+  const lines = original.lines.map((line) => ({
+    ...line,
+    unitPrice: prices.get(line.id),
+    gross: safeMoney(
+      Number(
+        (BigInt(prices.get(line.id)) *
+          BigInt(Math.round(line.quantity * 1000)) +
+          500n) /
+          1000n,
+      ),
+    ),
+  }));
+  const subtotal = safeMoney(lines.reduce((sum, l) => sum + l.gross, 0));
+  const discount = money(payload.discount, "할인 금액", 0);
+  if (discount > subtotal) fail("할인액이 합계보다 큽니다.");
+  if (
+    discount === original.discount &&
+    lines.every((l, i) => l.unitPrice === original.lines[i].unitPrice)
+  )
+    fail("변경된 금액이 없습니다.");
+  const method = enumValue(payload.method, METHODS, "결제 수단");
+  let d = paymentRefund(
+    data,
+    {
+      transactionId: original.id,
+      lines: original.lines.map((l) => ({
+        lineId: l.id,
+        quantity: l.quantity,
+        restock: false,
+      })),
+      reason,
+      method: original.method,
+      reference: payload.refundReference,
+    },
+    ctx,
+  );
+  const old = d.transactions.find((t) => t.id === original.id);
+  const txId = nextId(d, "transaction", "TX", d.transactions);
+  const allocated = allocateDiscount(lines, discount, subtotal);
+  const replacement = {
+    ...clone(original),
+    id: txId,
+    date: ctx.today,
+    time: timeAt(ctx.now),
+    createdAt: ctx.now,
+    lines: lines.map(({ gross, ...l }, i) => ({
+      ...l,
+      id: `${txId}-L${i + 1}`,
+      discount: allocated[i],
+      total: gross - allocated[i],
+    })),
+    subtotal,
+    discount,
+    total: subtotal - discount,
+    status: "paid",
+    method,
+    reference: text(payload.reference, "새 승인번호", 120),
+    actorId: ctx.actor.id,
+    correctsTransactionId: original.id,
+    changes: [
+      {
+        at: ctx.now,
+        actorId: ctx.actor.id,
+        actorName: ctx.actor.name,
+        kind: "금액 정정·재수납",
+        reason,
+        originalId: original.id,
+      },
+    ],
+  };
+  old.replacedBy = txId;
+  d.transactions.push(replacement);
+  if (original.appointmentId) {
+    const appointment = d.appointments.find(
+      (a) => a.id === original.appointmentId,
+    );
+    if (!appointment || appointment.transactionId !== original.id)
+      fail("예약과 수납 연결을 확인해 주세요.");
+    appointment.transactionId = txId;
+    appointment.changes.push({
+      at: ctx.now,
+      actorId: ctx.actor.id,
+      actorName: ctx.actor.name,
+      reason,
+      transactionId: txId,
+      from: appointment.status,
+      to: appointment.status,
+    });
+  }
   return d;
 }
 
@@ -691,6 +876,7 @@ function applyCommerce(data, type, payload, ctx) {
     fail("요청 내용을 확인해 주세요.", "INVALID_PAYLOAD", 400);
   if (type === "payment.create") return paymentCreate(data, payload, ctx);
   if (type === "payment.correct") return paymentCorrect(data, payload, ctx);
+  if (type === "payment.reprice") return paymentReprice(data, payload, ctx);
   if (type === "payment.refund") return paymentRefund(data, payload, ctx);
   if (type === "inventory.item") return inventoryItem(data, payload, ctx);
   if (INVENTORY_METHODS[type]) return inventoryAction(data, type, payload, ctx);

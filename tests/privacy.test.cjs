@@ -649,7 +649,8 @@ test("existing databases retain business data and migrate previous sessions into
       upgraded.prepare("SELECT mode FROM sessions").get().mode,
       "shared",
     );
-    assert.equal(upgraded.prepare("PRAGMA user_version").get().user_version, 3);
+    assert.equal(upgraded.prepare("PRAGMA user_version").get().user_version, 4);
+    assert.ok(upgraded.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='recovery_codes'").get());
   } finally {
     upgraded.close();
   }

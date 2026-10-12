@@ -1,3 +1,5 @@
+import { AutomaticBackup } from "../components/AutomaticBackup";
+import { RecoveryAccessPanel } from "../components/AccountRecovery";
 import React, { useEffect, useState } from "react";
 import { api, download, timeLabel, today } from "../api";
 import { useViewState } from "../components/ViewState";
@@ -849,12 +851,14 @@ function DataSettings({ data, runAction, notify }) {
   };
   return (
     <div className="stack">
+      <RecoveryAccessPanel />
       <section className="card">
         <div className="card-header">
           <h2>데이터베이스 백업</h2>
           <Badge>원장 전용</Badge>
         </div>
         <div className="card-body stack">
+          <AutomaticBackup />
           <p className="muted">
             직원 계정과 매장 운영 데이터를 함께 보관합니다. 정기적으로 내려받아
             접근이 제한된 외부 저장소에 보관해 주세요.
@@ -974,8 +978,8 @@ function Help({ data }) {
         <div className="alert">
           <strong>수납과 환불</strong>
           <br />이 ERP는 단말기 결제 결과를 기록합니다. 카드 승인·취소는 실제
-          단말기에서 먼저 처리해 주세요. 금액이 틀렸다면 해당 항목을 환불한 뒤
-          올바른 금액으로 새 수납을 등록합니다.
+          단말기에서 먼저 처리해 주세요. 금액이 틀렸다면 수납 상세의 ‘금액
+          정정·재수납’을 사용하세요. 재료와 상품 재고를 다시 차감하지 않습니다.
         </div>
         <div className="alert">
           <strong>수동 입고</strong>

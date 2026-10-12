@@ -43,6 +43,9 @@ const ALL_ACTIONS = new Set([
   "purchase.receiptCancel",
   "purchase.cancel",
   "purchase.payment",
+  "purchase.closeRemaining",
+  "purchase.return",
+  "purchase.settlement",
   "customer.save",
   "customer.archive",
   "appointment.save",
@@ -53,6 +56,7 @@ const ALL_ACTIONS = new Set([
   "legacy.import",
   "payment.create",
   "payment.correct",
+  "payment.reprice",
   "payment.refund",
   "inventory.receipt",
   "inventory.correct",
@@ -340,6 +344,22 @@ function createApp(options = {}) {
   const db = openDatabase(
     options.dbPath ?? process.env.DB_PATH ?? path.resolve("data/salon.sqlite"),
   );
+  const automaticBackup =
+    require("./automatic-backup.cjs").createAutomaticBackup(db, {
+      enabled: options.autoBackup ?? false,
+      directory:
+        options.backupDirectory ||
+        process.env.BACKUP_DIR ||
+        path.join(
+          path.dirname(
+            path.resolve(
+              options.dbPath ?? process.env.DB_PATH ?? "data/salon.sqlite",
+            ),
+          ),
+          "backups",
+        ),
+      ...(options.backupOptions || {}),
+    });
   const privacy = createPrivacy(db, options);
   const newSession = (userId) =>
     createSession(db, userId, sessionHours, {
@@ -568,6 +588,13 @@ function createApp(options = {}) {
       respondSession(res, user, session);
     }),
   );
+  app.post(
+    "/api/auth/recover",
+    asyncRoute(async (req, res) => {
+      throttle(req, "account-recovery", 8, 15);
+      res.json(await require("./recovery.cjs").recover(db, req.body));
+    }),
+  );
   app.use("/api", (req, res, next) => {
     try {
       const session = getSession(db, req, privacy.now());
@@ -742,6 +769,27 @@ function createApp(options = {}) {
         ? sharedState(readState(db), today())
         : filterState(readState(db), session);
     res.json({ ...result, session: privacy.sessionShape(session) });
+  });
+  app.get("/api/admin/backup-status", (req, res) => {
+    privacy.requireOwner(req);
+    res.json(automaticBackup.status());
+  });
+  app.post(
+    "/api/admin/backup-run",
+    asyncRoute(async (req, res) => {
+      privacy.requireOwner(req);
+      await automaticBackup.run({ force: true });
+      privacy.requireOwner(req);
+      res.json(automaticBackup.status());
+    }),
+  );
+  app.get("/api/admin/recovery", (req, res) => {
+    const { user } = privacy.requireOwner(req);
+    res.json({ available: require("./recovery.cjs").available(db, user.id) });
+  });
+  app.post("/api/admin/recovery", (req, res) => {
+    const { user } = privacy.requireOwner(req);
+    res.json(require("./recovery.cjs").issue(db, user.id));
   });
   app.get("/api/admin/state", (req, res) => {
     privacy.requireOwner(req);
@@ -1166,6 +1214,14 @@ function createApp(options = {}) {
       },
     });
   });
-  return { app, db, close: () => db.close() };
+  return {
+    app,
+    db,
+    close: () => {
+      const pending = automaticBackup.stop();
+      if (pending) return pending.finally(() => db.close());
+      db.close();
+    },
+  };
 }
 module.exports = { createApp, filterState, csvCell };

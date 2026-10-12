@@ -19,6 +19,7 @@ function openDatabase(filename) {
     CREATE TABLE IF NOT EXISTS requests (actor_id TEXT NOT NULL, request_id TEXT NOT NULL, signature TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(actor_id,request_id));
     PRAGMA user_version=2;`);
   require("./procurement-db.cjs").initialize(db);
+  require("./recovery.cjs").initialize(db);
   const sessionColumns = new Set(
     db
       .prepare("PRAGMA table_info(sessions)")

@@ -788,11 +788,12 @@ function AppointmentDetail({
               수납 내역 보기
             </Button>
           )}
-          {appointment.status === "checked_in" && (
-            <Button variant="ghost" onClick={() => onStatus("booked")}>
-              방문 확인 되돌리기
-            </Button>
-          )}
+          {appointment.status === "checked_in" &&
+            appointment.date <= todaySeoul() && (
+              <Button variant="ghost" onClick={() => onStatus("booked")}>
+                방문 확인 되돌리기
+              </Button>
+            )}
           {appointment.status === "in_service" && (
             <Button variant="ghost" onClick={() => onStatus("checked_in")}>
               시술 시작 되돌리기
@@ -1252,7 +1253,9 @@ export default function Appointments({
                 >
                   <div className="ops-booking-time">
                     {mode !== "day" && (
-                      <span className="ops-booking-date">{appointment.date}</span>
+                      <span className="ops-booking-date">
+                        {appointment.date}
+                      </span>
                     )}
                     <strong>{timeLabel(appointment.start)}</strong>
                     <span>
@@ -1293,20 +1296,22 @@ export default function Appointments({
                     )}
                   </div>
                   <div className="ops-booking-actions">
-                    {appointment.status === "booked" && (
-                      <Button
-                        onClick={() => startStatus(appointment, "checked_in")}
-                      >
-                        방문 확인
-                      </Button>
-                    )}
-                    {appointment.status === "checked_in" && (
-                      <Button
-                        onClick={() => startStatus(appointment, "in_service")}
-                      >
-                        시술 시작
-                      </Button>
-                    )}
+                    {appointment.status === "booked" &&
+                      appointment.date <= todaySeoul() && (
+                        <Button
+                          onClick={() => startStatus(appointment, "checked_in")}
+                        >
+                          방문 확인
+                        </Button>
+                      )}
+                    {appointment.status === "checked_in" &&
+                      appointment.date <= todaySeoul() && (
+                        <Button
+                          onClick={() => startStatus(appointment, "in_service")}
+                        >
+                          시술 시작
+                        </Button>
+                      )}
                     {OPEN.includes(appointment.status) && (
                       <>
                         <Button

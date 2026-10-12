@@ -1,7 +1,16 @@
 "use strict";
 const { randomUUID } = require("node:crypto");
 const inventory = require("../src/inventory.js");
-const { received, status, total } = require("../src/procurement.js");
+const {
+  received,
+  status,
+  total,
+  cancelled,
+  returned,
+  pending,
+  paidAmount,
+  balance,
+} = require("../src/procurement.js");
 function fail(message, status = 422) {
   throw Object.assign(new Error(message), {
     status,
@@ -159,8 +168,121 @@ function applyProcurement(data, type, p, ctx) {
   }
   const o = find(d.purchaseOrders, p.id, "발주");
   if (o.cancelled) fail("취소된 발주는 변경할 수 없습니다.");
+  // Preserve pre-ledger payments before adjusting an order's payable amount.
+  if (o.paid && !o.changes.some((c) => Number.isSafeInteger(c.paymentDelta)))
+    stamp(o, "이전 지급 이관", {
+      paymentDelta: paidAmount(o),
+      paymentId: randomUUID(),
+      date: o.paidDate || o.date,
+      legacy: true,
+    });
+  const settle = () => {
+    o.paid = balance(o) <= 0;
+  };
+  if (type === "purchase.closeRemaining" || type === "purchase.return") {
+    const reason = text(p.reason, "처리 사유", 500, true);
+    const returning = type === "purchase.return";
+    const eventDate = date(p.date || ctx.today, "처리일");
+    if (eventDate < o.date || eventDate > ctx.today)
+      fail("처리일은 발주일과 오늘 사이여야 합니다.");
+    if (!Array.isArray(p.lines) || !p.lines.length || p.lines.length > 100)
+      fail("처리할 품목과 수량을 선택해 주세요.");
+    const seen = new Set();
+    const lines = p.lines.map((raw) => {
+      const l = find(o.lines, raw?.lineId, "발주 품목");
+      if (seen.has(l.id)) fail("같은 품목을 중복 입력할 수 없습니다.");
+      seen.add(l.id);
+      const q = integer(raw.quantity, "처리 개수", 1, 1000000);
+      const available = returning
+        ? received(l, d.receipts) - returned(o, l)
+        : pending(o, l, d.receipts);
+      if (q > available)
+        fail(`${l.itemName}: 처리 가능한 수량을 초과했습니다.`);
+      if (returning) {
+        const item = find(d.items, l.itemId, "재고 품목");
+        const qty = Math.round((item.qty - q * l.packSize) * 1000) / 1000;
+        if (qty < 0) fail(`${l.itemName}: 반품할 실제 재고가 부족합니다.`);
+        d = stock(
+          "adjustStock",
+          d,
+          {
+            itemId: item.id,
+            qty,
+            reason: `거래처 반품 · ${reason}`,
+            token: `${ctx.actor.id}:${ctx.requestId}:${l.id}`,
+          },
+          {
+            today: ctx.today,
+            at: ctx.now,
+            actorId: ctx.actor.id,
+            actorName: ctx.actor.name,
+          },
+        );
+      }
+      return {
+        lineId: l.id,
+        itemName: l.itemName,
+        quantity: q,
+        unitCost: l.unitCost,
+      };
+    });
+    const target = find(d.purchaseOrders, o.id, "발주");
+    stamp(target, returning ? "반품 기록" : "미입고 잔량 취소", {
+      adjustment: returning ? "return" : "cancel",
+      date: eventDate,
+      reason,
+      lines,
+    });
+    target.paid = balance(target) <= 0;
+    return d;
+  }
+  if (type === "purchase.settlement") {
+    const reason = text(p.reason, "지급·환급 사유", 500, true);
+    const eventDate = date(p.date, "처리일");
+    if (eventDate > ctx.today) fail("미래 날짜로 지급·환급할 수 없습니다.");
+    let delta;
+    if (p.kind === "void") {
+      const entry = o.changes.find(
+        (c) => c.paymentId === p.paymentId && c.paymentDelta && !c.voids,
+      );
+      if (!entry || o.changes.some((c) => c.voids === entry.paymentId))
+        fail("정정할 지급 기록을 확인해 주세요.");
+      delta = -entry.paymentDelta;
+    } else {
+      const amount = integer(p.amount, "금액", 1, 1e12);
+      if (p.kind === "payment") {
+        if (amount > Math.max(0, balance(o)))
+          fail("남은 지급액보다 많이 입력했습니다.");
+        delta = amount;
+      } else if (p.kind === "refund") {
+        if (amount > Math.max(0, -balance(o)))
+          fail("거래처에서 돌려받을 금액보다 큽니다.");
+        delta = -amount;
+      } else fail("지급 또는 거래처 환급을 선택해 주세요.");
+    }
+    if (paidAmount(o) + delta < 0) fail("관련 환급 기록을 먼저 정정해 주세요.");
+    stamp(
+      o,
+      p.kind === "void"
+        ? "지급·환급 기록 정정"
+        : p.kind === "refund"
+          ? "거래처 환급"
+          : "대금 분할 지급",
+      {
+        paymentId: randomUUID(),
+        paymentDelta: delta,
+        date: eventDate,
+        reference: text(p.reference, "참조번호", 100),
+        reason,
+        ...(p.kind === "void" ? { voids: p.paymentId } : {}),
+      },
+    );
+    o.paidDate = eventDate;
+    settle();
+    return d;
+  }
   if (type === "purchase.ship") {
-    if (status(o, d.receipts) === "delivered")
+    if (!o.lines.some((l) => pending(o, l, d.receipts) > 0))
       fail("이미 입고가 완료된 발주입니다.");
     if (o.shipped) fail("이미 배송 시작이 기록된 발주입니다.");
     o.shipped = true;
@@ -168,7 +290,7 @@ function applyProcurement(data, type, p, ctx) {
     return d;
   }
   if (type === "purchase.cancel") {
-    if (o.lines.some((l) => received(l, d.receipts) > 0) || o.paid)
+    if (o.lines.some((l) => received(l, d.receipts) > 0) || paidAmount(o) > 0)
       fail(
         "입고나 지급 기록이 있는 발주는 취소할 수 없습니다. 입고 취소 및 지급 정정을 먼저 처리해 주세요.",
       );
@@ -184,6 +306,7 @@ function applyProcurement(data, type, p, ctx) {
     const paidDate = paid ? date(p.paidDate, "지급일") : "";
     if (paidDate && paidDate > ctx.today)
       fail("지급일은 오늘 또는 이전 날짜로 입력해 주세요.");
+    const previousPaid = paidAmount(o);
     o.paid = paid;
     o.paidDate = paidDate;
     o.reference = text(p.reference, "이체 확인 번호", 100);
@@ -192,6 +315,9 @@ function applyProcurement(data, type, p, ctx) {
       reference: o.reference,
       reason,
       amount: total(o),
+      paymentId: randomUUID(),
+      paymentDelta: paid ? total(o) - previousPaid : -previousPaid,
+      date: paidDate || ctx.today,
     });
     return d;
   }
@@ -214,7 +340,7 @@ function applyProcurement(data, type, p, ctx) {
       if (ids.has(line.id)) fail("같은 품목의 입고가 중복되었습니다.");
       ids.add(line.id);
       const qty = integer(l.quantity, "이번 입고 개수", 1, 1000000);
-      if (qty > line.quantity - received(line, d.receipts))
+      if (qty > pending(o, line, d.receipts))
         fail(`${line.itemName}: 미입고 수량보다 많이 입력했습니다.`);
       const beforeIds = new Set((d.receipts || []).map((r) => r.id));
       d = stock(
@@ -246,6 +372,11 @@ function applyProcurement(data, type, p, ctx) {
   if (type === "purchase.receiptCancel") {
     const r = find(d.receipts, p.receiptId, "입고");
     if (r.orderId !== o.id) fail("이 발주의 입고 내역이 아닙니다.");
+    const line = find(o.lines, r.orderLineId, "발주 품목");
+    if (returned(o, line) > 0)
+      fail(
+        "반품 이력이 있는 품목의 입고는 취소할 수 없습니다. 반품 기록을 확인해 주세요.",
+      );
     const reason = text(p.reason, "입고 취소 사유", 500, true);
     d = stock(
       "cancelReceipt",

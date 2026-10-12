@@ -339,6 +339,13 @@ function appointmentStatus(data, payload, ctx) {
       "PAYMENT_REQUIRED",
       409,
     );
+  if (
+    ["checked_in", "in_service"].includes(status) &&
+    appointment.date > ctx.today
+  )
+    fail(
+      "미래 예약은 방문·시술 처리할 수 없습니다. 오늘 방문했다면 예약 날짜를 먼저 변경해 주세요.",
+    );
   if (status === "no_show" && appointment.date > ctx.today)
     fail("미래 예약은 노쇼로 처리할 수 없습니다.");
   const reason = str(payload.reason, "상태 변경 사유", 1000);

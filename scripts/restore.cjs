@@ -43,6 +43,14 @@ function main() {
     fs.chmodSync(replacement, 0o600);
     const restored = new DatabaseSync(replacement);
     try {
+      if (
+        restored
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='recovery_codes'",
+          )
+          .get()
+      )
+        restored.exec("DELETE FROM recovery_codes");
       restored.exec(
         "DELETE FROM sessions; PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;",
       );
