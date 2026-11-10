@@ -138,10 +138,8 @@ test("완료된 오전 예약 뒤에 오후 고객이 숨지 않으며 1인 매�
   await gate.getByLabel("원장 아이디", { exact: true }).fill("owner@example.test");
   await gate.getByLabel("비밀번호", { exact: true }).fill("Owner-test-password-2026!");
   await gate.getByRole("button", { name: "열기", exact: true }).click();
-  await expect(page.getByLabel("조회 시작일", { exact: true })).toHaveValue(
-    today(),
-  );
-  await expect(page.getByLabel("조회 종료일", { exact: true })).toHaveValue(
-    today(),
+  const day = today();
+  await expect(page.getByRole("button", { name: /^조회 기간 .* 달력 열기$/ })).toHaveText(
+    `${Number(day.slice(5, 7))}월 ${Number(day.slice(8, 10))}일`,
   );
 });

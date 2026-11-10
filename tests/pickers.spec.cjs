@@ -29,7 +29,7 @@ test("드롭다운은 펼친 목록과 키보드로 선택하고 Escape가 작�
   await page.getByRole("button", { name: "직원 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "직원 등록", exact: true });
   const role = dialog.getByRole("radiogroup", { name: "역할", exact: true });
-  const reception = role.getByRole("radio", { name: "접수 직원", exact: true });
+  const reception = role.getByRole("radio", { name: "접수", exact: true });
   await reception.click();
   await expect(reception).toHaveAttribute("aria-checked", "true");
   await expect(dialog).toBeVisible();
@@ -69,7 +69,6 @@ test("작성 중 달력의 Escape는 달력만 닫고 월 선택과 선택 지�
   await page.reload();
   await page.getByRole("button", { name: "＋ 예약 등록", exact: true }).click();
   const appointment = page.getByRole("dialog", { name: "예약 등록", exact: true });
-  await appointment.getByRole("button", { name: "처음 온 손님", exact: true }).click();
   await appointment.getByLabel("손님 이름", { exact: true }).fill("입력 보존 확인");
   await appointment.getByRole("button", { name: "예약 날짜 달력 열기", exact: true }).click();
   const calendar = page.getByRole("dialog", { name: "예약 날짜 날짜 선택", exact: true });

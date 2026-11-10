@@ -22,7 +22,7 @@ test('예약 작성 중 신규 고객을 등록해도 시술·시간·메모를 
   await expect(dialog).toBeVisible();
   const designers = dialog.getByRole('radiogroup', { name: '디자이너' });
   await expect(designers.getByRole('radio', { name: /예약 불가 접수 직원/ })).toHaveCount(0);
-  await dialog.getByRole('button', { name: '처음 온 손님', exact: true }).click();
+  // With no saved customers the dialog starts with the first-visit guest fields.
   await dialog.getByLabel('손님 이름', { exact: true }).fill('예약 중 등록 고객');
   await dialog.getByLabel('전화번호', { exact: true }).fill('010-2222-4444');
   await designers.getByRole('radio', { name: new RegExp(staff.name) }).click();

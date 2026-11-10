@@ -886,6 +886,7 @@ export default function App() {
                     ? "인터넷 연결이 끊겼어요"
                     : "서버의 최신 내용을 확인하지 못했어요"}
                 </span>
+                <span className="muted">지금 화면은 마지막으로 확인한 자료예요</span>
                 <Button
                   variant="ghost"
                   busy={refreshing}
