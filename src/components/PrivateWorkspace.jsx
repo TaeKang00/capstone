@@ -182,7 +182,6 @@ export default function PrivateWorkspace({
               <span className="brand-dot" aria-hidden="true" />
               <strong>{owner ? "원장 관리" : "내 급여명세"}</strong>
               <span className="private-workspace-timer">
-                <Icon name="lock" size={20} />
                 3분 동안 쓰지 않으면 잠겨요
               </span>
             </div>

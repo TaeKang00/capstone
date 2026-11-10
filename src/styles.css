@@ -3318,3 +3318,25 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; c
 @media (min-width: 951px) {
   .app-footer { max-width: 1440px; margin: 0; padding: 16px 32px 24px 8px; }
 }
+
+/* Type hierarchy after raising small text to 14px:
+   40 page title · 20 dialog title · 18 panel/section title · 16 input text · 14 body, labels, help · 12 markers.
+   Page CSS loads after this file, so the heading sizes are enforced here. */
+.modal-header h2, .modal-header .modal-title h2 { font-size: 20px !important; line-height: 28px !important; }
+.main-content :is(h2, h3):not(.page-title):not(.sr-only),
+.private-workspace-content :is(h2, h3):not(.page-title):not(.sr-only),
+.shared-desk :is(h2, h3),
+.modal-body :is(h2, h3) {
+  font-size: 18px !important;
+  line-height: 26px !important;
+  letter-spacing: -0.01em;
+}
+.setup-notice-title { font-size: 14px !important; line-height: 20px !important; }
+.empty-state :is(h2, h3) { font-size: 16px !important; line-height: 24px !important; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]),
+select:not([multiple]):not([size]), textarea, .textarea { font-size: 16px; }
+.app-search input:not([type="checkbox"]) { font-size: 14px; }
+:is(.main-content, .private-workspace-content, .modal-body) .setup-notice :is(h2, h3):not(.page-title):not(.sr-only) { font-size: 14px !important; line-height: 20px !important; }
+:is(.main-content, .private-workspace-content, .modal-body) .empty-state :is(h2, h3):not(.page-title):not(.sr-only) { font-size: 16px !important; line-height: 24px !important; }
+/* Section names inside dialogs (손님, 시술, 디자이너, 역할 ...) sit between dialog title (20) and field labels (14) */
+.ops-section-label, .people-group-label, .wf-group-label { font-size: 16px !important; line-height: 24px !important; font-weight: 600 !important; color: #F4F4F6 !important; }
