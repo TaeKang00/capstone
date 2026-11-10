@@ -106,8 +106,8 @@ test('고객 주의사항과 예약 수납·정정·부분 환불이 연결되�
   await page.getByRole('dialog').getByRole('button', { name: '수납하기' }).click();
   dialog = page.getByRole('dialog', { name: '예약 수납 기록', exact: true });
   await expect(dialog.getByText('테스트 약제 알레르기 확인')).toBeVisible();
-  await dialog.getByLabel('추가할 시술 · 상품', { exact: true }).selectOption(`product:${productItem.id}`);
-  await dialog.getByRole('button', { name: '항목 추가', exact: true }).click();
+  await dialog.getByRole('combobox', { name: '시술이나 상품 담기', exact: true }).fill(productItem.name);
+  await dialog.getByRole('combobox', { name: '시술이나 상품 담기', exact: true }).press('Enter');
   await dialog.getByLabel('전체 할인 (원)', { exact: true }).fill('3000');
   await dialog.getByRole('checkbox', { name: /단말기 승인/ }).check();
   await dialog.getByRole('button', { name: '수납 27,000원 기록' }).click();
@@ -130,11 +130,11 @@ test('고객 주의사항과 예약 수납·정정·부분 환불이 연결되�
   expect(snapshot.data.transactions.find(row => row.id === transaction.id).reference).toBe('TEST-APPROVAL-27');
   await page.getByRole('button', { name: '연결 고객 결제 상세', exact: true }).click();
   await page.getByRole('button', { name: '환불 기록', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: '환불 기록', exact: true });
+  dialog = page.getByRole('dialog', { name: '환불', exact: true });
   const productLine = dialog.locator('.commerce-refund-line').filter({ hasText: productItem.name });
-  await productLine.getByLabel('이번 환불 수량', { exact: true }).fill('1');
+  await productLine.getByRole('checkbox', { name: `${productItem.name} 환불`, exact: true }).check();
   await productLine.getByRole('checkbox', { name: /실제로 회수한 상품/ }).check();
-  await dialog.getByLabel('환불 사유 (필수)', { exact: true }).fill('미개봉 상품 반품');
+  await dialog.getByLabel('사유', { exact: true }).fill('미개봉 상품 반품');
   await dialog.getByRole('checkbox', { name: /고객에게.*환불을 완료/ }).check();
   await dialog.getByRole('button', { name: '환불 9,000원 기록' }).click();
   await expect(dialog).toBeHidden();
@@ -325,8 +325,8 @@ test('수납 저장 응답이 끊겨도 재시도하면 결제와 재료 사용�
   const dialog = page.getByRole('dialog', { name: '새 수납 기록', exact: true });
   await dialog.getByLabel('방문 고객 이름', { exact: true }).fill('응답 유실 고객');
   await dialog.getByLabel('담당 직원', { exact: true }).selectOption(staff.id);
-  await dialog.getByLabel('추가할 시술 · 상품', { exact: true }).selectOption(`service:${service.id}`);
-  await dialog.getByRole('button', { name: '항목 추가', exact: true }).click();
+  await dialog.getByRole('combobox', { name: '시술이나 상품 담기', exact: true }).fill(service.name);
+  await dialog.getByRole('combobox', { name: '시술이나 상품 담기', exact: true }).press('Enter');
   await dialog.getByRole('checkbox', { name: /단말기 승인/ }).check();
   const requestIds = [];
   await page.route('**/api/actions/payment.create', async route => {

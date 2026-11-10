@@ -1,0 +1,891 @@
+/* ===== 수납 page (boards: Checkout, RefundForm) ===== */
+
+/* ---- Page ---- */
+.paym-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.paym-page > .page-header {
+  margin-bottom: 0;
+}
+.paym-page .page-header .btn-primary {
+  min-height: 40px;
+  border-radius: 999px;
+}
+.paym-page .page-title {
+  margin: 0;
+}
+.paym-stats.home-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+.paym-stats .home-stat:hover {
+  background: var(--panel);
+}
+.paym-stats .home-stat-value small {
+  margin-left: 4px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.paym-stat-note {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+
+.paym-avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.paym-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-row-main strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-row-main small,
+.paym-row-side {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-row-main small {
+  overflow-wrap: anywhere;
+}
+
+/* Pending appointments */
+.paym-pending .panel-head h2:focus {
+  outline: none;
+}
+.paym-pending-list,
+.paym-tx-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.paym-pending-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 8px;
+}
+.paym-pending-list .list-row {
+  background: var(--inset);
+  color: var(--text-muted);
+}
+.paym-pending-list .list-row:hover {
+  background: var(--surface-2);
+}
+
+/* History */
+.paym-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+.paym-filters > .field {
+  flex: 0 1 200px;
+}
+.paym-filters > .paym-search {
+  flex: 1 1 280px;
+}
+.paym-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+.paym-filter-chips .text-btn {
+  margin-left: auto;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.paym-filter-chips .text-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-tx-head,
+.paym-tx {
+  display: grid;
+  grid-template-columns:
+    40px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.8fr)
+    minmax(0, 1fr) minmax(0, 1.1fr) 16px;
+  align-items: center;
+  gap: 16px;
+}
+.paym-tx-head {
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-tx-head > span:first-child {
+  grid-column: 1 / 3;
+}
+.paym-tx-head > span:last-child {
+  text-align: right;
+}
+.paym-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-tx {
+  color: var(--text);
+}
+.paym-tx > .icon {
+  color: var(--text-meta);
+}
+.paym-tx-staff,
+.paym-tx-method {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.paym-tx-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.paym-tx-amount strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.paym-tx-amount small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--danger);
+}
+.paym-pill {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.paym-pill:before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.paym-more {
+  align-self: center;
+}
+.paym-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.paym-link:hover {
+  color: var(--text-strong);
+}
+.paym-page .empty-state {
+  padding: 32px 16px;
+}
+
+/* ---- Shared dialog bits ---- */
+.paym-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.paym-checkout .field,
+.paym-refund .field {
+  margin: 0;
+  gap: 8px;
+}
+.paym-checkout .field-label,
+.paym-refund .field-label {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-checkout .help,
+.paym-refund .help {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-checkout textarea {
+  min-height: 72px;
+}
+.paym-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.paym-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.paym-chips > button {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.paym-chips > button:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-chips-bordered > button {
+  border-color: var(--line-strong);
+}
+.paym-chips > button[aria-checked="true"] {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.paym-chips > button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.paym-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--text);
+  cursor: pointer;
+}
+.paym-confirm input {
+  flex: none;
+  margin: 0;
+}
+.paym-flat {
+  margin: 0;
+}
+
+/* ---- Checkout dialog (Checkout board) ---- */
+.modal:has(.paym-checkout) {
+  max-width: 1080px;
+}
+.paym-error {
+  margin: 0;
+}
+.paym-checkout-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+.paym-cart,
+.paym-summary {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.paym-cart {
+  flex: 999 1 480px;
+  gap: 24px;
+}
+.paym-summary {
+  flex: 1 1 320px;
+  gap: 16px;
+}
+
+.paym-customer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.paym-customer-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-customer-text strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-customer-warning,
+.paym-customer-sub {
+  font-size: 12px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.paym-customer-warning {
+  color: var(--warn);
+}
+.paym-customer-sub {
+  color: var(--text-meta);
+}
+.paym-customer .text-btn {
+  flex: none;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.paym-customer .text-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-customer-pick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.paym-customer-pick .paym-span {
+  grid-column: 1 / -1;
+}
+
+.paym-combo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-listbox {
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 248px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: rgba(28, 28, 35, 0.86);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(16px);
+}
+.paym-listbox [role="option"] {
+  min-height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+}
+.paym-listbox [role="option"][aria-selected="true"] {
+  background: var(--chip);
+}
+.paym-listbox [role="option"][aria-selected="true"] .paym-option-name {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.paym-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paym-option-meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+.paym-option-price {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.paym-listbox [role="option"][aria-selected="true"] .paym-option-price {
+  color: var(--text);
+}
+
+.paym-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-line {
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 104px auto;
+  align-items: center;
+  gap: 16px;
+}
+.paym-line-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-line-name strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-line-name small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-qty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.paym-qty > button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.paym-qty > button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-checkout .paym-line .paym-qty input[type="number"][aria-label] {
+  width: 48px;
+  min-width: 0;
+  height: 44px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-strong);
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.paym-checkout .paym-line .paym-qty input[type="number"][aria-label]:focus {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.paym-qty input::-webkit-outer-spin-button,
+.paym-qty input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.paym-line-total {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.paym-line-tools {
+  display: flex;
+  gap: 4px;
+}
+.paym-line-tools .icon-btn {
+  width: 40px;
+  height: 40px;
+}
+.paym-line-tools .icon-btn[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-line-price {
+  grid-column: 1 / -1;
+  max-width: 240px;
+}
+.paym-empty {
+  margin: 0;
+  padding: 24px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text-meta);
+  text-align: center;
+}
+.paym-stock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-stock ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-stock li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.paym-details {
+  display: block;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.paym-details[open] {
+  padding-bottom: 16px;
+}
+.paym-details > summary {
+  min-height: 24px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.paym-details > * + * {
+  margin-top: 16px;
+}
+.paym-details > .help {
+  margin-top: 8px;
+}
+
+.paym-due {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.paym-due h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-due strong {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.paym-due strong.tone-down {
+  color: var(--danger);
+}
+.paym-extra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+.paym-summary {
+  position: sticky;
+  top: 0;
+}
+.paym-submit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-submit .btn {
+  width: 100%;
+}
+
+/* ---- Refund dialog (RefundForm board) ---- */
+.modal:has(.paym-refund) {
+  max-width: 800px;
+}
+.paym-refund-sub {
+  margin: -16px 0 0;
+  color: var(--text-meta);
+}
+.paym-refund-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: -16px;
+}
+.paym-refund-head .text-btn {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+.paym-refund-head .text-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.paym-refund-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-refund .commerce-refund-line.paym-refund-line {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.paym-refund .commerce-refund-line.paym-refund-line.is-on {
+  border-color: var(--accent);
+}
+.paym-refund-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.paym-refund-top > input[type="checkbox"] {
+  flex: none;
+  margin: 0;
+}
+.paym-refund-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-refund-name strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-refund-name small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-refund-amount {
+  font-weight: 600;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.paym-refund-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 32px;
+}
+.paym-refund-body > .field {
+  max-width: 240px;
+}
+.paym-refund-body .paym-confirm {
+  padding: 0;
+  min-height: 24px;
+}
+.paym-group-title {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.paym-refund-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.paym-hints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-refund .paym-confirm {
+  padding-top: 0;
+}
+.modal:has(.paym-refund) .modal-footer {
+  align-items: center;
+}
+.paym-refund-sum {
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-refund-sum strong {
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1100px) {
+  .paym-stats.home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .paym-tx-head {
+    display: none;
+  }
+  .paym-tx {
+    grid-template-columns: 40px minmax(0, 1fr) auto 16px;
+    grid-template-areas:
+      "avatar main amount chevron"
+      "avatar status amount chevron";
+    row-gap: 8px;
+  }
+  .paym-tx > .paym-avatar {
+    grid-area: avatar;
+  }
+  .paym-tx > .paym-row-main {
+    grid-area: main;
+  }
+  .paym-tx > .paym-tx-status {
+    grid-area: status;
+  }
+  .paym-tx > .paym-tx-amount {
+    grid-area: amount;
+  }
+  .paym-tx > .icon {
+    grid-area: chevron;
+  }
+  .paym-tx-staff,
+  .paym-tx-method {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .paym-page {
+    gap: 24px;
+  }
+  .paym-stats.home-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paym-stat-note {
+    display: none;
+  }
+  .paym-pending-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paym-page .panel {
+    padding: 16px;
+  }
+  .paym-page .list-row {
+    padding: 12px 8px;
+  }
+  .paym-filters > .field {
+    flex: 1 1 calc(50% - 8px);
+  }
+  .paym-filters > .paym-search {
+    flex: 1 1 100%;
+  }
+  .paym-filter-chips .text-btn {
+    margin-left: 0;
+  }
+  .paym-cart,
+  .paym-summary {
+    padding: 16px;
+  }
+  .paym-customer-pick,
+  .paym-refund-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paym-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+  .paym-line-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .paym-line-tools {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .paym-qty {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .paym-line-total {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .paym-extra {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paym-summary {
+    position: static;
+  }
+  .paym-refund-body {
+    padding-left: 0;
+  }
+  .paym-refund-sum {
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+}

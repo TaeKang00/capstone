@@ -167,12 +167,8 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
   await dialog(page)
     .getByLabel("담당 직원", { exact: true })
     .selectOption(data.staff[0].id);
-  await dialog(page)
-    .getByLabel("추가할 시술 · 상품", { exact: true })
-    .selectOption(`service:${data.services[0].id}`);
-  await dialog(page)
-    .getByRole("button", { name: "항목 추가", exact: true })
-    .click();
+  await dialog(page).getByRole("combobox", { name: "시술이나 상품 담기", exact: true }).fill(data.services[0].name);
+  await dialog(page).getByRole("combobox", { name: "시술이나 상품 담기", exact: true }).press("Enter");
   await dialog(page)
     .getByRole("checkbox", { name: /단말기 승인/ })
     .check();

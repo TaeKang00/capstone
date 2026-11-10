@@ -49,12 +49,8 @@ test("실제 사용량 입력 → 금액 정정 재수납 → 금액 일부 환�
   await dialog(page)
     .getByLabel("담당 직원", { exact: true })
     .selectOption(d.staff[0].id);
-  await dialog(page)
-    .getByLabel("추가할 시술 · 상품", { exact: true })
-    .selectOption(`service:${d.services[0].id}`);
-  await dialog(page)
-    .getByRole("button", { name: "항목 추가", exact: true })
-    .click();
+  await dialog(page).getByRole("combobox", { name: "시술이나 상품 담기", exact: true }).fill(d.services[0].name);
+  await dialog(page).getByRole("combobox", { name: "시술이나 상품 담기", exact: true }).press("Enter");
   await dialog(page)
     .getByText("실제 재료 사용량 조정", { exact: true })
     .click();
@@ -101,14 +97,13 @@ test("실제 사용량 입력 → 금액 정정 재수납 → 금액 일부 환�
   await dialog(page)
     .getByRole("button", { name: "환불 기록", exact: true })
     .click();
-  await dialog(page)
-    .getByLabel("케어 시술 환불 기준", { exact: true })
-    .selectOption("amount");
+  await dialog(page).getByRole("checkbox", { name: "케어 시술 환불", exact: true }).check();
+  await dialog(page).getByRole("radio", { name: "금액 직접 입력", exact: true }).click();
   await dialog(page)
     .getByLabel("케어 시술 이번 환불 금액 (원)", { exact: true })
     .fill("10000");
   await dialog(page)
-    .getByLabel("환불 사유 (필수)", { exact: true })
+    .getByLabel("사유", { exact: true })
     .fill("고객 협의 일부 환불");
   await dialog(page)
     .getByRole("checkbox", { name: /고객에게.*환불을 완료/ })
