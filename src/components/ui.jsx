@@ -49,7 +49,8 @@ export function Field({ label, help, error, children, className = "" }) {
       if (
         ((typeof node.type === "string" &&
           ["input", "select", "textarea"].includes(node.type)) ||
-          node.type === DateInput) &&
+          node.type === DateInput ||
+          node.type?.isFieldControl) &&
         node.props.type !== "hidden"
       ) {
         controlId = node.props.id || id;
@@ -61,7 +62,8 @@ export function Field({ label, help, error, children, className = "" }) {
           id: controlId,
           "aria-describedby": description,
           "aria-invalid": error ? true : node.props["aria-invalid"],
-          ...(node.type === DateInput && typeof label === "string"
+          ...((node.type === DateInput || node.type?.isFieldControl === "picker") &&
+          typeof label === "string"
             ? { pickerLabel: label }
             : {}),
         });

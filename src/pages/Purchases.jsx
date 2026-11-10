@@ -16,6 +16,7 @@ import "../procurement.js";
 import { printDocument, escapeHtml, printMoney, storeBlock, logoTag } from "../print";
 import "./Commerce.css";
 import "./Purchases.css";
+import "./PurchasesBoards.css";
 const {
   received,
   total,
@@ -527,6 +528,7 @@ export default function Purchases({
           <OrderAction
             kind={dialog.kind}
             order={current}
+            orderNo={orderNo(current)}
             receiptId={dialog.receiptId}
             receipts={receipts}
             runAction={runAction}
@@ -569,9 +571,12 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
       setBusy(false);
     }
   };
+  const activeId = useId();
+  const supplier = kind === "supplier";
   return (
     <Modal
-      title={`${kind === "supplier" ? "거래처" : "품목 분류"} ${initial ? "수정" : "등록"}`}
+      title={`${supplier ? "거래처" : "품목 분류"} ${initial ? "수정" : "등록"}`}
+      size="wide"
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
@@ -597,7 +602,14 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
               {error}
             </div>
           )}
-          <Field label={kind === "supplier" ? "거래처 이름" : "분류 이름"}>
+          <Field
+            label={supplier ? "거래처 이름" : "분류 이름"}
+            help={
+              supplier
+                ? undefined
+                : "재고 화면에서 이 분류로 품목을 골라 볼 수 있어요"
+            }
+          >
             <input
               required
               maxLength={100}
@@ -605,7 +617,7 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
               onChange={(e) => update("name", e.target.value)}
             />
           </Field>
-          {kind === "supplier" && (
+          {supplier && (
             <>
               <div className="po-grid-2">
                 <Field label="담당자">
@@ -618,6 +630,7 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
                 <Field label="연락처">
                   <input
                     type="tel"
+                    className="num"
                     maxLength={30}
                     value={form.phone}
                     onChange={(e) => update("phone", e.target.value)}
@@ -626,25 +639,33 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
               </div>
               <Field label="거래처 메모">
                 <textarea
+                  rows="3"
                   maxLength={500}
+                  placeholder="예: 화요일 오전 배송, 20만 원 이상 무료 배송"
                   value={form.note}
                   onChange={(e) => update("note", e.target.value)}
                 />
               </Field>
             </>
           )}
-          <Field
-            label="사용 상태"
-            help="미사용으로 바꿔도 기존 품목과 발주 이력은 남아요"
-          >
-            <select
-              value={String(form.active)}
-              onChange={(e) => update("active", e.target.value === "true")}
-            >
-              <option value="true">사용</option>
-              <option value="false">미사용</option>
-            </select>
-          </Field>
+          <div className="pob-switch-row">
+            <span className="pob-switch-text">
+              <span id={activeId}>사용</span>
+              <span className="small muted">
+                {supplier
+                  ? "끄면 새 발주에서 숨겨요. 기존 품목과 발주 이력은 남아요"
+                  : "끄면 새 품목에서 고를 수 없어요. 기존 품목과 발주 이력은 남아요"}
+              </span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              className="switch"
+              aria-checked={!!form.active}
+              aria-labelledby={activeId}
+              onClick={() => update("active", !form.active)}
+            />
+          </div>
         </fieldset>
       </form>
       {closeGuard}
@@ -1011,40 +1032,78 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
     </Modal>
   );
 }
+// Purchase-order print body (PrintPurchaseOrder board); base styles come from print.js.
+const PRINT_ORDER_STYLE = `<style>
+  .po-print { display: flex; flex-direction: column; gap: 32px; }
+  .po-print .doc-head { margin: 0; }
+  .po-print h1 { margin: 0; font-size: 40px; line-height: 48px; letter-spacing: 0.24em; }
+  .po-print .meta { margin: 0; }
+  .po-print .meta h2, .po-print-note h2 { margin: 0 0 12px; }
+  .po-print .meta dt { font-size: 14px; line-height: 20px; font-weight: 500; }
+  .po-print-lines { padding: 12px 16px; border-radius: 12px; background: #F4F4F6; display: flex; flex-direction: column; gap: 12px; }
+  .po-print-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 64px 96px 112px; gap: 12px; }
+  .po-print-row > span:not(:first-child) { text-align: right; white-space: nowrap; }
+  .po-print-row.is-head { color: #555; font-size: 12px; line-height: 16px; font-weight: 600; }
+  .po-print-row:not(.is-head) > span:first-child { font-weight: 600; }
+  .po-print-sum { margin-top: -16px; padding: 0 16px; display: flex; justify-content: space-between; align-items: baseline; }
+  .po-print-sum strong:first-child { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .po-print-sum strong:last-child { font-size: 18px; line-height: 1.25; font-weight: 700; }
+  .po-print-note { display: flex; flex-direction: column; gap: 8px; }
+  .po-print-note h2 { margin: 0; }
+  .po-print .footer { margin-top: 0; }
+  .po-print .footer > span:first-child { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .po-print-seal { width: 72px; height: 72px; border-radius: 12px; border: 1px dashed #8B8B96; display: flex; align-items: center; justify-content: center; color: #555; }
+</style>`;
 function printOrder(o, store) {
-  const rows = o.lines
-    .map(
-      (l) => `<tr><td>${escapeHtml(l.itemName)}</td><td class="num">${escapeHtml(
+  const lines = o.lines.filter((l) => l.quantity - cancelled(o, l) > 0);
+  const rows = lines
+    .map((l) => {
+      const count = l.quantity - cancelled(o, l);
+      return `<div class="po-print-row"><span>${escapeHtml(l.itemName)}</span><span>${escapeHtml(
         `${quantity(l.packSize)}${l.unit}`,
-      )}</td><td class="num">${l.quantity - cancelled(o, l)}개</td><td class="num">${printMoney(
+      )}</span><span>${count}개</span><span>${printMoney(
         l.unitCost,
-      )}</td><td class="num">${printMoney(
-        (l.quantity - cancelled(o, l)) * l.unitCost,
-      )}</td></tr>`,
-    )
+      )}</span><span>${printMoney(count * l.unitCost)}</span></div>`;
+    })
     .join("");
-  const amount = o.lines.reduce(
+  const amount = lines.reduce(
     (s, l) => s + (l.quantity - cancelled(o, l)) * l.unitCost,
     0,
   );
+  const notes = String(o.notes || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<span>${escapeHtml(line)}</span>`)
+    .join("");
+  const storeName = escapeHtml(store?.name || "");
   printDocument(
     `발주서 ${o.date}`,
-    `${logoTag(store)}<h1>발 주 서</h1>
-    <div class="meta"><div><strong>수신: ${escapeHtml(o.supplierName)} 귀하</strong>
-    <dl><dt>발주일</dt><dd>${escapeHtml(o.date)}</dd><dt>납품 요청일</dt><dd>${escapeHtml(
-      o.deliveryDate || "협의",
-    )}</dd><dt>발주 번호</dt><dd>${escapeHtml(o.id.slice(0, 8))}</dd><dt>담당</dt><dd>${escapeHtml(
-      o.actorName,
-    )}</dd></dl></div><div><strong>발신</strong>${storeBlock(store)}</div></div>
+    `${PRINT_ORDER_STYLE}<div class="po-print">
+    <header class="doc-head"><div style="display:flex;flex-direction:column;gap:8px">
+      ${logoTag(store)}<span class="brand"><span class="brand-dot"></span>${storeName}</span>
+      <h1>발주서</h1></div></header>
+    <div class="meta">
+      <section><h2>수신: ${escapeHtml(o.supplierName)} 귀하</h2>
+        <dl><dt>발주일</dt><dd>${escapeHtml(o.date)}</dd><dt>납품 요청일</dt><dd>${escapeHtml(
+          o.deliveryDate || "협의",
+        )}</dd><dt>발주 번호</dt><dd>${escapeHtml(o.id.slice(0, 8))}</dd><dt>담당</dt><dd>${escapeHtml(
+          o.actorName,
+        )}</dd></dl></section>
+      <section><h2>발신</h2>${storeBlock(store)}</section>
+    </div>
     <p>아래와 같이 발주합니다.</p>
-    <table><thead><tr><th>품목</th><th class="num">포장 용량</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td colspan="4">합계</td><td class="num">${printMoney(
-      amount,
-    )}</td></tr></tfoot></table>
-    ${o.notes ? `<div class="note"><strong>요청 사항</strong><br>${escapeHtml(o.notes)}</div>` : ""}
-    <div class="footer">${escapeHtml(store?.name || "")} (인)</div>`,
+    <section class="po-print-lines" aria-label="발주 품목">
+      <div class="po-print-row is-head"><span>품목</span><span>포장 용량</span><span>수량</span><span>단가</span><span>금액</span></div>
+      ${rows}
+    </section>
+    <div class="po-print-sum"><strong>합계</strong><strong>${printMoney(amount)}</strong></div>
+    ${notes ? `<section class="po-print-note"><h2>요청 사항</h2>${notes}</section>` : ""}
+    <footer class="footer"><span>${storeName}</span><span class="po-print-seal" aria-label="직인 자리">(인)</span></footer>
+    </div>`,
   );
 }
+
 // Non-modal side panel: the list stays usable while one order is open.
 function OrderPanel({
   order: o,
@@ -1056,18 +1115,30 @@ function OrderPanel({
   onAction,
 }) {
   const titleId = useId();
+  const moreId = useId();
+  const receivedId = useId();
+  const logId = useId();
   const headingRef = useRef(null);
+  const [logOpen, setLogOpen] = useState(true);
   useEffect(() => {
     headingRef.current?.focus();
   }, [o.id]);
-  const state = status(o, receipts),
-    history = receipts.filter((r) => r.orderId === o.id);
+  const history = receipts.filter((r) => r.orderId === o.id);
+  const [ship, shipTone] = shipChip(o, receipts);
   const hasPending =
     !o.cancelled && o.lines.some((l) => pending(o, l, receipts) > 0);
   const canReturn = o.lines.some((l) => received(l, receipts) > returned(o, l));
   const canCancel =
     paidAmount(o) === 0 && !o.lines.some((l) => received(l, receipts) > 0);
   const due = balance(o);
+  const facts = [
+    ["발주 번호", `발주 ${orderNo}`],
+    ["납품 예정일", o.deliveryDate || "미정"],
+    ["등록자", o.actorName],
+    ...(o.paid && o.paidDate ? [["지급일", o.paidDate]] : []),
+    ...(o.notes ? [["메모", o.notes]] : []),
+  ];
+  const more = canManage && !o.cancelled;
   return (
     <section
       className="panel po-detail"
@@ -1097,93 +1168,248 @@ function OrderPanel({
           <Icon name="close" />
         </button>
       </div>
-      <div className="po-detail-status">
-        <Badge tone={tone(state)}>{labels[state]}</Badge>
-        <span className="small muted">{payText(o)}</span>
-      </div>
-      <dl className="kv">
-        <dt>발주 번호</dt>
-        <dd>발주 {orderNo}</dd>
-        <dt>납품 예정일</dt>
-        <dd>{o.deliveryDate || "미정"}</dd>
-        <dt>등록자</dt>
-        <dd>{o.actorName}</dd>
-        {o.paid && o.paidDate && (
-          <>
-            <dt>지급일</dt>
-            <dd>{o.paidDate}</dd>
-          </>
-        )}
-      </dl>
-      <div className="po-lines">
-        {o.lines.map((l) => {
-          const ordered = l.quantity - cancelled(o, l);
-          const got = received(l, receipts);
-          const pct = ordered > 0 ? Math.min(100, (got / ordered) * 100) : 0;
-          return (
-            <div key={l.id} className="po-line">
-              <div className="po-line-top">
-                <strong>{l.itemName}</strong>
-                <span className="num">
-                  <Money
-                    value={
-                      (l.quantity - cancelled(o, l) - returned(o, l)) *
-                      l.unitCost
-                    }
-                  />
-                </span>
+      <div className="pob-detail-body">
+        <div className="pob-detail-col">
+          <div className="po-detail-status">
+            <Badge tone={shipTone}>{ship}</Badge>
+            <span className="small muted">{payText(o)}</span>
+          </div>
+          <dl className="pob-facts pob-facts-2">
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
               </div>
-              <span className="po-bar" aria-hidden="true">
-                <span style={{ width: `${pct}%` }} />
-              </span>
-              <span className="small muted">
-                {ordered <= 0
-                  ? "발주 수량을 모두 취소했어요"
-                  : got >= ordered
-                    ? `${ordered}개 모두 입고`
-                    : `${ordered}개 중 ${got}개 입고`}
-              </span>
-              {!(l.packSize === 1 && l.unit === "개") && (
-                <span className="small muted">
-                  1개 {quantity(l.packSize)}
-                  {l.unit}
-                </span>
-              )}
-              {cancelled(o, l) > 0 && (
-                <span className="small muted">
-                  잔량 취소 {cancelled(o, l)}개
-                </span>
-              )}
-              {returned(o, l) > 0 && (
-                <span className="small muted">반품 {returned(o, l)}개</span>
-              )}
+            ))}
+          </dl>
+          <div className="po-lines">
+            {o.lines.map((l) => {
+              const ordered = l.quantity - cancelled(o, l);
+              const got = received(l, receipts);
+              const pct =
+                ordered > 0 ? Math.min(100, (got / ordered) * 100) : 0;
+              const done = ordered > 0 && got >= ordered;
+              return (
+                <div
+                  key={l.id}
+                  className={`po-line ${done ? "is-done" : got > 0 ? "is-partial" : ""}`}
+                >
+                  <div className="po-line-top">
+                    <strong>{l.itemName}</strong>
+                    <span className="num">
+                      <Money
+                        value={
+                          (l.quantity - cancelled(o, l) - returned(o, l)) *
+                          l.unitCost
+                        }
+                      />
+                    </span>
+                  </div>
+                  <span className="po-bar" aria-hidden="true">
+                    <span style={{ width: `${pct}%` }} />
+                  </span>
+                  <span className="pob-line-notes">
+                    <span className="pob-line-state">
+                      {ordered <= 0
+                        ? "발주 수량을 모두 취소했어요"
+                        : done
+                          ? `${ordered}개 모두 입고`
+                          : `${ordered}개 중 ${got}개 입고`}
+                    </span>
+                    {!(l.packSize === 1 && l.unit === "개") && (
+                      <span className="small muted">
+                        1개 {quantity(l.packSize)}
+                        {l.unit}
+                      </span>
+                    )}
+                    {cancelled(o, l) > 0 && (
+                      <span className="small muted">
+                        잔량 취소 {cancelled(o, l)}개
+                      </span>
+                    )}
+                    {returned(o, l) > 0 && (
+                      <span className="small muted">
+                        반품 {returned(o, l)}개
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <dl className="po-money">
+            <div>
+              <dt>정산 금액</dt>
+              <dd>
+                <Money value={total(o)} />
+              </dd>
             </div>
-          );
-        })}
+            <div>
+              <dt>순지급액</dt>
+              <dd>
+                <Money value={paidAmount(o)} />
+              </dd>
+            </div>
+            <div>
+              <dt>{due < 0 ? "돌려받을 금액" : "남은 지급액"}</dt>
+              <dd className={due !== 0 ? "tone-warn-text" : ""}>
+                <Money value={Math.abs(due)} />
+              </dd>
+            </div>
+          </dl>
+          {more && (
+            <div className="pob-more" role="group" aria-labelledby={moreId}>
+              <span id={moreId} className="field-label">
+                다른 처리
+              </span>
+              <div className="pob-more-buttons">
+                {!o.shipped && hasPending && (
+                  <button
+                    type="button"
+                    className="pob-outline-btn"
+                    onClick={() => onAction("ship")}
+                  >
+                    배송 시작 기록
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="pob-outline-btn"
+                  onClick={() => onAction("settlement")}
+                >
+                  분할 지급과 환급
+                </button>
+                {hasPending && (
+                  <button
+                    type="button"
+                    className="pob-outline-btn"
+                    onClick={() => onAction("closeRemaining")}
+                  >
+                    미입고 잔량 취소
+                  </button>
+                )}
+                {canReturn && (
+                  <button
+                    type="button"
+                    className="pob-outline-btn"
+                    onClick={() => onAction("return")}
+                  >
+                    거래처 반품
+                  </button>
+                )}
+                {canCancel && (
+                  <button
+                    type="button"
+                    className="pob-outline-btn is-danger"
+                    onClick={() => onAction("cancel")}
+                  >
+                    발주 취소
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="pob-detail-col pob-detail-side">
+          <section className="pob-section" aria-labelledby={receivedId}>
+            <h3 id={receivedId}>실제 입고 내역</h3>
+            {history.length ? (
+              <ul className="po-history">
+                {history.map((r) => {
+                  const line = o.lines.find((l) => l.id === r.orderLineId);
+                  return (
+                    <li key={r.id} className="po-history-row">
+                      <span className="po-history-text">
+                        <strong>{line?.itemName || "품목"}</strong>
+                        <span className="num">
+                          {quantity(r.qty)}
+                          {line?.unit} 입고
+                        </span>
+                        <span className="small muted num">{r.date}</span>
+                        <span className="small muted">{r.actorName}</span>
+                        {r.memo && (
+                          <span className="small muted">{r.memo}</span>
+                        )}
+                      </span>
+                      {r.status === "cancelled" ? (
+                        <Badge>입고 취소</Badge>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          className="pob-history-cancel"
+                          onClick={() => onAction("receiptCancel", r.id)}
+                        >
+                          이 입고 취소
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="help">
+                아직 입고되지 않았어요. 실제 받은 수량만 입력해요
+              </p>
+            )}
+            <p className="help">
+              잘못 넣은 입고는 취소한 뒤 다시 등록해요. 이미 쓴 재고 때문에
+              음수가 되면 취소할 수 없어요
+            </p>
+          </section>
+          <section className="pob-section">
+            <h3 className="pob-toggle-title">
+              <button
+                type="button"
+                className="pob-toggle"
+                aria-expanded={logOpen}
+                aria-controls={logId}
+                onClick={() => setLogOpen((v) => !v)}
+              >
+                발주 처리 이력
+                <Icon name={logOpen ? "chevron-up" : "chevron-down"} />
+              </button>
+            </h3>
+            {logOpen && (
+              <ol id={logId} className="pob-log">
+                {o.changes
+                  .slice()
+                  .reverse()
+                  .map((c, i) => (
+                    <li key={i}>
+                      <span className="pob-log-top">
+                        <strong>{c.action}</strong>
+                        <span className="small muted num">
+                          {c.date || c.at.slice(0, 10)}
+                        </span>
+                      </span>
+                      <span className="small muted">{c.actorName}</span>
+                      {Number.isSafeInteger(c.paymentDelta) && (
+                        <span className="small muted num">
+                          {c.paymentDelta.toLocaleString("ko-KR")}원
+                        </span>
+                      )}
+                      {c.reason && (
+                        <span className="small muted">{c.reason}</span>
+                      )}
+                      {c.lines?.map((l, index) => (
+                        <span key={index} className="small muted num">
+                          {l.itemName || "품목"} {l.quantity}개
+                        </span>
+                      ))}
+                    </li>
+                  ))}
+              </ol>
+            )}
+          </section>
+        </div>
       </div>
-      <dl className="po-money">
-        <div>
-          <dt>정산 금액</dt>
-          <dd>
-            <Money value={total(o)} />
-          </dd>
-        </div>
-        <div>
-          <dt>순지급액</dt>
-          <dd>
-            <Money value={paidAmount(o)} />
-          </dd>
-        </div>
-        <div>
-          <dt>{due < 0 ? "돌려받을 금액" : "남은 지급액"}</dt>
-          <dd className={due !== 0 ? "tone-warn-text" : ""}>
-            <Money value={Math.abs(due)} />
-          </dd>
-        </div>
-      </dl>
-      {o.notes && <p className="po-note">{o.notes}</p>}
-      <div className="po-actions">
-        <Button variant="ghost" onClick={() => printOrder(o, store)}>
+      <div className="pob-detail-foot">
+        <Button
+          variant="ghost"
+          className="pob-print"
+          onClick={() => printOrder(o, store, orderNo)}
+        >
+          <Icon name="print" />
           발주서 인쇄
         </Button>
         {canManage && !o.cancelled && due > 0 && (
@@ -1197,125 +1423,110 @@ function OrderPanel({
           </Button>
         )}
       </div>
-      {canManage && !o.cancelled && (
-        <div className="po-more" role="group" aria-label="다른 처리">
-          {!o.shipped && hasPending && (
-            <button
-              type="button"
-              className="po-text-btn"
-              onClick={() => onAction("ship")}
-            >
-              배송 시작 기록
-            </button>
-          )}
-          <button
-            type="button"
-            className="po-text-btn"
-            onClick={() => onAction("settlement")}
-          >
-            분할 지급과 환급
-          </button>
-          {hasPending && (
-            <button
-              type="button"
-              className="po-text-btn"
-              onClick={() => onAction("closeRemaining")}
-            >
-              미입고 잔량 취소
-            </button>
-          )}
-          {canReturn && (
-            <button
-              type="button"
-              className="po-text-btn"
-              onClick={() => onAction("return")}
-            >
-              거래처 반품
-            </button>
-          )}
-          {canCancel && (
-            <button
-              type="button"
-              className="po-text-btn po-text-danger"
-              onClick={() => onAction("cancel")}
-            >
-              발주 취소
-            </button>
-          )}
-        </div>
-      )}
-      <h3 className="po-section-title">실제 입고 내역</h3>
-      {history.length ? (
-        <ul className="po-history">
-          {history.map((r) => {
-            const line = o.lines.find((l) => l.id === r.orderLineId);
-            return (
-              <li key={r.id} className="po-history-row">
-                <span className="po-history-text">
-                  <strong>
-                    {line?.itemName} {quantity(r.qty)}
-                    {line?.unit}
-                  </strong>
-                  <span className="small muted">{r.date}</span>
-                  <span className="small muted">{r.actorName}</span>
-                  {r.memo && <span className="small muted">{r.memo}</span>}
-                </span>
-                {r.status === "cancelled" ? (
-                  <Badge>입고 취소</Badge>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    onClick={() => onAction("receiptCancel", r.id)}
-                  >
-                    이 입고 취소
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="help">
-          아직 입고되지 않았어요. 실제 받은 수량만 입력하세요
-        </p>
-      )}
-      <p className="help">
-        잘못 넣은 입고는 취소한 뒤 다시 등록하세요. 이미 쓴 재고 때문에 수량이
-        음수가 되면 취소할 수 없어요
-      </p>
-      <details className="po-log">
-        <summary>발주 처리 이력</summary>
-        <ul>
-          {o.changes
-            .slice()
-            .reverse()
-            .map((c, i) => (
-              <li key={i}>
-                <strong>{c.action}</strong>
-                <span className="small muted">
-                  {c.at.slice(0, 10)} {c.actorName}
-                </span>
-                {c.reason && <span className="small muted">{c.reason}</span>}
-                {Number.isSafeInteger(c.paymentDelta) && (
-                  <span className="small muted">
-                    {c.paymentDelta.toLocaleString("ko-KR")}원
-                  </span>
-                )}
-                {c.lines?.map((l, index) => (
-                  <span key={index} className="small muted">
-                    {l.itemName || "품목"} {l.quantity}개
-                  </span>
-                ))}
-              </li>
-            ))}
-        </ul>
-      </details>
     </section>
+  );
+}
+const won = (value) => `${Number(value || 0).toLocaleString("ko-KR")}원`;
+const PAY_METHODS = [
+  ["계좌이체", "계좌이체"],
+  ["현금", "현금"],
+  ["카드", "카드"],
+];
+const SETTLEMENT_KINDS = [
+  ["payment", "대금 지급"],
+  ["refund", "거래처 환급 수령"],
+  ["void", "입력 정정"],
+];
+// Chip radio group (arrow keys move the choice), labelled by a visible field label.
+function ChipChoice({ label, options, value, onChange }) {
+  const id = useId();
+  const refs = useRef([]);
+  const selected = Math.max(
+    0,
+    options.findIndex(([v]) => v === value),
+  );
+  const move = (index) => {
+    const next = (index + options.length) % options.length;
+    onChange(options[next][0]);
+    refs.current[next]?.focus();
+  };
+  return (
+    <div className="field">
+      <span id={id} className="field-label">
+        {label}
+      </span>
+      <div role="radiogroup" aria-labelledby={id} className="chip-row">
+        {options.map(([option, text], index) => (
+          <button
+            key={option}
+            ref={(el) => (refs.current[index] = el)}
+            type="button"
+            role="radio"
+            className="chip pob-radio"
+            aria-checked={value === option}
+            tabIndex={index === selected ? 0 : -1}
+            onClick={() => onChange(option)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                e.preventDefault();
+                move(index + 1);
+              } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                e.preventDefault();
+                move(index - 1);
+              }
+            }}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+// Whole-number stepper: [−] [input] [+]; the input's accessible name is `label`.
+function CountStepper({ label, value, max, onChange }) {
+  const count = Number(value) || 0;
+  const set = (next) =>
+    onChange(String(Math.max(0, Math.min(max, next))) || "");
+  return (
+    <span className="pob-stepper">
+      <button
+        type="button"
+        className="po-step"
+        aria-label={`${label} 하나 줄이기`}
+        disabled={count <= 0}
+        onClick={() => set(count - 1)}
+      >
+        <Icon name="minus" />
+      </button>
+      <input
+        className={`pob-count num ${count > 0 ? "" : "is-zero"}`}
+        type="number"
+        inputMode="numeric"
+        aria-label={label}
+        min="0"
+        max={max}
+        step="1"
+        value={value || ""}
+        placeholder="0"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        className="po-step"
+        aria-label={`${label} 하나 늘리기`}
+        disabled={count >= max}
+        onClick={() => set(count + 1)}
+      >
+        <Icon name="plus" />
+      </button>
+    </span>
   );
 }
 function OrderAction({
   kind,
   order: o,
+  orderNo,
   receiptId,
   receipts,
   runAction,
@@ -1325,12 +1536,14 @@ function OrderAction({
   const [date, setDate] = useState(todayInSeoul()),
     [reason, setReason] = useState(""),
     [reference, setReference] = useState(""),
-    [amounts, setAmounts] = useState({});
+    [amounts, setAmounts] = useState({}),
+    [method, setMethod] = useState(PAY_METHODS[0][0]);
   const [settlementKind, setSettlementKind] = useState(
       balance(o) < 0 ? "refund" : "payment",
     ),
     [paymentAmount, setPaymentAmount] = useState(String(Math.abs(balance(o)))),
     [paymentId, setPaymentId] = useState("");
+  const lineMode = ["receive", "closeRemaining", "return"].includes(kind);
   const maxFor = (l) =>
     kind === "return"
       ? received(l, receipts) - returned(o, l)
@@ -1340,7 +1553,7 @@ function OrderAction({
     [dirty, setDirty] = useState(false);
   const [requestClose, closeGuard] = useCloseGuard(dirty, onClose);
   const titles = {
-    receive: "발주 입고",
+    receive: "입고 수량 입력",
     closeRemaining: "미입고 잔량 취소",
     return: "거래처 반품",
     settlement: "분할 지급과 환급",
@@ -1349,6 +1562,22 @@ function OrderAction({
     payment: o.paid ? "지급 기록 정정" : "대금 지급 기록",
     receiptCancel: "발주 입고 취소",
   };
+  const saveLabel =
+    kind === "receive" ? "발주 입고 저장" : `${titles[kind]} 저장`;
+  const setAmount = (lineId, value) => {
+    setAmounts((a) => ({ ...a, [lineId]: value }));
+    setDirty(true);
+  };
+  const due = balance(o);
+  const settlementMax =
+    settlementKind === "refund" ? Math.max(0, -due) : Math.max(0, due);
+  const voidable = o.changes.filter(
+    (c) =>
+      c.paymentId &&
+      c.paymentDelta &&
+      !c.voids &&
+      !o.changes.some((v) => v.voids === c.paymentId),
+  );
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
@@ -1356,7 +1585,7 @@ function OrderAction({
     setError("");
     try {
       let p = { id: o.id };
-      if (["receive", "closeRemaining", "return"].includes(kind))
+      if (lineMode)
         p = {
           ...p,
           date,
@@ -1376,8 +1605,15 @@ function OrderAction({
           reference,
           paymentId,
         };
+      // The server keeps no payment-method field, so the method is saved with the memo.
       if (kind === "payment")
-        p = { ...p, paid: !o.paid, paidDate: date, reason, reference };
+        p = {
+          ...p,
+          paid: !o.paid,
+          paidDate: date,
+          reason: o.paid ? reason : `${reason} (${method})`,
+          reference,
+        };
       if (kind === "cancel" || kind === "receiptCancel")
         p = { ...p, reason, receiptId };
       await runAction(`purchase.${kind}`, p);
@@ -1388,13 +1624,65 @@ function OrderAction({
       setBusy(false);
     }
   };
+  const rows = lineMode
+    ? o.lines.filter((l) =>
+        kind === "receive"
+          ? l.quantity - cancelled(o, l) > 0
+          : maxFor(l) > 0,
+      )
+    : [];
+  const picked = rows.filter((l) => Number(amounts[l.id]) > 0);
+  const pickedCount = picked.reduce((s, l) => s + Number(amounts[l.id]), 0);
+  const pickedCost = picked.reduce(
+    (s, l) => s + Number(amounts[l.id]) * l.unitCost,
+    0,
+  );
+  const countLabel = (l) =>
+    `${l.itemName} ${kind === "return" ? "반품" : kind === "closeRemaining" ? "취소" : "이번 입고"} 개수`;
+  // Payable balance after this settlement is saved (negative = refund owed to us).
+  const settlementDelta =
+    settlementKind === "void"
+      ? -(voidable.find((c) => c.paymentId === paymentId)?.paymentDelta || 0)
+      : (settlementKind === "refund" ? -1 : 1) * (Number(paymentAmount) || 0);
+  const nextDue = due - settlementDelta;
+  let summary = null;
+  if (kind === "receive")
+    summary = (
+      <span className="pob-foot-sum">
+        <span className="small muted">이번 입고</span>
+        <strong className="num">
+          {picked.length ? `${picked.length}품목 ${pickedCount}개` : "없음"}
+        </strong>
+      </span>
+    );
+  if (kind === "return")
+    summary = (
+      <span className="pob-foot-sum">
+        <span className="small muted">이번 반품</span>
+        <strong className="num">
+          {pickedCount ? `${pickedCount}개 ${won(pickedCost)}` : "없음"}
+        </strong>
+      </span>
+    );
+  if (kind === "settlement")
+    summary = (
+      <span className="pob-foot-sum">
+        <span className="small muted">
+          {nextDue < 0 ? "저장하면 돌려받을 금액" : "저장하면 남은 지급액"}
+        </span>
+        <strong className="num">{won(Math.abs(nextDue))}</strong>
+      </span>
+    );
   return (
     <Modal
       title={titles[kind]}
+      subtitle={`${o.supplierName} 발주 ${orderNo}`}
+      size="wide"
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
         <>
+          {summary}
           <Button variant="secondary" onClick={requestClose} disabled={busy}>
             돌아가기
           </Button>
@@ -1406,7 +1694,7 @@ function OrderAction({
             }
             busy={busy}
           >
-            {titles[kind]} 저장
+            {saveLabel}
           </Button>
         </>
       }
@@ -1423,22 +1711,33 @@ function OrderAction({
               {error}
             </div>
           )}
-          <div className="inset po-summary">
-            <strong>{o.supplierName}</strong>
-            <span className="muted">
-              발주 총 금액 <Money value={total(o)} />
-            </span>
-          </div>
-          {["receive", "closeRemaining", "return"].includes(kind) && (
-            <>
-              <p className="help">
-                {kind === "return"
-                  ? "실제로 거래처에 반품한 개수를 넣으세요. 재고와 매입 금액이 줄고, 환급은 따로 기록해요"
-                  : kind === "closeRemaining"
-                    ? "더 받지 않을 잔량만 취소해요. 이미 받은 물품의 재고는 그대로예요"
-                    : "실제 받은 개수만 넣으세요. 미입고 잔량보다 많이 넣을 수 없어요"}
-              </p>
-              <Field label={kind === "receive" ? "입고일" : "처리일"}>
+          {!["payment", "settlement"].includes(kind) && (
+            <div className="pob-order-row">
+              <span className="pob-order-text">
+                <strong>{dateLabel(o.date)} 발주</strong>
+                {kind === "receive" && (
+                  <span className="small muted">
+                    실제 받은 개수만 넣어 주세요. 남은 개수보다 많이 넣을 수
+                    없어요
+                  </span>
+                )}
+              </span>
+              <span className="pob-order-side">
+                <span className="small muted">발주 총 금액</span>
+                <strong className="num">{won(total(o))}</strong>
+              </span>
+            </div>
+          )}
+          {["closeRemaining", "return"].includes(kind) && (
+            <p className="help">
+              {kind === "return"
+                ? "실제로 거래처에 돌려보낸 개수를 넣어 주세요. 재고와 매입 금액이 줄고, 환급은 분할 지급과 환급에서 따로 기록해요"
+                : "더 받지 않을 잔량만 취소해요. 이미 받은 물품의 재고는 그대로예요"}
+            </p>
+          )}
+          {kind === "receive" && (
+            <div className="pob-date-grid">
+              <Field label="입고일">
                 <DateInput
                   required
                   min={o.date}
@@ -1447,113 +1746,118 @@ function OrderAction({
                   onChange={(e) => setDate(e.target.value)}
                 />
               </Field>
-              {o.lines
-                .filter((l) => maxFor(l) > 0)
-                .map((l) => (
-                  <Field
-                    key={l.id}
-                    label={`${l.itemName} ${kind === "return" ? "반품" : kind === "closeRemaining" ? "취소" : "이번 입고"} 개수`}
-                    help={`처리 가능 ${maxFor(l)}개`}
-                  >
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      max={maxFor(l)}
-                      step="1"
-                      value={amounts[l.id] || ""}
-                      placeholder="실제 받은 개수"
-                      onChange={(e) =>
-                        setAmounts((a) => ({ ...a, [l.id]: e.target.value }))
-                      }
-                    />
-                  </Field>
-                ))}
-            </>
+              <Field label="입고 메모 (선택)">
+                <input
+                  maxLength={500}
+                  placeholder="예: 박스 하나 찌그러져 도착"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+          {["closeRemaining", "return"].includes(kind) && (
+            <Field label="처리일" className="pob-date-field">
+              <DateInput
+                required
+                min={o.date}
+                max={todayInSeoul()}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </Field>
+          )}
+          {lineMode && (
+            <PickedLines
+              kind={kind}
+              order={o}
+              rows={rows}
+              amounts={amounts}
+              receipts={receipts}
+              maxFor={maxFor}
+              countLabel={countLabel}
+              setAmount={setAmount}
+            />
           )}
           {kind === "settlement" && (
             <>
+              <dl className="pob-facts pob-facts-3">
+                <div>
+                  <dt>현재 순지급액</dt>
+                  <dd>{won(paidAmount(o))}</dd>
+                </div>
+                <div>
+                  <dt>남은 지급액</dt>
+                  <dd className={due > 0 ? "tone-warn-text" : "is-zero"}>
+                    {won(Math.max(0, due))}
+                  </dd>
+                </div>
+                <div>
+                  <dt>돌려받을 금액</dt>
+                  <dd className={due < 0 ? "tone-warn-text" : "is-zero"}>
+                    {won(Math.max(0, -due))}
+                  </dd>
+                </div>
+              </dl>
               <p className="help">
                 실제 송금이나 환급 결과를 기록해요. 잘못 넣은 기록은 입력
                 정정으로 취소 이력을 남겨요
               </p>
-              <dl className="kv">
-                <dt>현재 순지급액</dt>
-                <dd>
-                  <Money value={paidAmount(o)} />
-                </dd>
-                <dt>남은 지급액</dt>
-                <dd>
-                  <Money value={Math.max(0, balance(o))} />
-                </dd>
-                <dt>환급받을 금액</dt>
-                <dd>
-                  <Money value={Math.max(0, -balance(o))} />
-                </dd>
-              </dl>
-              <Field label="정산 구분">
-                <select
-                  value={settlementKind}
-                  onChange={(e) => {
-                    setSettlementKind(e.target.value);
-                    setPaymentAmount(
-                      String(
-                        e.target.value === "refund"
-                          ? Math.max(0, -balance(o))
-                          : Math.max(0, balance(o)),
-                      ),
-                    );
-                  }}
-                >
-                  <option value="payment">대금 지급</option>
-                  <option value="refund">거래처 환급 수령</option>
-                  <option value="void">입력 정정</option>
-                </select>
-              </Field>
-              {settlementKind === "void" ? (
-                <Field label="정정할 기록">
-                  <select
-                    required
-                    value={paymentId}
-                    onChange={(e) => setPaymentId(e.target.value)}
-                  >
-                    <option value="">선택하세요</option>
-                    {o.changes
-                      .filter(
-                        (c) =>
-                          c.paymentId &&
-                          c.paymentDelta &&
-                          !c.voids &&
-                          !o.changes.some((v) => v.voids === c.paymentId),
-                      )
-                      .map((c) => (
+              <ChipChoice
+                label="정산 구분"
+                options={SETTLEMENT_KINDS}
+                value={settlementKind}
+                onChange={(next) => {
+                  setSettlementKind(next);
+                  setDirty(true);
+                  setPaymentAmount(
+                    String(
+                      next === "refund" ? Math.max(0, -due) : Math.max(0, due),
+                    ),
+                  );
+                }}
+              />
+              <div className="po-grid-3">
+                {settlementKind === "void" ? (
+                  <Field label="정정할 기록">
+                    <select
+                      required
+                      value={paymentId}
+                      onChange={(e) => setPaymentId(e.target.value)}
+                    >
+                      <option value="">선택하세요</option>
+                      {voidable.map((c) => (
                         <option key={c.paymentId} value={c.paymentId}>
                           {c.date || c.at.slice(0, 10)}{" "}
                           {c.paymentDelta.toLocaleString("ko-KR")}원 (
                           {c.reason || c.action})
                         </option>
                       ))}
-                  </select>
-                </Field>
-              ) : (
-                <Field label="이번 정산 금액 (원)">
-                  <input
-                    required
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    step="1"
-                    max={
-                      settlementKind === "refund"
-                        ? Math.max(0, -balance(o))
-                        : Math.max(0, balance(o))
-                    }
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                  />
-                </Field>
-              )}
-              <div className="po-grid-2">
+                    </select>
+                  </Field>
+                ) : (
+                  <Field
+                    label="이번 정산 금액"
+                    help={`최대 ${won(settlementMax)}`}
+                  >
+                    <span className="pob-suffix">
+                      <input
+                        required
+                        className="num"
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        step="1"
+                        max={settlementMax}
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                      />
+                      <span className="pob-unit" aria-hidden="true">
+                        원
+                      </span>
+                    </span>
+                  </Field>
+                )}
                 <Field label="정산일">
                   <DateInput
                     required
@@ -1562,10 +1866,11 @@ function OrderAction({
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </Field>
-                <Field label="거래 참조번호">
+                <Field label="거래 참조번호 (선택)">
                   <input
                     value={reference}
                     maxLength={100}
+                    placeholder="이체 번호"
                     onChange={(e) => setReference(e.target.value)}
                   />
                 </Field>
@@ -1574,51 +1879,90 @@ function OrderAction({
           )}
           {kind === "ship" && (
             <p className="help">
-              거래처에서 배송을 시작한 걸 확인한 뒤 기록하세요. 실제 재고는 입고
-              수량을 넣을 때 늘어요
+              거래처에서 배송을 시작한 걸 확인한 뒤 기록해 주세요. 실제 재고는
+              입고 수량을 넣을 때 늘어요
             </p>
           )}
           {kind === "payment" && (
             <>
-              <p className="help">
-                {o.paid
-                  ? "지급 기록을 미지급으로 정정해요. 실제 이체 취소나 환불은 거래처와 따로 처리하세요"
-                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부만 지급했다면 분할 지급과 환급을 쓰세요"}
-              </p>
               {!o.paid && (
-                <div className="inset po-summary">
-                  <span className="muted">이번에 기록할 남은 대금</span>
-                  <strong>
-                    <Money value={Math.max(0, balance(o))} />
-                  </strong>
+                <div className="pob-pay-card">
+                  <span className="pob-stat">
+                    <span className="small muted">이번에 기록할 남은 대금</span>
+                    <strong className="pob-big num">
+                      {won(Math.max(0, due))}
+                    </strong>
+                  </span>
+                  <span className="pob-pay-side">
+                    <span className="small muted">
+                      발주 총 금액 {won(total(o))}
+                    </span>
+                    <span className="small muted">
+                      이미 지급 {won(paidAmount(o))}
+                    </span>
+                  </span>
                 </div>
               )}
-              {!o.paid && (
-                <Field label="대금 지급일">
-                  <DateInput
-                    required
-                    max={todayInSeoul()}
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
+              <p className="help">
+                {o.paid
+                  ? "지급 기록을 미지급으로 정정해요. 실제 이체 취소나 환불은 거래처와 따로 처리해 주세요"
+                  : "남은 대금을 실제로 모두 지급한 뒤 기록해 주세요. 일부만 지급했다면 분할 지급과 환급을 써요"}
+              </p>
+              <div className={o.paid ? "" : "po-grid-2"}>
+                {!o.paid && (
+                  <Field label="실제 지급일">
+                    <DateInput
+                      required
+                      max={todayInSeoul()}
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                    />
+                  </Field>
+                )}
+                <Field label="이체 확인 번호 (선택)">
+                  <input
+                    maxLength={100}
+                    placeholder="은행 앱의 거래 번호"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
                   />
                 </Field>
-              )}
-              <Field label="이체 확인 번호 (선택)">
-                <input
-                  maxLength={100}
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
+              </div>
+              {!o.paid && (
+                <ChipChoice
+                  label="지급 수단"
+                  options={PAY_METHODS}
+                  value={method}
+                  onChange={(next) => {
+                    setMethod(next);
+                    setDirty(true);
+                  }}
                 />
-              </Field>
+              )}
             </>
           )}
-          {kind !== "ship" && (
+          {!["ship", "receive"].includes(kind) && (
             <Field
-              label={kind === "receive" ? "입고 메모" : "처리 사유 / 메모"}
+              label={
+                ["payment", "settlement"].includes(kind)
+                  ? "메모 (필수)"
+                  : "처리 사유 (필수)"
+              }
             >
               <textarea
-                required={kind !== "receive"}
-                maxLength={500}
+                required
+                rows="2"
+                maxLength={kind === "payment" ? 480 : 500}
+                placeholder={
+                  {
+                    closeRemaining: "예: 거래처 품절",
+                    return: "예: 파손품 반품",
+                    settlement: "예: 1차 분할 지급, 반품 환급 입금 확인",
+                    payment: "예: 11월분 잔금 이체",
+                    cancel: "예: 거래처 사정으로 주문 취소",
+                    receiptCancel: "예: 입고 수량을 잘못 넣었어요",
+                  }[kind]
+                }
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
@@ -1628,6 +1972,100 @@ function OrderAction({
       </form>
       {closeGuard}
     </Modal>
+  );
+}
+// Line rows with a count stepper (PurchaseReceive and PurchaseCancelReturn boards).
+function PickedLines({
+  kind,
+  order: o,
+  rows,
+  amounts,
+  receipts,
+  maxFor,
+  countLabel,
+  setAmount,
+}) {
+  const groupId = useId();
+  return (
+    <div className="pob-lines" role="group" aria-labelledby={groupId}>
+      <span id={groupId} className="field-label">
+        {kind === "receive"
+          ? "이번에 받은 개수"
+          : kind === "return"
+            ? "반품할 개수"
+            : "취소할 개수"}
+      </span>
+      {rows.map((l) => {
+        const max = maxFor(l);
+        const value = amounts[l.id] || "";
+        const count = Number(value) || 0;
+        const ordered = l.quantity - cancelled(o, l);
+        const got = received(l, receipts);
+        const pack = `1개 ${quantity(l.packSize)}${l.unit}`;
+        let notes;
+        if (kind === "receive") notes = [pack];
+        else if (kind === "closeRemaining")
+          notes = [
+            `${ordered}개 중 ${got}개 입고`,
+            count > 0 ? `매입 금액 ${won(count * l.unitCost)} 줄어요` : pack,
+          ];
+        else
+          notes = [
+            `받은 ${got - returned(o, l)}개`,
+            count > 0
+              ? `재고 ${quantity(count * l.packSize)}${l.unit}와 매입 금액 ${won(count * l.unitCost)} 줄어요`
+              : pack,
+          ];
+        return (
+          <div
+            key={l.id}
+            className={`pob-line-row ${count > 0 ? "is-picked" : ""}`}
+          >
+            <span className="pob-line-name">
+              <strong>{l.itemName}</strong>
+              {notes.map((note) => (
+                <span key={note} className="small muted">
+                  {note}
+                </span>
+              ))}
+            </span>
+            {kind === "receive" ? (
+              <>
+                <span className="pob-line-stat">
+                  <span className="small muted">발주</span>
+                  <span className="num">{ordered}개</span>
+                </span>
+                <span className="pob-line-stat is-got">
+                  <span className="small muted">받음</span>
+                  <span className="num">{got}개</span>
+                </span>
+                <span className={`pob-line-stat ${max > 0 ? "is-left" : "is-none"}`}>
+                  <span className="small muted">남음</span>
+                  <span className="num">{max}개</span>
+                </span>
+              </>
+            ) : (
+              <span className="pob-line-stat is-wide">
+                <span className="small muted">처리 가능</span>
+                <span className="num">{max}개</span>
+              </span>
+            )}
+            <span className="pob-line-control">
+              {max > 0 ? (
+                <CountStepper
+                  label={countLabel(l)}
+                  value={value}
+                  max={max}
+                  onChange={(next) => setAmount(l.id, next)}
+                />
+              ) : (
+                <Badge tone="success">모두 받았어요</Badge>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1772,40 +2210,107 @@ function RequestList({ data, canManage, runAction, notify }) {
         />
       )}
       {rejecting && (
-        <Modal
-          title={`${rejecting.itemName} 요청 반려`}
-          onClose={busy ? undefined : () => setRejecting(null)}
-          dirty={!!note}
-          footer={
-            <Button
-              variant="danger"
-              busy={busy === rejecting.id}
-              disabled={!note.trim()}
-              onClick={() => decide(rejecting, "rejected", note)}
-            >
-              반려
-            </Button>
-          }
-        >
-          <div className="po-form po-fieldset">
-            {error && (
-              <div className="alert alert-danger" role="alert">
-                {error}
-              </div>
-            )}
-            <Field label="반려 사유" help="요청한 직원에게 보여요">
-              <textarea
-                className="textarea"
-                rows="3"
-                maxLength={300}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </Field>
-          </div>
-        </Modal>
+        <RejectDialog
+          request={rejecting}
+          item={(data.items || []).find((i) => i.id === rejecting.itemId)}
+          note={note}
+          setNote={setNote}
+          busy={busy === rejecting.id}
+          locked={!!busy}
+          error={error}
+          onClose={() => setRejecting(null)}
+          onReject={() => decide(rejecting, "rejected", note)}
+        />
       )}
     </section>
+  );
+}
+
+// RequestReject board: request facts, then the reason shown to the requester.
+function RejectDialog({
+  request: r,
+  item,
+  note,
+  setNote,
+  busy,
+  locked,
+  error,
+  onClose,
+  onReject,
+}) {
+  const [asking, setAsking] = useState(false);
+  const close = () => (note ? setAsking(true) : onClose());
+  const low = item && Number(item.qty) <= Number(item.min);
+  const facts = [
+    ["요청 수량", `${r.quantity}개`],
+    ["요청자", r.requestedBy || "기존 기록"],
+    ["요청일", String(r.createdAt || "").slice(0, 10)],
+    ...(item
+      ? [
+          ["지금 재고", `${quantity(item.qty)}${item.unit}`, low],
+          ["보충 기준", `${quantity(item.min)}${item.unit}`],
+        ]
+      : []),
+    ...(r.note ? [["요청 메모", r.note]] : []),
+  ];
+  return (
+    <Modal
+      title={`${r.itemName} 요청 반려`}
+      size="wide"
+      onClose={locked ? undefined : onClose}
+      dirty={!!note}
+      footer={
+        <>
+          <Button variant="secondary" onClick={close} disabled={locked}>
+            취소
+          </Button>
+          <Button
+            variant="danger"
+            busy={busy}
+            disabled={!note.trim()}
+            onClick={onReject}
+          >
+            반려
+          </Button>
+        </>
+      }
+    >
+      <div className="po-form po-fieldset">
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
+          </div>
+        )}
+        <dl className="pob-facts pob-facts-3">
+          {facts.map(([label, value, warn]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd className={warn ? "tone-warn-text" : ""}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <Field label="반려 사유" help="요청한 직원에게 보여요">
+          <textarea
+            className="textarea"
+            rows="3"
+            maxLength={300}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </Field>
+      </div>
+      {asking && (
+        <ConfirmDialog
+          title="작성 중인 내용을 닫을까요?"
+          onClose={() => setAsking(false)}
+          onConfirm={onClose}
+          confirmLabel="내용 버리고 닫기"
+          variant="danger"
+        >
+          저장하지 않은 변경사항이 사라집니다.
+        </ConfirmDialog>
+      )}
+    </Modal>
   );
 }
 

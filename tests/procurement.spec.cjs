@@ -129,7 +129,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
   await dialog(page)
     .getByRole("button", { name: "발주 입고 저장", exact: true })
     .click();
-  await expect(dialog(page).getByText("대기", { exact: true })).toBeVisible();
+  await expect(dialog(page).getByText("부분 입고", { exact: true })).toBeVisible();
   expect((await state(page)).data.items[0].qty).toBe(500);
   await close(page);
   await page.getByLabel("배송 상태", { exact: true }).selectOption("waiting");
@@ -154,7 +154,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .getByRole("button", { name: "대금 지급 기록", exact: true })
     .click();
   await dialog(page)
-    .getByLabel("처리 사유 / 메모", { exact: true })
+    .getByLabel("메모 (필수)", { exact: true })
     .fill("거래처 대금 이체 확인");
   await dialog(page)
     .getByRole("button", { name: "대금 지급 기록 저장", exact: true })
@@ -255,8 +255,8 @@ test("거래처 미사용 필터와 모바일 간편 발주 입력, 오류 후 �
     .getByRole("button", { name: "모바일 공급사 수정", exact: true })
     .click();
   await dialog(page)
-    .getByLabel("사용 상태", { exact: true })
-    .selectOption("false");
+    .getByRole("switch", { name: "사용", exact: true })
+    .click();
   await dialog(page).getByRole("button", { name: "저장", exact: true }).click();
   // Wait for the supplier dialog (which has its own 사용 상태 field) to close.
   await expect(page.getByRole("dialog")).toHaveCount(0);

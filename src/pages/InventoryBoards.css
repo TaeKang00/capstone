@@ -581,3 +581,28 @@
     min-height: 44px;
   }
 }
+
+/* The shared input rule in styles.css is very specific; these controls need to win over it. */
+.inv-form .invb-qty-box .invb-qty-row .stepper input.inv-qty-input.num {
+  width: 96px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: center;
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.inv-form .invb-qty-box .invb-qty-row .stepper input.inv-qty-input.num:hover {
+  border-color: var(--line-strong);
+}
+.inv-form .invb-qty-box .invb-qty-row .stepper input.inv-qty-input.num:focus {
+  border-color: var(--accent);
+}
+.inv-form .inv-fieldset .field .invb-suffix input.input.num {
+  padding-right: 48px;
+}

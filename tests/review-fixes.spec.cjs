@@ -157,7 +157,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
     .getByLabel("케어 재료 취소 개수", { exact: true })
     .fill("1");
   await dialog(page)
-    .getByLabel("처리 사유 / 메모", { exact: true })
+    .getByLabel("처리 사유 (필수)", { exact: true })
     .fill("품절로 잔량 취소");
   await dialog(page)
     .getByRole("button", { name: "미입고 잔량 취소 저장", exact: true })
@@ -170,10 +170,10 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
       .getByRole("button", { name: "분할 지급과 환급", exact: true })
       .click();
     await dialog(page)
-      .getByLabel("이번 정산 금액 (원)", { exact: true })
+      .getByLabel("이번 정산 금액", { exact: true })
       .fill(String(amount));
     await dialog(page)
-      .getByLabel("처리 사유 / 메모", { exact: true })
+      .getByLabel("메모 (필수)", { exact: true })
       .fill("이체 확인");
     await dialog(page)
       .getByRole("button", { name: "분할 지급과 환급 저장", exact: true })
@@ -190,7 +190,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
     .getByLabel("케어 재료 반품 개수", { exact: true })
     .fill("1");
   await dialog(page)
-    .getByLabel("처리 사유 / 메모", { exact: true })
+    .getByLabel("처리 사유 (필수)", { exact: true })
     .fill("불량 실제 반품");
   await dialog(page)
     .getByRole("button", { name: "거래처 반품 저장", exact: true })
@@ -200,10 +200,10 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
     .getByRole("button", { name: "분할 지급과 환급", exact: true })
     .click();
   await expect(
-    dialog(page).getByLabel("정산 구분", { exact: true }),
-  ).toHaveValue("refund");
+    dialog(page).getByRole("radio", { name: "거래처 환급 수령", exact: true }),
+  ).toHaveAttribute("aria-checked", "true");
   await dialog(page)
-    .getByLabel("처리 사유 / 메모", { exact: true })
+    .getByLabel("메모 (필수)", { exact: true })
     .fill("반품 대금 반환 확인");
   await dialog(page)
     .getByRole("button", { name: "분할 지급과 환급 저장", exact: true })

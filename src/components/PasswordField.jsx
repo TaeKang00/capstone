@@ -49,3 +49,5 @@ export function PasswordRules({ value, confirm, min = 12 }) {
     </div>
   );
 }
+
+PasswordField.isFieldControl = true;

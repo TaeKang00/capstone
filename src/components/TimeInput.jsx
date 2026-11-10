@@ -180,4 +180,5 @@ export const TimeInput = forwardRef(function TimeInput(
     </span>
   );
 });
+TimeInput.isFieldControl = "picker";
 export default TimeInput;

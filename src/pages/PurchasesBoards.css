@@ -1,0 +1,490 @@
+/* ===== 발주 detail panel (PurchaseDetail board) and order dialogs
+   (PurchaseReceive, PurchasePayment, PurchaseSettlement, PurchaseCancelReturn, SupplierForm, CategoryForm, RequestReject). */
+
+/* Detail panel: 640px beside the list, full width once it wraps below */
+.po-layout {
+  gap: 24px;
+}
+.po-layout > .po-list {
+  flex-basis: 480px;
+}
+.po-layout > .po-detail {
+  flex: 1 0 min(640px, 100%);
+  padding: 24px;
+  gap: 24px;
+  border-color: var(--line);
+  container-type: inline-size;
+}
+.po-layout > .po-detail-empty {
+  flex: 1 0 min(640px, 100%);
+}
+.po-card[aria-current="true"] {
+  background: var(--surface-2);
+}
+.pob-detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@container (min-width: 560px) {
+  .pob-detail-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.pob-detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.pob-detail-side {
+  gap: 24px;
+}
+.po-detail .po-line {
+  padding: 12px 16px;
+}
+.po-detail .po-bar > span {
+  background: var(--accent);
+}
+.po-detail .po-line.is-partial .po-bar > span {
+  background: var(--warn);
+}
+.po-detail .po-line.is-done .po-bar > span {
+  background: var(--ok);
+}
+.pob-line-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pob-line-state {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.po-line.is-done .pob-line-state {
+  color: var(--ok);
+}
+.pob-more {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pob-more-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pob-outline-btn {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pob-outline-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.pob-outline-btn.is-danger,
+.pob-outline-btn.is-danger:hover {
+  color: var(--danger);
+}
+.pob-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.pob-section h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.pob-section .help {
+  margin: 0;
+}
+.po-detail .po-history-row {
+  padding: 12px 16px;
+}
+.po-history-text .num {
+  color: var(--text);
+}
+.po-detail .pob-history-cancel {
+  padding: 0 8px;
+  color: var(--text-muted);
+}
+.pob-toggle {
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+}
+.pob-toggle .icon {
+  color: var(--text-muted);
+}
+.pob-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pob-log > li {
+  position: relative;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pob-log > li:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.pob-log-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pob-log-top strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.pob-log-top .small {
+  flex: none;
+}
+.pob-detail-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.pob-detail-foot .pob-print {
+  margin-right: auto;
+  color: var(--text-muted);
+}
+
+/* Fact grid in an inset box (panel, settlement, reject dialogs) */
+.pob-facts {
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.pob-facts-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.pob-facts-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pob-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pob-facts dt {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.pob-facts dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.pob-facts dd.tone-warn-text {
+  color: var(--warn);
+}
+.pob-facts dd.is-zero {
+  color: var(--text-meta);
+}
+
+/* Order dialogs */
+.pob-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.pob-order-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pob-order-text strong,
+.pob-order-side strong,
+.pob-foot-sum strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.pob-order-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pob-date-grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+}
+.po-form .pob-date-field {
+  width: 240px;
+  max-width: 100%;
+}
+.pob-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pob-line-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.pob-line-row.is-picked {
+  border-color: var(--accent);
+}
+.pob-line-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pob-line-name strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.pob-line-stat {
+  flex: none;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pob-line-stat > .num {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.pob-line-stat.is-got > .num {
+  color: var(--text-muted);
+}
+.pob-line-stat.is-left > .num {
+  color: var(--warn);
+}
+.pob-line-stat.is-none > .num {
+  color: var(--text-meta);
+}
+.pob-line-stat.is-wide {
+  width: 80px;
+  align-items: flex-end;
+}
+.pob-line-control {
+  flex: none;
+  width: 176px;
+  display: flex;
+  justify-content: flex-end;
+}
+.pob-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pob-stepper .po-step {
+  width: 44px;
+  height: 44px;
+}
+.pob-stepper .po-step:disabled {
+  opacity: 0.35;
+}
+.po-form .pob-stepper input.pob-count {
+  width: 64px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  text-align: center;
+  font-weight: 600;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.po-form .pob-stepper input.pob-count.is-zero {
+  color: var(--text-meta);
+}
+.pob-foot-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pob-radio {
+  border: 1px solid var(--line-strong);
+}
+.pob-radio[aria-checked="true"] {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.pob-pay-card {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.pob-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pob-big {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.pob-pay-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+.pob-suffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.po-form .pob-suffix input {
+  width: 100%;
+  padding-right: 40px;
+}
+.pob-unit {
+  position: absolute;
+  right: 12px;
+  color: var(--text-meta);
+  pointer-events: none;
+}
+.pob-switch-row {
+  min-height: 64px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.pob-switch-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pob-switch-text > span:first-child {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+@media (max-width: 640px) {
+  .po-layout > .po-detail {
+    padding: 16px;
+  }
+  .pob-facts-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pob-date-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pob-line-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .pob-line-name {
+    flex: 1 1 100%;
+  }
+  .pob-line-control {
+    flex: 1 1 auto;
+    width: auto;
+  }
+  .pob-pay-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .pob-pay-side {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .pob-big {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .modal-footer .pob-foot-sum {
+    flex: 1 1 100%;
+  }
+  .pob-detail-foot .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* The shared input rule in styles.css is very specific; these controls need to win over it. */
+.po-form .pob-lines .pob-line-row .pob-stepper input.pob-count.num {
+  width: 64px;
+  padding: 0 8px;
+  text-align: center;
+  font-weight: 600;
+}
+.po-form .po-fieldset .field .pob-suffix input.num.num {
+  padding-right: 40px;
+}
