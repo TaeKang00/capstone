@@ -26,15 +26,13 @@ test("드롭다운은 펼친 목록과 키보드로 선택하고 Escape가 작�
   await page.keyboard.press("Enter");
   await expect(select).toHaveValue("all");
   await goTo(page, "직원 관리");
-  await page.getByRole("button", { name: "＋ 직원 등록", exact: true }).click();
+  await page.getByRole("button", { name: "직원 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "직원 등록", exact: true });
-  const role = dialog.getByLabel("역할", { exact: true });
-  await role.click();
-  await page.keyboard.press("Escape");
+  const role = dialog.getByRole("radiogroup", { name: "역할", exact: true });
+  const reception = role.getByRole("radio", { name: "접수 직원", exact: true });
+  await reception.click();
+  await expect(reception).toHaveAttribute("aria-checked", "true");
   await expect(dialog).toBeVisible();
-  await role.click();
-  await page.getByRole("option", { name: "접수 직원", exact: true }).click();
-  await expect(role).toHaveValue("reception");
 });
 
 test("기간 달력에서 시작일과 끝나는 날을 골라 적용한다", async ({ page }) => {

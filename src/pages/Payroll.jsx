@@ -1,11 +1,12 @@
 import { DateInput } from "../components/DateInput.jsx";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useViewState } from "../components/ViewState";
+import Icon from "../components/Icon";
 import {
   Button,
   Modal,
   Field,
-  Badge,
   EmptyState,
   Money,
   ConfirmDialog,
@@ -14,10 +15,14 @@ import "./Payroll.css";
 
 const statusText = {
   draft: "작성 중",
-  finalized: "확정 · 지급 대기",
+  finalized: "확정",
   paid: "지급 완료",
 };
-const statusTone = { draft: "muted", finalized: "warning", paid: "success" };
+const statusTone = {
+  draft: "status-warn",
+  finalized: "pay-status-final",
+  paid: "status-ok",
+};
 const roleText = {
   owner: "원장",
   manager: "매니저",
@@ -116,6 +121,26 @@ export function attendanceSummary(data, staffId, month) {
     overtime: Math.round((overtime / 60) * 10) / 10,
   };
 }
+const monthTitle = (month = "") =>
+  `${month.slice(0, 4)}년 ${Number(month.slice(5, 7))}월`;
+const dayTitle = (date) =>
+  date ? `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일` : "없음";
+const dateTime = (value) =>
+  new Date(value).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+function basisLabel(record) {
+  const rate = Number(record.commissionRate || 0);
+  if (rate > 0) return `기본급과 인센티브 ${rate}%`;
+  if (record.allowances?.length)
+    return `기본급과 수당 ${record.allowances.length}건`;
+  return "기본급";
+}
+const changeText = {
+  created: "작성",
+  updated: "수정",
+  finalized: "확정",
+  reopened: "확정 취소",
+  paid: "지급 완료",
+};
 function initialForm(month, staffId) {
   return {
     staffId,
@@ -132,12 +157,14 @@ function initialForm(month, staffId) {
     notes: "",
   };
 }
-function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
+function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) {
   const [form, setForm] = useState(initial);
   const [dirty, setDirty] = useState(false);
-  const [discard, setDiscard] = useState(false);
   const [copySource, setCopySource] = useState(null);
   const [copiedFrom, setCopiedFrom] = useState(null);
+  const [intent, setIntent] = useState("draft");
+  const finalizeRef = useRef(false);
+  const ids = useId();
   const set = (key, value) => {
     setDirty(true);
     setForm((current) => ({ ...current, [key]: value }));
@@ -145,6 +172,13 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
   const identityLocked = Boolean(
     initial.changes?.some((change) => change.kind === "finalized"),
   );
+  const taken = (staffId) =>
+    (data.payroll || []).some(
+      (record) =>
+        record.id !== initial.id &&
+        record.staffId === staffId &&
+        record.month === form.month,
+    );
   const existing = (data.payroll || []).find(
     (record) =>
       record.id !== initial.id &&
@@ -192,12 +226,13 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
     (sum, item) => sum + Number(item.amount || 0),
     0,
   );
-  const net = Number(form.basePay || 0) + commission + allowances - deductions;
+  const earnings = Number(form.basePay || 0) + commission + allowances;
+  const net = earnings - deductions;
   const [helperNote, setHelperNote] = useState("");
   const loadAttendance = () => {
     const summary = attendanceSummary(data, form.staffId, form.month);
     if (!summary.days && !summary.overtime) {
-      setHelperNote("이 달의 출퇴근·승인된 연장근무 기록이 없습니다.");
+      setHelperNote("이 달의 출퇴근 기록과 승인된 연장 근무가 없어요.");
       return;
     }
     setDirty(true);
@@ -208,13 +243,13 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
       overtimeHours: String(summary.overtime),
     }));
     setHelperNote(
-      `출퇴근 ${summary.days}일 · ${summary.hours}시간, 승인된 연장근무 ${summary.overtime}시간을 불러왔습니다. 휴게시간은 직원 근무 설정 기준으로 제외했습니다.`,
+      `출퇴근 ${summary.days}일, ${summary.hours}시간과 승인된 연장 ${summary.overtime}시간을 불러왔어요. 휴게 시간은 직원 근무 설정대로 뺐어요.`,
     );
   };
   const applyInsurance = () => {
     const base = Number(form.basePay || 0) + commission + allowances;
     if (!base) {
-      setHelperNote("기본급 또는 지급 항목을 먼저 입력해 주세요.");
+      setHelperNote("기본급이나 지급 항목을 먼저 입력해 주세요.");
       return;
     }
     const computed = insuranceDeductions(base, data.store?.payrollRates);
@@ -227,105 +262,125 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
       ],
     }));
     setHelperNote(
-      `과세 기준 ${format(base)}원으로 4대보험 근로자 부담분을 계산했습니다. 비과세 수당이 있으면 금액을 조정해 주세요.`,
+      `과세 기준 ${format(base)}원으로 4대보험 근로자 부담분을 계산했어요. 비과세 수당이 있으면 금액을 고쳐 주세요.`,
     );
   };
-  const itemFields = (key, title, examples) => (
-    <section className="payroll-form-section">
-      <div className="row">
-        <h3>{title}</h3>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => set(key, [...form[key], { name: "", amount: "" }])}
-          disabled={form[key].length >= 30}
-        >
-          항목 추가
-        </Button>
-      </div>
-      {form[key].length === 0 && <p className="muted">{examples}</p>}
-      {form[key].map((item, index) => (
-        <div className="payroll-item-row" key={index}>
-          <Field label={`${title} ${index + 1} 항목명`}>
-            <input
-              className="input"
-              required
-              maxLength={60}
-              value={item.name}
-              onChange={(event) =>
-                set(
-                  key,
-                  form[key].map((entry, i) =>
-                    i === index
-                      ? { ...entry, name: event.target.value }
-                      : entry,
-                  ),
-                )
-              }
-            />
-          </Field>
-          <Field label="금액 (원)">
-            <input
-              className="input"
-              type="number"
-              required
-              min="0"
-              step="1"
-              value={item.amount}
-              onChange={(event) =>
-                set(
-                  key,
-                  form[key].map((entry, i) =>
-                    i === index
-                      ? { ...entry, amount: event.target.value }
-                      : entry,
-                  ),
-                )
-              }
-            />
-          </Field>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() =>
-              set(
-                key,
-                form[key].filter((_, i) => i !== index),
-              )
-            }
-            aria-label={`${title} ${index + 1} 삭제`}
-          >
-            삭제
-          </Button>
-        </div>
-      ))}
-    </section>
+  useEffect(() => {
+    if (helper === "attendance") loadAttendance();
+    if (helper === "insurance") applyInsurance();
+  }, []);
+  const addItem = (key) => set(key, [...form[key], { name: "", amount: "" }]);
+  const updateItem = (key, index, patch) =>
+    set(
+      key,
+      form[key].map((entry, i) => (i === index ? { ...entry, ...patch } : entry)),
+    );
+  const itemRow = (key, title, item, index) => (
+    <div
+      className={`pay-item ${key === "deductions" ? "pay-item-deduct" : ""}`}
+      key={index}
+    >
+      <input
+        className="pay-item-name"
+        aria-label={`${title} ${index + 1} 항목명`}
+        placeholder="항목 이름"
+        required
+        maxLength={60}
+        value={item.name}
+        onChange={(event) => updateItem(key, index, { name: event.target.value })}
+      />
+      <span className="pay-unit-input">
+        <input
+          type="number"
+          className="num"
+          aria-label={`${title} ${index + 1} 금액`}
+          required
+          min="0"
+          step="1"
+          value={item.amount}
+          onChange={(event) =>
+            updateItem(key, index, { amount: event.target.value })
+          }
+        />
+        <span aria-hidden="true">원</span>
+      </span>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label={`${title} ${index + 1} 삭제`}
+        onClick={() =>
+          set(
+            key,
+            form[key].filter((_, i) => i !== index),
+          )
+        }
+      >
+        <Icon name="trash" size={16} />
+      </button>
+    </div>
   );
   return (
     <Modal
-      title={initial.id ? "급여명세서 수정" : "급여명세서 작성"}
+      title={initial.id ? "명세서 수정" : "명세서 작성"}
       onClose={busy ? undefined : onClose}
       dirty={dirty}
       size="wide"
+      footer={
+        <div className="pay-form-footer">
+          <span className="payroll-preview">
+            <span className="small muted">실지급액</span>
+            <strong className="num">{format(net)}원</strong>
+            <span className="small muted">
+              지급 {format(earnings)}원에서 공제 {format(deductions)}원을 뺐어요
+            </span>
+          </span>
+          <div className="pay-form-buttons">
+            <Button
+              type="submit"
+              form="payslip-form"
+              variant="secondary"
+              busy={busy && intent === "draft"}
+              disabled={busy || Boolean(existing)}
+              onClick={() => {
+                finalizeRef.current = false;
+                setIntent("draft");
+              }}
+            >
+              임시 저장
+            </Button>
+            <Button
+              type="submit"
+              form="payslip-form"
+              variant="primary"
+              busy={busy && intent === "final"}
+              disabled={busy || Boolean(existing)}
+              onClick={() => {
+                finalizeRef.current = true;
+                setIntent("final");
+              }}
+            >
+              저장하고 확정
+            </Button>
+          </div>
+        </div>
+      }
     >
       <form
-        className="stack"
+        id="payslip-form"
+        className="pay-form"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!busy && !existing) onSubmit(form);
+          if (!busy && !existing)
+            onSubmit(form, { finalize: finalizeRef.current });
         }}
       >
-        <fieldset
-          disabled={busy}
-          className="stack"
-          style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}
-        >
+        <fieldset disabled={busy} className="pay-fieldset">
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
             </div>
           )}
-          <div className="grid grid-3">
+          <div className="pay-grid-3">
             <Field label="직원">
               <select
                 className="select"
@@ -339,28 +394,16 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
                   <option
                     key={staff.id}
                     value={staff.id}
-                    disabled={(data.payroll || []).some(
-                      (record) =>
-                        record.id !== initial.id &&
-                        record.staffId === staff.id &&
-                        record.month === form.month,
-                    )}
+                    disabled={taken(staff.id)}
                   >
                     {staff.name}
-                    {staff.status === "inactive" ? " (퇴사·비활성)" : ""}
-                    {(data.payroll || []).some(
-                      (record) =>
-                        record.id !== initial.id &&
-                        record.staffId === staff.id &&
-                        record.month === form.month,
-                    )
-                      ? " · 명세서 있음"
-                      : ""}
+                    {staff.status === "inactive" ? " (퇴사)" : ""}
+                    {taken(staff.id) ? " (명세서 있음)" : ""}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="급여 귀속월">
+            <Field label="귀속월">
               <DateInput
                 className="input"
                 type="month"
@@ -395,46 +438,66 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
           </div>
           {existing && (
             <div role="alert" className="alert alert-warning">
-              선택한 직원의 {form.month} 명세서가 이미 있습니다. 목록에서 기존
-              명세서를 열거나 다른 직원·귀속월을 선택해 주세요.
+              이 직원의 {monthTitle(form.month)} 명세서가 이미 있어요. 목록에서
+              기존 명세서를 열거나 다른 직원, 다른 달을 골라 주세요.
             </div>
           )}
           {previous && (
-            <div className="alert">
-              <div className="row">
-                <strong>{previous.month} 급여 조건을 이어서 작성</strong>
-                <Button onClick={() => setCopySource(previous)}>
-                  이전 명세서 조건 불러오기
-                </Button>
-              </div>
-              <p className="help">
-                기본급·인센티브 비율·추가 지급·공제·계산 근거를 가져옵니다. 이번
-                달 금액은 저장 전에 확인하세요.
-              </p>
+            <div className="pay-inset-row">
+              <span className="pay-row-text">
+                <span className="pay-row-title">
+                  {monthTitle(previous.month)} 조건이 있어요
+                </span>
+                <span className="small muted">
+                  기본급, 인센티브 비율, 수당, 공제, 계산 근거를 가져와요
+                </span>
+              </span>
+              <Button variant="secondary" onClick={() => setCopySource(previous)}>
+                이전 명세서 조건 불러오기
+              </Button>
             </div>
           )}
           {copiedFrom && (
             <p
               className={
                 copiedFrom.staffId === form.staffId
-                  ? "help"
+                  ? "small muted pay-note"
                   : "alert alert-warning"
               }
               role="status"
             >
-              {copiedFrom.name}님의 {copiedFrom.month} 조건을 불러왔습니다. 근무
-              내역·메모는 비웠으며, 선택한 귀속월의 매출로 인센티브를
-              계산합니다.
+              {copiedFrom.name}님의 {monthTitle(copiedFrom.month)} 조건을
+              불러왔어요. 근무 기록과 메모는 비웠고, 인센티브는 고른 달의 매출로
+              계산해요.
               {copiedFrom.staffId !== form.staffId &&
-                " 직원이 변경되었습니다. 현재 직원의 계약에 맞는 금액인지 확인하세요."}
+                " 직원이 바뀌었어요. 이 직원의 계약에 맞는 금액인지 확인해 주세요."}
             </p>
           )}
-          <section className="payroll-form-section">
-            <h3>기본급과 인센티브</h3>
-            <div className="grid grid-2">
-              <Field label="기본급 (원)">
+          <section className="pay-section" aria-labelledby={`${ids}-pay`}>
+            <div className="pay-section-head">
+              <h3 id={`${ids}-pay`}>지급</h3>
+              <button
+                type="button"
+                className="text-btn pay-text-btn"
+                onClick={() => addItem("allowances")}
+                disabled={form.allowances.length >= 30}
+              >
+                항목 추가
+              </button>
+            </div>
+            <div className="pay-row">
+              <span className="pay-row-text">
+                <label className="pay-row-title" htmlFor={`${ids}-base`}>
+                  기본급
+                </label>
+                <span className="small muted">
+                  {copiedFrom ? "지난달 조건 불러옴" : "월 정액"}
+                </span>
+              </span>
+              <span className="pay-unit-input pay-wide-input">
                 <input
-                  className="input"
+                  id={`${ids}-base`}
+                  className="num"
                   type="number"
                   min="0"
                   step="1"
@@ -442,114 +505,131 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
                   value={form.basePay}
                   onChange={(event) => set("basePay", event.target.value)}
                 />
-              </Field>
-              <Field
-                label="시술 매출 인센티브 (%)"
-                help="0~100%, 소수점 둘째 자리까지"
-              >
+                <span aria-hidden="true">원</span>
+              </span>
+            </div>
+            <div className="pay-row">
+              <span className="pay-row-text">
+                <span className="pay-row-title">시술 인센티브</span>
+                <span className="small muted">
+                  순 시술 매출 {format(Math.max(0, revenue.net))}원의{" "}
+                  {Number(form.commissionRate || 0)}%
+                </span>
+                {revenue.refunded > 0 && (
+                  <span className="small muted">
+                    시술 매출 {format(revenue.gross)}원에서 환불{" "}
+                    {format(revenue.refunded)}원을 뺐어요
+                  </span>
+                )}
+              </span>
+              <span className="pay-unit-input pay-rate-input">
                 <input
-                  className="input"
+                  className="num"
+                  aria-label="인센티브 비율"
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   required
                   value={form.commissionRate}
-                  onChange={(event) =>
-                    set("commissionRate", event.target.value)
-                  }
+                  onChange={(event) => set("commissionRate", event.target.value)}
                 />
-              </Field>
+                <span aria-hidden="true">%</span>
+              </span>
+              <strong className="pay-row-value num">{format(commission)}원</strong>
             </div>
-            <div className="payroll-calculation">
-              <span>
-                해당 월 시술 매출 <strong>{format(revenue.gross)}원</strong>
-              </span>
-              <span>
-                해당 월 시술 환불 <strong>−{format(revenue.refunded)}원</strong>
-              </span>
-              <span>
-                예상 인센티브 <strong>{format(commission)}원</strong>
-              </span>
-            </div>
-            <p className="help">
-              결제일 기준 할인 후 시술 매출에서 해당 월 환불액을 뺍니다. 이전 달
-              결제의 이번 달 환불도 반영하며 상품 매출은 제외합니다. 순매출이
-              음수면 인센티브는 0원입니다. 저장·확정 시 최신 거래로 다시
-              계산합니다.
-            </p>
+            {form.allowances.map((item, index) =>
+              itemRow("allowances", "추가 지급", item, index),
+            )}
+            <span className="small muted">
+              인센티브는 결제일 기준 할인 후 시술 매출에서 그 달 환불을 빼고
+              계산해요. 저장하거나 확정할 때 최신 거래로 다시 계산해요.
+            </span>
           </section>
-          {itemFields(
-            "allowances",
-            "추가 지급",
-            "식대, 직책수당, 연장근로수당 등을 항목별로 입력하세요.",
-          )}
-          {itemFields(
-            "deductions",
-            "공제",
-            "확인한 소득세, 지방소득세, 보험료 등을 항목별로 입력하세요.",
-          )}
-          <div className="payroll-helpers">
-            <Button type="button" onClick={loadAttendance}>
-              근태 기록 불러오기
-            </Button>
-            <Button type="button" onClick={applyInsurance}>
-              4대보험 공제 계산
-            </Button>
-            <p className="help">
-              요율은 매장 설정에서 변경 · 소득세·지방소득세는 간이세액표로 직접
-              입력
-            </p>
-            {helperNote && (
-              <p className="help" role="status">
-                {helperNote}
+          <section className="pay-section" aria-labelledby={`${ids}-deduct`}>
+            <div className="pay-section-head">
+              <h3 id={`${ids}-deduct`}>공제</h3>
+              <span className="pay-head-actions">
+                <button
+                  type="button"
+                  className="pay-pill"
+                  onClick={applyInsurance}
+                >
+                  4대보험 계산
+                </button>
+                <button
+                  type="button"
+                  className="text-btn pay-text-btn"
+                  onClick={() => addItem("deductions")}
+                  disabled={form.deductions.length >= 30}
+                >
+                  항목 추가
+                </button>
+              </span>
+            </div>
+            {form.deductions.length > 0 ? (
+              <div className="pay-grid-2">
+                {form.deductions.map((item, index) =>
+                  itemRow("deductions", "공제", item, index),
+                )}
+              </div>
+            ) : (
+              <p className="small muted pay-note">
+                4대보험 계산을 누르거나 소득세 같은 항목을 추가해 주세요
               </p>
             )}
-          </div>
-          <div className="alert alert-warning">
-            계산 결과는 참고용 추정치입니다. 소득세·지방소득세·연장근로수당과
-            실제 보험료 고지액을 확인한 뒤 계산 근거와 함께 입력하세요.
-          </div>
-          <section className="payroll-form-section">
-            <h3>근무 내역과 계산 근거</h3>
-            <div className="grid grid-3">
-              <Field label="근무일수 (선택)">
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  max="31"
-                  step="1"
-                  value={form.workDays ?? ""}
-                  onChange={(event) => set("workDays", event.target.value)}
-                />
-              </Field>
-              <Field label="총 근로시간 (선택)" help="연장근로시간 포함">
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  max="744"
-                  step="0.01"
-                  value={form.workHours ?? ""}
-                  onChange={(event) => set("workHours", event.target.value)}
-                />
-              </Field>
-              <Field label="연장근로시간 (선택)">
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  max="744"
-                  step="0.01"
-                  value={form.overtimeHours ?? ""}
-                  onChange={(event) => set("overtimeHours", event.target.value)}
-                />
-              </Field>
+            <span className="small muted">요율은 설정에서 바꿔요</span>
+            <span className="small muted">
+              소득세와 지방소득세는 간이세액표를 보고 직접 넣어요
+            </span>
+          </section>
+          <section className="pay-section" aria-labelledby={`${ids}-work`}>
+            <div className="pay-section-head">
+              <h3 id={`${ids}-work`}>근무 기록</h3>
+              <button type="button" className="pay-pill" onClick={loadAttendance}>
+                근태 불러오기
+              </button>
+            </div>
+            <div className="pay-grid-3">
+              {[
+                ["workDays", "근무일", "일", 31, 1],
+                ["workHours", "근무 시간", "시간", 744, 0.01],
+                ["overtimeHours", "연장", "시간", 744, 0.01],
+              ].map(([key, label, unit, max, step]) => (
+                <div className="pay-tile" key={key}>
+                  <label className="small muted" htmlFor={`${ids}-${key}`}>
+                    {label}
+                  </label>
+                  <span className="pay-unit-input">
+                    <input
+                      id={`${ids}-${key}`}
+                      className="num"
+                      type="number"
+                      min="0"
+                      max={max}
+                      step={step}
+                      value={form[key] ?? ""}
+                      onChange={(event) => set(key, event.target.value)}
+                    />
+                    <span aria-hidden="true">{unit}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <span className="small muted">근무 시간에는 연장 시간이 들어가요</span>
+          </section>
+          {helperNote && (
+            <p className="pay-helper-note" role="status">
+              {helperNote}
+            </p>
+          )}
+          <section className="pay-section" aria-labelledby={`${ids}-memo`}>
+            <div className="pay-section-head">
+              <h3 id={`${ids}-memo`}>메모</h3>
             </div>
             <Field
-              label="지급·공제 계산 근거"
-              help="예: 기본급 월 정액 / 연장수당: 통상시급 × 연장시간 × 적용 배율 / 공제액 산출 기준"
+              label="계산 근거"
+              help="예: 기본급은 월 정액, 연장 수당은 통상시급에 연장 시간과 배율을 곱해요"
             >
               <textarea
                 className="textarea"
@@ -559,7 +639,7 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
                 onChange={(event) => set("basis", event.target.value)}
               />
             </Field>
-            <Field label="명세서 메모" help="직원에게도 표시됩니다.">
+            <Field label="명세서 메모" help="직원에게도 보여요">
               <textarea
                 className="textarea"
                 rows="2"
@@ -568,34 +648,11 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
                 onChange={(event) => set("notes", event.target.value)}
               />
             </Field>
+            <span className="small muted">
+              계산 결과는 참고용이에요. 실제 보험료 고지액과 세액을 확인한 뒤
+              확정해 주세요
+            </span>
           </section>
-          <div className="payroll-preview">
-            <span>예상 실지급액</span>
-            <strong>{format(net)}원</strong>
-            <small>
-              지급 합계{" "}
-              {format(Number(form.basePay || 0) + commission + allowances)}원 −
-              공제 {format(deductions)}원
-            </small>
-          </div>
-          <div className="payroll-actions">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => (dirty ? setDiscard(true) : onClose())}
-              disabled={busy}
-            >
-              취소
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              busy={busy}
-              disabled={Boolean(existing)}
-            >
-              작성 중으로 저장
-            </Button>
-          </div>
         </fieldset>
       </form>
       {copySource && (
@@ -606,40 +663,28 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
           onConfirm={copyPrevious}
         >
           <p>
-            {copySource.month}에 확정한 {copySource.staffSnapshot?.name}님의
-            조건으로 현재 입력 중인 급여 항목을 바꿉니다.
+            {monthTitle(copySource.month)}에 확정한{" "}
+            {copySource.staffSnapshot?.name}님의 조건으로 지금 입력 중인 급여
+            항목을 바꿔요.
           </p>
-          <p>
-            근무일수·근로시간·메모는 비웁니다. 세금·보험 공제와 수당은 이번 달
-            자료에 맞게 다시 확인해 주세요.
-          </p>
-        </ConfirmDialog>
-      )}
-      {discard && (
-        <ConfirmDialog
-          title="작성을 취소할까요?"
-          onClose={() => setDiscard(false)}
-          onConfirm={onClose}
-          confirmLabel="내용 버리고 닫기"
-          variant="danger"
-        >
-          저장하지 않은 급여 변경사항이 사라집니다.
+          <p>근무일수, 근로시간, 메모는 비워요.</p>
+          <p>세금, 보험 공제와 수당은 이번 달 자료에 맞게 다시 확인해 주세요.</p>
         </ConfirmDialog>
       )}
     </Modal>
   );
 }
-function Statement({ record }) {
+function Statement({ record, className = "payroll-sheet" }) {
   return (
-    <article className="payroll-statement">
-      <div className="payroll-statement-header">
+    <article className={className}>
+      <div className="payroll-sheet-header">
         <div>
-          <h2>{record.month.replace("-", "년 ")}월 급여명세서</h2>
+          <h2>{monthTitle(record.month)} 급여명세서</h2>
           <p>{record.storeSnapshot?.name}</p>
         </div>
-        <Badge tone={statusTone[record.status]}>
+        <span className={`pay-badge ${statusTone[record.status]}`}>
           {statusText[record.status]}
-        </Badge>
+        </span>
       </div>
       <dl className="payroll-details">
         <div>
@@ -653,7 +698,7 @@ function Statement({ record }) {
         <div>
           <dt>귀속기간</dt>
           <dd>
-            {record.revenue.from} ~ {record.revenue.to}
+            {record.revenue.from}부터 {record.revenue.to}까지
           </dd>
         </div>
         <div>
@@ -665,19 +710,25 @@ function Statement({ record }) {
           <dd>{record.workDays == null ? "미입력" : `${record.workDays}일`}</dd>
         </div>
         <div>
-          <dt>총 / 연장 근로시간</dt>
+          <dt>총 근로시간</dt>
+          <dd>{record.workHours == null ? "미입력" : `${record.workHours}시간`}</dd>
+        </div>
+        <div>
+          <dt>연장 근로시간</dt>
           <dd>
-            {record.workHours ?? "—"} / {record.overtimeHours ?? "—"}시간
+            {record.overtimeHours == null
+              ? "미입력"
+              : `${record.overtimeHours}시간`}
           </dd>
         </div>
       </dl>
       {record.status === "draft" && (
         <div className="alert alert-warning">
-          작성 중인 미확정 명세서입니다. 직원에게는 확정 후 표시되며, 확정 시
-          최신 매출로 인센티브를 다시 계산합니다.
+          아직 확정하지 않은 명세서예요. 직원에게는 확정한 뒤 보이고, 확정할 때
+          최신 매출로 인센티브를 다시 계산해요.
         </div>
       )}
-      <div className="grid grid-2 payroll-statement-tables">
+      <div className="payroll-sheet-tables">
         <section>
           <h3>지급 내역</h3>
           <table className="table">
@@ -695,7 +746,7 @@ function Statement({ record }) {
                 </td>
               </tr>
               <tr>
-                <td>시술 인센티브 ({record.commissionRate}%)</td>
+                <td>시술 인센티브 {record.commissionRate}%</td>
                 <td>
                   <Money value={record.commission} />
                 </td>
@@ -755,29 +806,26 @@ function Statement({ record }) {
           </table>
         </section>
       </div>
-      <div className="payroll-preview">
+      <div className="payroll-sheet-net">
         <span>실지급액</span>
-        <strong>{format(record.netPay)}원</strong>
-        <small>지급 합계 − 공제 합계</small>
+        <strong className="num">{format(record.netPay)}원</strong>
       </div>
       <section className="payroll-basis">
         <h3>인센티브 계산 근거</h3>
+        <p>시술 매출 {format(record.revenue.gross)}원</p>
+        <p>시술 환불 {format(record.revenue.refunded)}원</p>
+        <p>순매출 {format(record.revenue.net)}원</p>
         <p>
-          시술 매출 {format(record.revenue.gross)}원 − 시술 환불{" "}
-          {format(record.revenue.refunded)}원 = 순매출{" "}
-          {format(record.revenue.net)}원
-        </p>
-        <p>
-          인센티브 기준 {format(Math.max(0, record.revenue.net))}원 ×{" "}
-          {record.commissionRate}% = {format(record.commission)}원 (원 단위
-          반올림)
+          인센티브 기준 {format(Math.max(0, record.revenue.net))}원의{" "}
+          {record.commissionRate}%는 {format(record.commission)}원이에요. 원
+          단위에서 반올림해요.
         </p>
         <p className="help">{record.revenue.method}</p>
       </section>
       <section className="payroll-basis">
-        <h3>지급·공제 계산 근거</h3>
+        <h3>지급과 공제 계산 근거</h3>
         <p className="payroll-preserve">
-          {record.basis || "입력된 계산 근거가 없습니다."}
+          {record.basis || "입력된 계산 근거가 없어요."}
         </p>
         {record.notes && (
           <>
@@ -786,23 +834,125 @@ function Statement({ record }) {
           </>
         )}
       </section>
-      <footer className="payroll-statement-footer">
-        <p>
-          {record.storeSnapshot?.name}
-          {record.storeSnapshot?.phone && ` · ${record.storeSnapshot.phone}`}
-        </p>
+      <footer className="payroll-sheet-footer">
+        <p>{record.storeSnapshot?.name}</p>
+        {record.storeSnapshot?.phone && <p>{record.storeSnapshot.phone}</p>}
         {record.storeSnapshot?.address && <p>{record.storeSnapshot.address}</p>}
-        <p>
-          세금·보험료·수당은 입력된 금액입니다. 이 명세서의 지급 완료 표시는
-          계좌 이체를 실행하지 않습니다.
-        </p>
-        <p>
-          명세서 번호 {record.id}
-          {record.finalizedAt &&
-            ` · 확정 ${new Date(record.finalizedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}`}
-        </p>
+        <p>세금, 보험료, 수당은 입력된 금액이에요.</p>
+        <p>지급 완료 표시는 계좌 이체를 실행하지 않아요.</p>
+        <p>명세서 번호 {record.id}</p>
+        {record.finalizedAt && <p>확정 {dateTime(record.finalizedAt)}</p>}
       </footer>
     </article>
+  );
+}
+function SlipPanel({ record, manager, onOpen, onPrint }) {
+  const titleId = useId();
+  const draft = record.status === "draft";
+  const lines = [
+    ["기본급", record.basePay],
+    ...(Number(record.commissionRate) > 0 || record.commission
+      ? [[`시술 인센티브 ${record.commissionRate}%`, record.commission]]
+      : []),
+    ...record.allowances.map((entry) => [entry.name, entry.amount]),
+    ...record.deductions.map((entry) => [entry.name, -Number(entry.amount || 0)]),
+  ];
+  return (
+    <aside className="pay-panel" aria-labelledby={titleId}>
+      <div className="pay-panel-head">
+        <h2 id={titleId}>
+          {manager
+            ? `${record.staffSnapshot?.name} ${Number(record.month.slice(5, 7))}월`
+            : `${monthTitle(record.month)} 급여`}
+        </h2>
+        <span className="muted">{statusText[record.status]}</span>
+        <span className="muted small">
+          {record.paidDate
+            ? `${dayTitle(record.paidDate)} 지급`
+            : `${dayTitle(record.payDate)} 지급 예정`}
+        </span>
+      </div>
+      <div className="pay-lines">
+        {lines.map(([label, amount], index) => (
+          <div className="pay-line" key={index}>
+            <span>{label}</span>
+            <span className={`num ${amount < 0 ? "pay-minus" : ""}`}>
+              {amount < 0 ? `−${format(-amount)}` : format(amount)}원
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="pay-net">
+        <span>실지급액</span>
+        <strong className="num">{format(record.netPay)}원</strong>
+      </div>
+      {manager && draft && (
+        <>
+          <span className="muted small">직원에게는 확정한 뒤 보여요</span>
+          <div className="pay-panel-buttons">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onOpen({ kind: "edit", id: record.id, helper: "attendance" })
+              }
+            >
+              근태 불러오기
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onOpen({ kind: "edit", id: record.id, helper: "insurance" })
+              }
+            >
+              4대보험 계산
+            </Button>
+          </div>
+          <div className="pay-panel-actions">
+            <Button
+              variant="secondary"
+              onClick={() => onOpen({ kind: "edit", id: record.id })}
+            >
+              수정
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => onOpen({ kind: "finalize", id: record.id })}
+            >
+              확정
+            </Button>
+          </div>
+        </>
+      )}
+      {manager && record.status === "finalized" && (
+        <div className="pay-panel-actions">
+          <Button
+            variant="secondary"
+            onClick={() => onOpen({ kind: "reopen", id: record.id })}
+          >
+            확정 취소
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => onOpen({ kind: "paid", id: record.id })}
+          >
+            지급 완료 기록
+          </Button>
+        </div>
+      )}
+      <div className="pay-panel-foot">
+        <button
+          type="button"
+          className="text-btn pay-text-btn"
+          onClick={() => onOpen({ kind: "view", id: record.id })}
+        >
+          전체 명세서
+        </button>
+        <Button variant="secondary" onClick={onPrint}>
+          <Icon name="print" size={16} />
+          {draft ? "초안 인쇄" : "인쇄 / PDF 저장"}
+        </Button>
+      </div>
+    </aside>
   );
 }
 export default function Payroll({
@@ -839,6 +989,7 @@ export default function Payroll({
     manager ? routeContext?.staffId || "" : "",
   );
   const [status, setStatus] = useViewState("payroll", "status", "");
+  const [selectedId, setSelectedId] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -867,9 +1018,12 @@ export default function Payroll({
         ),
     [availableRecords, month, staffId, status],
   );
+  const current =
+    records.find((item) => item.id === selectedId) || records[0] || null;
   const selected = dialog?.id
     ? availableRecords.find((item) => item.id === dialog.id)
     : null;
+  const printable = (dialog?.kind === "view" && selected) || current;
   const open = (value) => {
     setError("");
     setReason("");
@@ -879,18 +1033,28 @@ export default function Payroll({
   const close = () => {
     if (!busy) setDialog(null);
   };
-  async function submit(type, payload) {
+  async function submit(type, payload, options = {}) {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await runAction(type, payload);
+      const result = await runAction(type, payload);
+      let next = null;
       if (type === "payroll.save") {
         setMonth(payload.month);
         if (staffId && staffId !== payload.staffId) setStaffId(payload.staffId);
         if (status && status !== "draft") setStatus("");
+        const saved = (result?.data?.payroll || []).find(
+          (row) =>
+            row.staffId === payload.staffId && row.month === payload.month,
+        );
+        if (saved) {
+          setSelectedId(saved.id);
+          if (options.finalize) next = { kind: "finalize", id: saved.id };
+        }
       }
-      setDialog(null);
+      if (type !== "payroll.save" && payload.id) setSelectedId(payload.id);
+      setDialog(next);
       notify(
         type === "payroll.save"
           ? "급여명세서를 저장했습니다."
@@ -935,18 +1099,30 @@ export default function Payroll({
         description="원장에게 문의해 주세요."
       />
     );
+  const total = records.reduce((sum, item) => sum + item.netPay, 0);
+  const drafts = records.filter((item) => item.status === "draft").length;
+  const upcoming = records
+    .filter((item) => item.status !== "paid")
+    .map((item) => item.payDate)
+    .filter(Boolean)
+    .sort()[0];
+  const lastPaid = records
+    .map((item) => item.paidDate || item.payDate)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const statusOptions = [
+    ["", "전체"],
+    ...Object.entries(statusText).filter(([key]) => manager || key !== "draft"),
+  ];
   return (
-    <div className="stack payroll-page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            {manager ? "급여 · 명세서" : "내 급여명세서"}
-          </h1>
-          <p className="page-description">
-            {manager
-              ? "월별 급여를 계산하고, 명세서를 확정한 뒤 실제 지급을 기록하세요."
-              : "확정된 월별 지급 내역과 공제 항목을 확인하세요."}
-          </p>
+    <div className="pay-page">
+      <header className="pay-head">
+        <div className="pay-head-text">
+          <span className="muted">
+            {manager ? `${Number(month.slice(5, 7))}월 귀속` : "확정된 명세서만 보여요"}
+          </span>
+          <h1 className="pay-title">{manager ? "급여" : "내 급여명세서"}</h1>
         </div>
         {manager && (
           <Button
@@ -955,20 +1131,22 @@ export default function Payroll({
               data.staff.length ? open({ kind: "new" }) : navigate("staff")
             }
           >
-            {data.staff.length ? "급여명세서 작성" : "직원 먼저 등록"}
+            {data.staff.length ? "명세서 작성" : "직원 먼저 등록"}
           </Button>
         )}
-      </div>
-      <div className="toolbar payroll-toolbar">
-        <div className="payroll-month-navigation">
-          <Button
+      </header>
+      <div className="pay-toolbar">
+        <div className="pay-month">
+          <button
+            type="button"
+            className="icon-btn"
             aria-label="이전 달 급여"
             disabled={month === "2000-01"}
             onClick={() => setMonth(shiftMonth(month, -1))}
           >
-            이전 달
-          </Button>
-          <Field label="귀속월">
+            <Icon name="chevron-left" size={20} />
+          </button>
+          <Field label="귀속월" className="pay-month-field">
             <DateInput
               className="input"
               type="month"
@@ -979,19 +1157,25 @@ export default function Payroll({
               onChange={(event) => setMonth(event.target.value)}
             />
           </Field>
-          <Button
+          <button
+            type="button"
+            className="icon-btn"
             aria-label="다음 달 급여"
             disabled={month === "2099-12"}
             onClick={() => setMonth(shiftMonth(month, 1))}
           >
-            다음 달
-          </Button>
+            <Icon name="chevron-right" size={20} />
+          </button>
+          <button
+            type="button"
+            className="text-btn pay-text-btn"
+            onClick={() => setMonth(today().slice(0, 7))}
+          >
+            이번 달
+          </button>
         </div>
-        <Button variant="ghost" onClick={() => setMonth(today().slice(0, 7))}>
-          이번 달
-        </Button>
         {manager && (
-          <Field label="직원">
+          <Field label="직원" className="pay-staff-field">
             <select
               className="select"
               value={staffId}
@@ -1006,146 +1190,118 @@ export default function Payroll({
             </select>
           </Field>
         )}
-        <Field label="상태">
-          <select
-            className="select"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="">전체 상태</option>
-            {Object.entries(statusText)
-              .filter(([key]) => manager || key !== "draft")
-              .map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-          </select>
-        </Field>
-      </div>
-      <div className="stat-grid payroll-summary">
-        <div className="stat-card">
-          <div className="stat-label">조회 명세서</div>
-          <div className="stat-value">{records.length}건</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">실지급액 합계</div>
-          <div className="stat-value">
-            {format(records.reduce((sum, item) => sum + item.netPay, 0))}원
-          </div>
-          <small>
-            {manager
-              ? "작성 중·확정·지급 완료 포함"
-              : "본인의 확정·지급 완료 명세서 기준"}
-          </small>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">확정 후 지급 대기</div>
-          <div className="stat-value">
-            {format(
-              records
-                .filter((item) => item.status === "finalized")
-                .reduce((sum, item) => sum + item.netPay, 0),
-            )}
-            원
-          </div>
+        <div role="group" aria-label="상태" className="chip-row">
+          {statusOptions.map(([key, label]) => (
+            <button
+              key={key || "all"}
+              type="button"
+              className="chip"
+              aria-pressed={status === key}
+              onClick={() => setStatus(key)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
-      {manager && (
-        <div className="alert">
-          작성 → 금액 확인·확정 → 계좌 이체 등 실제 지급 → 지급 완료 기록 순서로
-          처리하세요. 직원에게는 확정한 명세서부터 표시됩니다.
+      <div className="pay-stats">
+        <div className="pay-stat">
+          <span className="muted">{manager ? "지급 합계" : "실지급액 합계"}</span>
+          <strong className="num">{format(total)}원</strong>
         </div>
-      )}
-      <section className="card">
-        {records.length ? (
-          <div className="table-wrap">
-            <table className="table commerce-mobile-cards payroll-table">
-              <thead>
-                <tr>
-                  <th scope="col">{manager ? "직원" : "귀속월"}</th>
-                  <th scope="col">상태</th>
-                  <th scope="col">지급 합계</th>
-                  <th scope="col">공제 합계</th>
-                  <th scope="col">실지급액</th>
-                  <th scope="col">지급일</th>
-                  <th scope="col">명세서</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr key={record.id}>
-                    <td>
-                      {manager ? (
-                        <>
-                          <strong>{record.staffSnapshot?.name}</strong>
-                          <small className="payroll-subtext">{record.month}</small>
-                        </>
-                      ) : (
-                        <strong>{record.month.replace("-", "년 ")}월</strong>
-                      )}
-                    </td>
-                    <td data-label="상태">
-                      <Badge tone={statusTone[record.status]}>
-                        {statusText[record.status]}
-                      </Badge>
-                    </td>
-                    <td data-label="지급 합계">
-                      <Money value={record.earningsTotal} />
-                    </td>
-                    <td data-label="공제 합계">
-                      <Money value={record.deductionTotal} />
-                    </td>
-                    <td data-label="실지급액">
-                      <strong>
-                        <Money value={record.netPay} />
-                      </strong>
-                    </td>
-                    <td data-label={record.paidDate ? "실제 지급일" : "지급 예정일"}>
-                      {record.paidDate || record.payDate}
-                    </td>
-                    <td>
-                      <Button
-                        variant="secondary"
-                        className="payroll-view-button"
-                        onClick={() => open({ kind: "view", id: record.id })}
-                        aria-label={`${record.staffSnapshot?.name} ${record.month} 급여명세서 보기`}
-                      >
-                        보기
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {manager ? (
+          <div className="pay-stat">
+            <span className="muted">확정 전</span>
+            <strong className={`num ${drafts ? "pay-warn" : ""}`}>{drafts}명</strong>
           </div>
         ) : (
-          <EmptyState
-            title="이 조건의 급여명세서가 없습니다"
-            description={
-              manager
-                ? "직원별 월 급여를 작성하거나 귀속월과 조회 조건을 변경해 주세요."
-                : "급여명세서가 확정되면 여기에 표시됩니다. 귀속월을 바꾸어 이전 명세서도 확인할 수 있습니다."
-            }
-            action={
-              manager ? (
-                <Button variant="primary" onClick={() => open({ kind: "new" })}>
-                  첫 명세서 작성
-                </Button>
-              ) : undefined
-            }
+          <div className="pay-stat">
+            <span className="muted">명세서</span>
+            <strong className="num">{records.length}건</strong>
+          </div>
+        )}
+        <div className="pay-stat">
+          <span className="muted">{manager ? "지급 예정일" : "지급일"}</span>
+          <strong className="num">{dayTitle(manager ? upcoming : lastPaid)}</strong>
+        </div>
+      </div>
+      <div className="pay-layout">
+        <section aria-label="명세서 목록" className="pay-list">
+          {records.length ? (
+            records.map((record) => {
+              const name = record.staffSnapshot?.name || "";
+              const on = current?.id === record.id;
+              return (
+                <button
+                  type="button"
+                  key={record.id}
+                  className="pay-slip"
+                  aria-current={on ? "true" : undefined}
+                  aria-label={`${name} ${record.month} 급여명세서 보기`}
+                  onClick={() => setSelectedId(record.id)}
+                >
+                  <span className="pay-avatar" aria-hidden="true">
+                    {manager ? name.slice(0, 1) : Number(record.month.slice(5, 7))}
+                  </span>
+                  <span className="pay-slip-text">
+                    <span className="pay-slip-name">
+                      {manager ? name : monthTitle(record.month)}
+                    </span>
+                    <span className="small muted">{basisLabel(record)}</span>
+                  </span>
+                  <span className={`pay-badge ${statusTone[record.status]}`}>
+                    {statusText[record.status]}
+                  </span>
+                  <strong className="pay-slip-net num">
+                    {format(record.netPay)}원
+                  </strong>
+                </button>
+              );
+            })
+          ) : (
+            <EmptyState
+              title="이 달의 급여명세서가 없어요"
+              description={
+                manager
+                  ? "명세서를 작성하거나 귀속월과 조건을 바꿔 보세요."
+                  : "명세서가 확정되면 여기에 보여요. 귀속월을 바꿔 이전 명세서도 볼 수 있어요."
+              }
+              action={
+                manager ? (
+                  <Button variant="primary" onClick={() => open({ kind: "new" })}>
+                    첫 명세서 작성
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+        </section>
+        {current && (
+          <SlipPanel
+            record={current}
+            manager={manager}
+            onOpen={open}
+            onPrint={print}
           />
         )}
-      </section>
-      <p className="help">
+      </div>
+      <p className="small muted">
         {manager
-          ? "명세서는 급여 확인과 출력에 사용할 수 있습니다. 실제 이체·세금 신고는 별도로 처리하며, 잘못 입력한 지급 완료 금액의 차액은 다음 급여에서 항목과 사유를 남겨 조정하세요."
-          : "명세서를 열어 인쇄하거나 PDF로 저장할 수 있습니다. 금액이 다르면 원장에게 문의해 주세요."}
+          ? "실제 이체와 세금 신고는 따로 처리해요. 지급 완료 금액이 틀렸다면 다음 급여에서 항목과 사유를 남겨 조정해 주세요."
+          : "금액이 다르면 원장에게 문의해 주세요."}
       </p>
+      {printable &&
+        createPortal(
+          <div className="payroll-print-root" aria-hidden="true">
+            <Statement record={printable} className="payroll-sheet payroll-statement" />
+          </div>,
+          document.body,
+        )}
       {(dialog?.kind === "new" || (dialog?.kind === "edit" && selected)) && (
         <PayrollForm
           key={selected?.id || "new"}
           data={data}
+          helper={dialog.helper}
           initial={
             selected ||
             initialForm(
@@ -1169,7 +1325,7 @@ export default function Payroll({
           }
           busy={busy}
           error={error}
-          onSubmit={(form) => submit("payroll.save", form)}
+          onSubmit={(form, options) => submit("payroll.save", form, options)}
           onClose={close}
         />
       )}
@@ -1179,66 +1335,23 @@ export default function Payroll({
           onClose={close}
           size="wide"
           footer={
-            <div className="payroll-actions">
-              <Button variant="secondary" onClick={print}>
-                {selected.status === "draft" ? "초안 인쇄" : "인쇄 / PDF 저장"}
-              </Button>
-              {manager && selected.status === "draft" && (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={() => open({ kind: "edit", id: selected.id })}
-                  >
-                    수정
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => open({ kind: "finalize", id: selected.id })}
-                  >
-                    급여 확정
-                  </Button>
-                </>
-              )}
-              {manager && selected.status === "finalized" && (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => open({ kind: "reopen", id: selected.id })}
-                  >
-                    확정 취소
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => open({ kind: "paid", id: selected.id })}
-                  >
-                    지급 완료 기록
-                  </Button>
-                </>
-              )}
-            </div>
+            <Button variant="secondary" onClick={print}>
+              <Icon name="print" size={16} />
+              {selected.status === "draft" ? "초안 인쇄" : "인쇄 / PDF 저장"}
+            </Button>
           }
         >
           <Statement record={selected} />
           {manager && selected.changes?.length > 0 && (
             <details className="payroll-history">
-              <summary>명세서 변경 기록 ({selected.changes.length})</summary>
+              <summary>명세서 변경 기록 {selected.changes.length}건</summary>
               <ul>
                 {selected.changes.map((entry, index) => (
                   <li key={index}>
-                    {new Date(entry.at).toLocaleString("ko-KR", {
-                      timeZone: "Asia/Seoul",
-                    })}{" "}
-                    · {entry.actorName} ·{" "}
-                    {
-                      {
-                        created: "작성",
-                        updated: "수정",
-                        finalized: "확정",
-                        reopened: "확정 취소",
-                        paid: "지급 완료",
-                      }[entry.kind]
-                    }
-                    {entry.reason && ` · ${entry.reason}`}
+                    <strong>{changeText[entry.kind] || entry.kind}</strong>
+                    <span>{dateTime(entry.at)}</span>
+                    <span>{entry.actorName}</span>
+                    {entry.reason && <span>{entry.reason}</span>}
                   </li>
                 ))}
               </ul>
@@ -1255,17 +1368,17 @@ export default function Payroll({
           confirmLabel="최신 매출로 계산 후 확정"
         >
           <p>
-            {selected.staffSnapshot?.name}님의 {selected.month} 급여입니다.
-            확정하면 직원에게 명세서가 표시됩니다.
+            {selected.staffSnapshot?.name}님의 {monthTitle(selected.month)}{" "}
+            급여예요. 확정하면 직원에게 명세서가 보여요.
           </p>
           <div className="alert alert-warning">
-            확정 시 최신 매출·환불로 인센티브를 다시 계산합니다. 확정 후 금액을
-            한 번 더 확인하고 실제 지급하세요.
+            확정할 때 최신 매출과 환불로 인센티브를 다시 계산해요. 확정한 뒤
+            금액을 한 번 더 확인하고 지급해 주세요.
           </div>
           {selected.month === today().slice(0, 7) && (
             <p className="help">
-              아직 종료되지 않은 월입니다. 확정 이후 추가된 매출·환불은 자동으로
-              반영되지 않습니다.
+              아직 끝나지 않은 달이에요. 확정 뒤에 생긴 매출과 환불은 자동으로
+              반영되지 않아요.
             </p>
           )}
           {error && (
@@ -1280,18 +1393,32 @@ export default function Payroll({
           title="급여 확정 취소"
           onClose={busy ? undefined : close}
           dirty={Boolean(reason)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={close} disabled={busy}>
+                돌아가기
+              </Button>
+              <Button
+                type="submit"
+                form="payroll-reopen-form"
+                variant="danger"
+                busy={busy}
+              >
+                확정 취소
+              </Button>
+            </>
+          }
         >
           <form
+            id="payroll-reopen-form"
             className="stack"
             onSubmit={(event) => {
               event.preventDefault();
               submit("payroll.reopen", { id: selected.id, reason });
             }}
           >
-            <p>
-              명세서를 작성 중으로 되돌리고 직원 화면에서 숨깁니다. 기존 확정
-              기록은 남습니다.
-            </p>
+            <p>명세서를 작성 중으로 되돌리고 직원 화면에서 숨겨요.</p>
+            <p className="muted">기존 확정 기록은 남아요.</p>
             <Field label="취소 사유">
               <textarea
                 disabled={busy}
@@ -1307,9 +1434,6 @@ export default function Payroll({
                 {error}
               </p>
             )}
-            <Button type="submit" variant="danger" busy={busy}>
-              확정 취소
-            </Button>
           </form>
         </Modal>
       )}
@@ -1318,8 +1442,24 @@ export default function Payroll({
           title="실제 급여 지급 기록"
           onClose={busy ? undefined : close}
           dirty={paidDate !== today()}
+          footer={
+            <>
+              <Button variant="secondary" onClick={close} disabled={busy}>
+                돌아가기
+              </Button>
+              <Button
+                type="submit"
+                form="payroll-paid-form"
+                variant="primary"
+                busy={busy}
+              >
+                지급 완료로 기록
+              </Button>
+            </>
+          }
         >
           <form
+            id="payroll-paid-form"
             className="stack"
             onSubmit={(event) => {
               event.preventDefault();
@@ -1328,12 +1468,12 @@ export default function Payroll({
           >
             <p>
               {selected.staffSnapshot?.name}님에게{" "}
-              <strong>{format(selected.netPay)}원</strong>을 실제 지급한 뒤
-              기록하세요.
+              <strong>{format(selected.netPay)}원</strong>을 실제로 지급한 뒤
+              기록해 주세요.
             </p>
             <div className="alert alert-warning">
-              이 작업은 계좌 이체를 실행하지 않습니다. 지급 완료 후에는 명세서를
-              수정할 수 없습니다.
+              이 기록은 계좌 이체를 실행하지 않아요. 지급 완료 뒤에는 명세서를
+              고칠 수 없어요.
             </div>
             <Field label="실제 지급일">
               <DateInput
@@ -1352,9 +1492,6 @@ export default function Payroll({
                 {error}
               </p>
             )}
-            <Button type="submit" variant="primary" busy={busy}>
-              실제 지급 확인 · 완료 기록
-            </Button>
           </form>
         </Modal>
       )}

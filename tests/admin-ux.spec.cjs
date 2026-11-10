@@ -28,28 +28,25 @@ async function priorPayroll(page, staff) {
 test('직원 정보와 로그인 권한을 구분해 계정을 발급하고 급여로 이동한다', async ({ page }) => {
   await setupOwner(page);
   await goTo(page, '직원 관리');
-  await page.getByRole('button', { name: '＋ 직원 등록', exact: true }).click();
+  await page.getByRole('button', { name: '직원 등록', exact: true }).click();
   const form = page.getByRole('dialog', { name: '직원 등록', exact: true });
-  await form.getByLabel('직원 이름', { exact: true }).fill('연속 등록 직원');
+  await form.getByLabel('이름', { exact: true }).fill('연속 등록 직원');
   await expect(form.getByRole('button', { name: '저장하고 계정 발급', exact: true })).toHaveCount(0);
   await form.getByRole('button', { name: '직원 저장', exact: true }).click();
   await expect(form).toBeHidden();
-  await expect(page.getByRole('button', { name: '계정 발급', exact: true })).toHaveCount(0);
-  await page.getByRole('navigation', { name: '직원 관리 메뉴' }).getByRole('button', { name: '로그인 권한', exact: true }).click();
   await page.locator('.staff-card').filter({ hasText: '연속 등록 직원' }).getByRole('button', { name: '계정 발급', exact: true }).click();
-  const account = page.getByRole('dialog', { name: '연속 등록 직원 · 계정 발급', exact: true });
+  const account = page.getByRole('dialog', { name: '계정 발급', exact: true });
   await expect(account).toBeVisible();
   await account.getByLabel('로그인 아이디', { exact: true }).fill('staff.ux@example.test');
   await account.getByLabel('임시 비밀번호', { exact: true }).fill('Staff-temporary-2026!');
-  await account.getByRole('button', { name: '계정 저장', exact: true }).click();
+  await account.getByRole('button', { name: '계정 발급', exact: true }).click();
   await expect(account).toBeHidden();
   await page.getByLabel('직원 검색', { exact: true }).fill('staff.ux@example.test');
   await expect(page.locator('.staff-card')).toHaveCount(1);
   const staff = (await state(page)).data.staff.find(row => row.name === '연속 등록 직원');
-  await page.getByRole('navigation', { name: '직원 관리 메뉴' }).getByRole('button', { name: '직원 정보', exact: true }).click();
   await page.locator('.staff-card').getByRole('button', { name: '급여 보기', exact: true }).click();
   await expect(page.getByLabel('직원', { exact: true })).toHaveValue(staff.id);
-  await page.getByRole('button', { name: '급여명세서 작성', exact: true }).click();
+  await page.getByRole('button', { name: '명세서 작성', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('직원', { exact: true })).toHaveValue(staff.id);
 });
 
@@ -62,23 +59,23 @@ test('이전 급여 조건을 재사용하되 근태와 메모를 비우고 이�
   await action(page, 'payment.create', { guestName: '당월 고객', staffId: staff.id, lines: [{ type: 'service', refId: service.id, quantity: 1 }], discount: 0, method: 'cash', reference: '', notes: '' });
   await page.reload();
   await goTo(page, '급여명세');
-  await page.getByRole('button', { name: '급여명세서 작성', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: '급여명세서 작성', exact: true });
+  await page.getByRole('button', { name: '명세서 작성', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '명세서 작성', exact: true });
   await dialog.getByLabel('직원', { exact: true }).selectOption(staff.id);
-  await dialog.getByLabel('기본급 (원)', { exact: true }).fill('100');
+  await dialog.getByLabel('기본급', { exact: true }).fill('100');
   await dialog.getByLabel('명세서 메모', { exact: true }).fill('입력 중 메모');
   await dialog.getByRole('button', { name: '이전 명세서 조건 불러오기', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: '이전 급여 조건을 불러올까요?', exact: true });
-  await expect(confirm).toContainText('근무일수·근로시간·메모는 비웁니다');
+  await expect(confirm).toContainText('근무일수, 근로시간, 메모는 비워요');
   await confirm.getByRole('button', { name: '조건 불러오기', exact: true }).click();
-  await expect(dialog.getByLabel('기본급 (원)', { exact: true })).toHaveValue('2400000');
-  await expect(dialog.getByLabel('근무일수 (선택)', { exact: true })).toHaveValue('');
-  await expect(dialog.getByLabel('총 근로시간 (선택)', { exact: true })).toHaveValue('');
+  await expect(dialog.getByLabel('기본급', { exact: true })).toHaveValue('2400000');
+  await expect(dialog.getByLabel('근무일', { exact: true })).toHaveValue('');
+  await expect(dialog.getByLabel('근무 시간', { exact: true })).toHaveValue('');
   await expect(dialog.getByLabel('명세서 메모', { exact: true })).toHaveValue('');
   await expect(dialog.getByLabel('추가 지급 1 항목명', { exact: true })).toHaveValue('식대');
   await expect(dialog.getByLabel('공제 1 항목명', { exact: true })).toHaveValue('확인한 보험료');
   await expect(dialog.locator('.payroll-preview')).toContainText('2,502,000');
-  await dialog.getByRole('button', { name: '작성 중으로 저장', exact: true }).click();
+  await dialog.getByRole('button', { name: '임시 저장', exact: true }).click();
   await expect(dialog).toBeHidden();
   result = await adminState(page);
   const record = result.data.payroll.find(row => row.staffId === staff.id && row.month === today().slice(0, 7));
@@ -86,7 +83,7 @@ test('이전 급여 조건을 재사용하되 근태와 메모를 비우고 이�
   expect(record.commission).toBe(2000);
   expect(record.workDays).toBeNull();
   expect(record.notes).toBe('');
-  await page.getByRole('button', { name: '급여명세서 작성', exact: true }).click();
+  await page.getByRole('button', { name: '명세서 작성', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('직원', { exact: true }).locator(`option[value="${staff.id}"]`)).toBeDisabled();
 });
 
@@ -148,7 +145,7 @@ test('급여 지급 저장 중에는 닫기를 막고 지급일 입력을 고정
     await route.continue();
   });
   try {
-    await dialog.getByRole('button', { name: '실제 지급 확인 · 완료 기록', exact: true }).click();
+    await dialog.getByRole('button', { name: '지급 완료로 기록', exact: true }).click();
     await requested;
     await expect(dialog).toHaveAttribute('data-busy', 'true');
     await expect(dialog.getByLabel('실제 지급일', { exact: true })).toBeDisabled();

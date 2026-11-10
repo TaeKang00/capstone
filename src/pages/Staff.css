@@ -1,0 +1,374 @@
+/* 직원 tab (Staff.dc.html) and its dialogs (StaffForm.dc.html, AccountForm.dc.html) */
+.people-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+.people-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.people-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.people-title {
+  margin: 0;
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.people-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.people-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.people-toolbar .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.people-chip-count {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--warn);
+}
+.people-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 360px;
+  min-width: 0;
+}
+.people-search .input-icon {
+  flex: 1;
+  min-width: 0;
+}
+.people-count {
+  flex: none;
+}
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.people-card {
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.people-card-head,
+.people-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.people-avatar {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.people-card-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.people-card-name strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.people-badge {
+  flex: none;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+}
+.people-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.people-fact {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.people-fact-value {
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.people-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+.people-card-actions > .btn {
+  flex: 1;
+  min-width: 0;
+}
+.people-pay-btn {
+  flex: none;
+}
+
+/* Dialogs */
+.modal-wide:has(#staff-form),
+.modal-wide:has(#account-form) {
+  max-width: 800px;
+}
+.people-form,
+.people-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+.people-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.people-grid-2,
+.people-grid-3,
+.people-grid-4 {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.people-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.people-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.people-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.people-span-2 {
+  grid-column: 1 / -1;
+}
+.people-form .field {
+  min-width: 0;
+}
+.people-form .field input,
+.people-form .field .input {
+  width: 100%;
+  min-width: 0;
+}
+.people-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.people-group-label {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.people-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.people-choice {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.people-choice:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.people-choice[aria-checked="true"] {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.people-choice:disabled {
+  cursor: not-allowed;
+}
+.people-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.people-day {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.people-day:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.people-day[aria-pressed="true"] {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.people-time {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.people-midnight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--text-muted);
+}
+.people-midnight input {
+  width: 16px;
+  height: 16px;
+}
+.people-suffix {
+  color: var(--text-muted);
+}
+.people-suffix input {
+  width: auto;
+}
+.people-dialog-footer {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.people-dialog-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.people-identity {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.people-identity-name {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.people-password {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.people-password input {
+  flex: 1;
+}
+.people-password .btn {
+  flex: none;
+}
+.people-role-note {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(76, 125, 255, 0.12);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.people-role-title {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.people-login-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+
+@media (max-width: 720px) {
+  .people-title {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .people-search {
+    flex-basis: 100%;
+  }
+  .people-grid-3,
+  .people-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .people-grid-2,
+  .people-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .people-span-2 {
+    grid-column: auto;
+  }
+  .people-dialog-footer > .muted {
+    flex-basis: 100%;
+  }
+  .people-dialog-buttons {
+    width: 100%;
+  }
+  .people-dialog-buttons > .btn {
+    flex: 1;
+  }
+}
