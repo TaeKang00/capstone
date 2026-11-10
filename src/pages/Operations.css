@@ -1567,3 +1567,8 @@ button.ops-record.is-compact:hover {
   border-radius: 12px;
   background: var(--inset);
 }
+
+/* Customer memo: an inset box like the stat tiles above it */
+.ops-memo-box { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 12px; background: #0E0E12; }
+.ops-memo-box .ops-chart-notes { margin: 0; color: #F4F4F6; font-size: 16px; line-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ops-memo-box .ops-chart-notes.is-empty { color: #8B8B96; font-size: 14px; line-height: 20px; }

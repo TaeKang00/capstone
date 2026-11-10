@@ -322,9 +322,9 @@ function CustomerDetail({
       {user.role === "designer" && (
         <p className="help">방문과 결제 기록은 내가 담당한 것만 보여요</p>
       )}
-      <div className="ops-section">
+      <div className="ops-memo-box">
         <span className="ops-meta-label">메모</span>
-        <p className="ops-chart-notes">
+        <p className={`ops-chart-notes${customer.memo ? "" : " is-empty"}`}>
           {customer.memo || "남긴 메모가 없어요. 정보 수정에서 적을 수 있어요."}
         </p>
       </div>

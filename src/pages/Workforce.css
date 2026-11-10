@@ -872,3 +872,9 @@
 }
 .wf-team .wf-item { gap: 12px; }
 .wf-team .wf-team-clock { flex: none; height: 36px; min-height: 36px; padding: 0 16px; }
+
+/* Team clock cards: room for name, time, status and the clock button on one line */
+.wf-team { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.wf-team .wf-item-main { flex: 1; min-width: 0; }
+.wf-team .wf-item-main .small { white-space: nowrap; }
+.wf-team .wf-item > .badge { flex: none; }

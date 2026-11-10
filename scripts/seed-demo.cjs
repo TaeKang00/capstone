@@ -52,8 +52,27 @@ function main() {
     const state = readState(db);
     if (!ownerRow || !state)
       throw new Error("먼저 앱을 켜고 매장 초기 설정을 마친 뒤 다시 실행해 주세요.");
-    if (!again && state.data.customers.some((c) => (c.memo || "").includes(MARK)))
+    // Sample data is recognised by its customers' phone numbers, so nothing visible is tagged.
+    const SAMPLE_PHONE = "010-4821-3302";
+    const hasSample = state.data.customers.some(
+      (c) => c.phone === SAMPLE_PHONE || (c.memo || "").includes(MARK),
+    );
+    if (hasSample && !again) {
+      // Earlier versions wrote "예시 데이터" into memos; take it out without touching anything else.
+      const tagged = state.data.customers.filter((c) => (c.memo || "").includes(MARK));
+      if (tagged.length) {
+        const owner = { id: ownerRow.id, name: ownerRow.name, role: "owner", staffId: ownerRow.staff_id };
+        let data = state.data;
+        for (const c of tagged)
+          data = applyOperation(data, "customer.save", {
+            id: c.id, name: c.name, phone: c.phone, warning: c.warning || "",
+            memo: c.memo.split("\n").filter((line) => line.trim() !== MARK).join("\n"),
+          }, { actor: owner, today: seoulToday(), now: new Date().toISOString(), requestId: randomUUID() });
+        transaction(db, () => writeState(db, data, state.version + 1));
+        console.log(`메모에 남아 있던 '${MARK}' 표시를 ${tagged.length}명에게서 지웠어요.`);
+      }
       throw new Error("이미 예시 데이터가 들어 있어요. 한 번 더 넣으려면 --again을 붙여 주세요.");
+    }
 
     const owner = { id: ownerRow.id, name: ownerRow.name, role: "owner", staffId: ownerRow.staff_id };
     const today = seoulToday();
@@ -115,7 +134,7 @@ function main() {
     for (const [name, contact, phone] of [["뷰티플러스", "김대리", "02-333-1200"], ["헤어라인 유통", "이과장", "031-777-4500"]]) {
       const existing = (data.suppliers || []).find((s) => s.name === name);
       if (existing) supplierIds[name] = existing.id;
-      else if (run("supplier.save", { name, contact, phone, note: MARK, active: true }))
+      else if (run("supplier.save", { name, contact, phone, note: "", active: true }))
         supplierIds[name] = last(data.suppliers).id;
     }
     const categoryIds = {};
@@ -190,7 +209,7 @@ function main() {
     for (const [name, phone, warning, memo] of customerSpec) {
       const existing = data.customers.find((c) => c.phone === phone);
       if (existing) { customerIds.push(existing.id); continue; }
-      if (run("customer.save", { name, phone, warning, memo: memo ? `${memo}\n${MARK}` : MARK }, shift(today, -44)))
+      if (run("customer.save", { name, phone, warning, memo }, shift(today, -44)))
         customerIds.push(last(data.customers).id);
     }
 
@@ -282,7 +301,7 @@ function main() {
         itemId: itemIds[item], quantity, unitCost: itemSpec.find(([n]) => n === item)[5],
       }));
       if (!supplierIds[supplier] || !orderLines.length) continue;
-      if (!run("purchase.create", { supplierId: supplierIds[supplier], date, expectedDate: shift(date, 3), lines: orderLines, notes: MARK }, date, 600)) continue;
+      if (!run("purchase.create", { supplierId: supplierIds[supplier], date, expectedDate: shift(date, 3), lines: orderLines, notes: "" }, date, 600)) continue;
       const order = last(data.purchaseOrders);
       if (received !== "none") {
         const receiveDate = shift(date, 2);
@@ -306,7 +325,7 @@ function main() {
         run("attendance.save", {
           staffId: staffIds[name], date,
           clockIn: late ? 615 + Math.floor(rand() * 20) : 590 + Math.floor(rand() * 10),
-          clockOut: 1200 + Math.floor(rand() * 20), reason: MARK,
+          clockOut: 1200 + Math.floor(rand() * 20), reason: "출퇴근 기록",
         }, today, 600);
       }
     }
