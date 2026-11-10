@@ -109,7 +109,7 @@
   background: var(--brand);
 }
 .meter-reserved {
-  background: #b9cadb;
+  background: var(--chip);
 }
 .team-status,
 .leave-list,
@@ -140,7 +140,7 @@
 .team-status span:not(.badge) {
   grid-area: time;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .team-status .badge {
   grid-area: badge;
@@ -183,7 +183,7 @@
   min-height: 44px;
 }
 .notice-item:hover {
-  background: #f9fbfc;
+  background: var(--surface-2);
 }
 .notice-item.unread {
   border-left: 3px solid var(--brand);
@@ -192,7 +192,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 16px;
 }
 .unread-dot {
   width: 8px;
@@ -266,7 +266,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .profit-total {
-  background: #f1f6fb;
+  background: var(--surface-2);
 }
 .profit-total.loss .stat-value,
 td.negative {

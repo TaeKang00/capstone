@@ -27,7 +27,7 @@
 }
 .access-gate-account > span:last-child {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .access-gate-note {
   display: flex;

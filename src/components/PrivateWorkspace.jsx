@@ -182,25 +182,18 @@ export default function PrivateWorkspace({
         <div className="private-workspace">
           <header className="private-workspace-header">
             <div className="private-workspace-identity">
-              <span className="private-workspace-lock">
-                <Icon name="lock" size={19} />
+              <span className="brand-dot" aria-hidden="true" />
+              <strong>{owner ? "원장 관리" : "내 급여명세"}</strong>
+              <span className="private-workspace-timer">
+                <Icon name="lock" size={16} />
+                3분 동안 쓰지 않으면 잠겨요
               </span>
-              <div>
-                <strong>{owner ? "원장 관리" : "내 급여명세"}</strong>
-                <span>{access.user.name} · 본인 인증됨</span>
-              </div>
+              <span className="private-workspace-user">{access.user.name} 본인 확인됨</span>
             </div>
             <Button variant="primary" onClick={() => onLock()}>
-              <Icon name="lock" size={15} /> 지금 잠그기
+              <Icon name="lock" size={16} /> 지금 잠그기
             </Button>
           </header>
-          <div className="private-workspace-notice">
-            <p>
-              확인이 끝나면 잠가 주세요. 화면을 떠나거나 일정 시간 사용하지
-              않으면 자동으로 잠깁니다.
-            </p>
-            <span>잠그면 저장하지 않은 내용은 지워집니다.</span>
-          </div>
           {owner && (
             <nav
               className="private-workspace-navigation"

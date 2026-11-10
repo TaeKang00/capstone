@@ -36,11 +36,11 @@
 .payroll-subtext {
   display: block;
   font-size: 0.78rem;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
   margin-top: 0.35rem;
 }
 .payroll-form-section {
-  border-top: 1px solid var(--line, #e3e7eb);
+  border-top: 1px solid var(--line, var(--line-strong));
   padding-top: 1rem;
   display: grid;
   gap: 1rem;
@@ -66,7 +66,7 @@
   gap: 0.75rem 1.5rem;
   padding: 1rem;
   border-radius: 6px;
-  background: #f5f6f8;
+  background: var(--surface-2);
   font-size: 0.85rem;
 }
 .payroll-calculation span {
@@ -77,9 +77,9 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem;
-  background: #f5f6f8;
-  color: var(--ink, #242a31);
-  border: 1px solid var(--line, #e3e7eb);
+  background: var(--surface-2);
+  color: var(--ink, var(--text-strong));
+  border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
   padding: 1rem;
   align-items: baseline;
@@ -91,7 +91,7 @@
 }
 .payroll-preview > small {
   grid-column: 1/-1;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
 }
 .payroll-actions {
   display: flex;
@@ -103,15 +103,15 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
-  background: #fff;
-  color: #242a31;
+  background: var(--panel);
+  color: var(--text-strong);
 }
 .payroll-statement-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 2px solid #242a31;
+  border-bottom: 2px solid var(--line-strong);
   padding-bottom: 1rem;
 }
 .payroll-statement-header h2 {
@@ -141,7 +141,7 @@
   font-size: 0.86rem;
 }
 .payroll-details dt {
-  color: #66717d;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 .payroll-details dd {
@@ -166,7 +166,7 @@
 }
 .payroll-statement .table tfoot {
   font-weight: 700;
-  background: #f5f6f8;
+  background: var(--surface-2);
 }
 .payroll-statement .table {
   min-width: 0;
@@ -184,10 +184,10 @@
   overflow-wrap: anywhere;
 }
 .payroll-statement-footer {
-  border-top: 1px solid #e3e7eb;
+  border-top: 1px solid var(--line-strong);
   padding-top: 1rem;
   font-size: 0.72rem;
-  color: #66717d;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 .payroll-statement-footer p {
@@ -196,7 +196,7 @@
 .payroll-history {
   margin-top: 1.5rem;
   font-size: 0.8rem;
-  color: #66717d;
+  color: var(--text-muted);
 }
 .payroll-history summary {
   cursor: pointer;
@@ -228,7 +228,7 @@
     gap: 4px 12px;
     align-items: baseline;
     border-right: 0;
-    border-bottom: 1px solid var(--line, #e3e7eb);
+    border-bottom: 1px solid var(--line, var(--line-strong));
   }
   .payroll-summary .stat-card:last-child {
     border-bottom: 0;
@@ -378,7 +378,7 @@
   }
   body.payroll-printing .payroll-statement .payroll-preview {
     padding: 4mm;
-    border-color: #ccc;
+    border-color: var(--line-strong);
     border-radius: 0;
     background: white;
     color: black;

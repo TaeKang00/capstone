@@ -3,16 +3,16 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin-bottom: 22px;
-  border: 1px solid var(--line, #e3e7eb);
+  border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--panel));
   overflow: hidden;
 }
 .commerce-stats .stat-card {
   min-width: 0;
   padding: 18px 20px;
   border: 0;
-  border-right: 1px solid var(--line, #e3e7eb);
+  border-right: 1px solid var(--line, var(--line-strong));
   border-radius: 0;
   box-shadow: none;
   background: transparent;
@@ -30,13 +30,13 @@
   margin: 8px 0 4px;
 }
 .commerce-stats .stat-card .muted {
-  font-size: 0.75rem;
+  font-size: 12px;
   line-height: 1.5;
 }
 .commerce-stats .stat-card strong small {
   margin-left: 3px;
-  color: var(--muted, #66717d);
-  font-size: 0.75rem;
+  color: var(--muted, var(--text-muted));
+  font-size: 12px;
   font-weight: 500;
 }
 .commerce-filters {
@@ -69,9 +69,9 @@
   align-items: center;
   gap: 12px 20px;
   padding: 14px 16px;
-  border: 1px solid var(--line, #e3e7eb);
+  border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
-  background: var(--surface-soft, #f6f7f8);
+  background: var(--surface-soft, var(--surface-2));
   font-size: 0.875rem;
 }
 .commerce-actions {
@@ -91,7 +91,7 @@
 .commerce-secondary {
   display: block;
   font-size: 0.8rem;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
   margin-top: 4px;
 }
 .commerce-table td,
@@ -148,7 +148,7 @@
   gap: 10px;
   align-items: end;
   padding: 14px 0;
-  border-bottom: 1px solid var(--line, #e3e7eb);
+  border-bottom: 1px solid var(--line, var(--line-strong));
 }
 .commerce-line .field {
   margin: 0;
@@ -176,7 +176,7 @@
   margin: 0;
 }
 .commerce-totals {
-  border-top: 1px solid var(--line, #e3e7eb);
+  border-top: 1px solid var(--line, var(--line-strong));
   padding-top: 16px;
   margin-top: 18px;
   display: grid;
@@ -192,7 +192,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   padding-top: 12px;
-  border-top: 1px solid var(--line, #e3e7eb);
+  border-top: 1px solid var(--line, var(--line-strong));
 }
 .commerce-totals input.input {
   width: 150px;
@@ -213,7 +213,7 @@
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  accent-color: var(--brand, #345f84);
+  accent-color: var(--brand, var(--accent));
 }
 .commerce-definition {
   display: grid;
@@ -222,7 +222,7 @@
   margin: 0;
 }
 .commerce-definition dt {
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
 }
 .commerce-definition dd {
   margin: 0;
@@ -249,8 +249,8 @@
 }
 .commerce-timeline li {
   padding: 14px 16px;
-  border-left: 2px solid var(--line, #e3e7eb);
-  background: var(--surface-soft, #f6f7f8);
+  border-left: 2px solid var(--line, var(--line-strong));
+  background: var(--surface-soft, var(--surface-2));
   border-radius: 0 4px 4px 0;
 }
 .commerce-timeline p {
@@ -259,7 +259,7 @@
   overflow-wrap: anywhere;
 }
 .commerce-refund-line {
-  border: 1px solid var(--line, #e3e7eb);
+  border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
   padding: 16px;
   margin: 12px 0;
@@ -285,7 +285,7 @@
 .commerce-note {
   font-size: 0.875rem;
   line-height: 1.65;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
   margin: 10px 0;
 }
 .commerce-stock-number {
@@ -306,10 +306,10 @@
   flex-wrap: wrap;
   gap: 4px 8px;
   max-width: 100%;
-  border: 1px solid #e3d3b9;
+  border: 1px solid var(--line-strong);
   border-radius: 4px;
-  color: #795c2c;
-  background: #fffaf0;
+  color: var(--warn);
+  background: var(--surface-2);
   padding: 6px 12px;
   font: inherit;
   font-size: 0.8rem;
@@ -325,13 +325,13 @@
   white-space: nowrap;
 }
 .commerce-low-list button:hover {
-  background: #f8f0e1;
+  background: var(--surface-2);
 }
 .commerce-tab-count {
-  font-size: 0.75rem;
+  font-size: 12px;
   border-radius: 4px;
   padding: 2px 7px;
-  background: var(--surface-soft, #f0f2f4);
+  background: var(--surface-soft, var(--surface-2));
   margin-left: 6px;
 }
 .commerce-history-controls {
@@ -349,7 +349,7 @@
   margin: 24px 0 18px;
   overflow-x: auto;
   padding: 0 4px 8px;
-  border-bottom: 1px solid var(--line, #e3e7eb);
+  border-bottom: 1px solid var(--line, var(--line-strong));
 }
 .commerce-bar-column {
   display: flex;
@@ -371,32 +371,32 @@
   flex: 1;
   min-height: 1px;
   border-radius: 2px 2px 0 0;
-  background: #5b7891;
+  background: var(--chip);
 }
 .commerce-bar-column .bar.refund {
-  background: #af806a;
+  background: var(--chip);
 }
 .commerce-bar-column small {
   font-size: 0.65rem;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
   white-space: nowrap;
 }
 .commerce-legend {
   display: flex;
   gap: 18px;
   font-size: 0.8rem;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
 }
 .commerce-legend i {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: #5b7891;
+  background: var(--chip);
   border-radius: 2px;
   margin-right: 6px;
 }
 .commerce-legend .refund {
-  background: #af806a;
+  background: var(--chip);
 }
 .commerce-summary-grid {
   display: grid;
@@ -411,7 +411,7 @@
 .commerce-report-table th {
   position: sticky;
   top: 0;
-  background: var(--surface-soft, #f6f7f8);
+  background: var(--surface-soft, var(--surface-2));
   z-index: 1;
 }
 .commerce-banner {
@@ -425,19 +425,19 @@
   margin: 12px 0 20px;
 }
 .commerce-pending button {
-  border: 1px solid var(--line, #e3e7eb);
+  border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
   padding: 14px 16px;
   text-align: left;
-  background: var(--surface, #fff);
+  background: var(--surface, var(--panel));
   color: inherit;
   min-width: 190px;
   font: inherit;
   cursor: pointer;
 }
 .commerce-pending button:hover {
-  border-color: #aebdca;
-  background: #f8fafb;
+  border-color: var(--line-strong);
+  background: var(--surface-2);
 }
 .commerce-pending strong,
 .commerce-pending small {
@@ -445,7 +445,7 @@
 }
 .commerce-pending small {
   font-size: 0.8rem;
-  color: var(--muted, #66717d);
+  color: var(--muted, var(--text-muted));
   margin-top: 6px;
 }
 .commerce-prewrap {
@@ -457,7 +457,7 @@
   background: transparent;
   padding: 0;
   cursor: pointer;
-  color: var(--brand, #345f84);
+  color: var(--brand, var(--accent));
   font: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -470,7 +470,7 @@
     border-right: 0;
   }
   .commerce-stats .stat-card:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--line, #e3e7eb);
+    border-bottom: 1px solid var(--line, var(--line-strong));
   }
   .commerce-summary-grid {
     grid-template-columns: 1fr;
@@ -514,7 +514,7 @@
     padding-right: 8px;
   }
   .commerce-line .field-label {
-    font-size: 0.75rem;
+    font-size: 12px;
   }
   .commerce-line .line-label {
     font-size: 0.85rem;
@@ -592,7 +592,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
     padding: 18px 0;
-    border-bottom: 1px solid var(--line, #e3e7eb);
+    border-bottom: 1px solid var(--line, var(--line-strong));
   }
   .commerce-mobile-cards tr:last-child {
     border-bottom: 0;
@@ -616,8 +616,8 @@
     content: attr(data-label);
     display: block;
     margin-bottom: 5px;
-    color: var(--muted, #66717d);
-    font-size: 11px;
+    color: var(--muted, var(--text-muted));
+    font-size: 12px;
     font-weight: 500;
   }
   .commerce-mobile-cards td:last-child .btn {
@@ -646,7 +646,7 @@
     padding: 12px 5px;
   }
   .commerce-compact-table .commerce-secondary {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.6;
   }
 }

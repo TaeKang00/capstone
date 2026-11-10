@@ -75,8 +75,8 @@
   border-radius: var(--radius);
 }
 .shared-desk-task:hover {
-  border-color: #b5c4d0;
-  background: #fafcfd;
+  border-color: var(--line-strong);
+  background: var(--panel);
 }
 .shared-desk-task > .icon {
   color: var(--brand);
@@ -98,7 +98,7 @@
 .shared-desk-task small {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .shared-desk-columns {
   display: grid;
@@ -116,7 +116,7 @@
 }
 .shared-desk-card-heading h2 {
   margin: 0 0 6px;
-  font-size: 15px;
+  font-size: 16px;
 }
 .shared-desk-card-heading p {
   margin: 0;
@@ -126,7 +126,7 @@
 .shared-desk-count {
   flex-shrink: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .shared-desk-appointments {
   margin: 0;
@@ -154,7 +154,7 @@
 }
 .shared-desk-time strong,
 .shared-desk-appointment-info strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -200,7 +200,7 @@
 .shared-desk-guidance h3 {
   margin-bottom: 12px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
 }
 .shared-desk-guidance ol {
   display: grid;
@@ -223,7 +223,7 @@
   padding: 22px 0;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   overflow-wrap: anywhere;
 }
 @media (max-width: 1000px) {
@@ -273,10 +273,10 @@
     display: none;
   }
   .shared-desk-task strong {
-    font-size: 13px;
+    font-size: 14px;
   }
   .shared-desk-task small {
-    font-size: 11px;
+    font-size: 12px;
   }
   .shared-desk-columns {
     grid-template-columns: minmax(0, 1fr);

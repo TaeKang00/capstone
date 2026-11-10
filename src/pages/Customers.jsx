@@ -471,6 +471,7 @@ export default function Customers({
     const key = JSON.stringify(routeContext);
     if (key === routeHandled.current) return;
     routeHandled.current = key;
+    if (typeof routeContext.query === "string") setQuery(routeContext.query);
     if (routeContext.customerId) setSelectedId(routeContext.customerId);
     else if (routeContext.create) setEditor({});
   }, [routeContext]);

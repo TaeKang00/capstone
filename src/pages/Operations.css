@@ -45,7 +45,7 @@
   letter-spacing: -0.35px;
 }
 .ops-count {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--muted);
   margin-left: 10px;
@@ -67,7 +67,7 @@
   border-top: 1px solid var(--line);
 }
 .ops-booking:hover {
-  background: #fafbfc;
+  background: var(--surface-2);
 }
 .ops-booking-time {
   padding-right: 12px;
@@ -97,7 +97,7 @@
   margin-bottom: 6px;
 }
 .ops-booking-person strong {
-  font-size: 15px;
+  font-size: 16px;
 }
 .ops-link {
   border: none;
@@ -105,7 +105,7 @@
   padding: 0;
   color: var(--ink);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
@@ -117,15 +117,15 @@
   text-underline-offset: 3px;
 }
 .ops-booking-info {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.7;
 }
 .ops-booking-notes {
-  font-size: 13px;
+  font-size: 14px;
   margin: 10px 0 0;
   padding: 8px 10px;
-  background: #f5f6f8;
+  background: var(--surface-2);
   border-radius: 4px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -143,12 +143,12 @@
   font-size: 12px;
 }
 .ops-warning {
-  color: #785728;
-  background: #fcfaf6;
-  border: 1px solid #e8dfcf;
+  color: var(--warn);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
   border-radius: 5px;
   padding: 9px 11px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   margin-top: 10px;
   white-space: pre-wrap;
@@ -167,7 +167,7 @@
   color: var(--muted);
 }
 .ops-schedule-item strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink);
 }
@@ -187,11 +187,11 @@
   font-size: 14px;
 }
 .ops-service-option:hover {
-  background: #f8f9fb;
+  background: var(--surface-2);
 }
 .ops-service-option:has(input:checked) {
   border-color: var(--brand);
-  background: #f5f7fa;
+  background: var(--surface-2);
 }
 .ops-service-option input {
   margin-top: 3px;
@@ -239,11 +239,11 @@
   color: var(--ink);
 }
 .ops-choice:hover {
-  background: #f8f9fb;
+  background: var(--surface-2);
 }
 .ops-choice.selected {
   border-color: var(--brand);
-  background: #f5f7fa;
+  background: var(--surface-2);
 }
 .ops-choice small {
   color: var(--muted);
@@ -252,7 +252,7 @@
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fafbfc;
+  background: var(--surface-2);
 }
 .ops-availability > .help:last-child {
   margin-bottom: 0;
@@ -275,7 +275,7 @@
   color: var(--ink);
   font: inherit;
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 .ops-time-option:hover {
@@ -311,10 +311,10 @@
   border-top: 1px solid var(--line);
 }
 .ops-customer-card:hover {
-  background: #fafbfc;
+  background: var(--surface-2);
 }
 .ops-customer-card h2 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   margin: 0 0 3px;
   letter-spacing: -0.2px;
@@ -343,9 +343,9 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #f0f2f5;
-  color: #5d6775;
-  font-size: 13px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 14px;
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -357,7 +357,7 @@
 }
 .ops-customer-summary strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink);
   margin-top: 4px;
@@ -372,7 +372,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
-  color: #785728;
+  color: var(--warn);
   overflow-wrap: anywhere;
 }
 .ops-customer-caution strong {
@@ -399,7 +399,7 @@
   font-size: 20px;
 }
 .ops-chart-header .muted {
-  font-size: 13px;
+  font-size: 14px;
 }
 .ops-chart-tabs {
   margin-bottom: 0;
@@ -424,7 +424,7 @@
   align-items: center;
 }
 .ops-chart-record p {
-  font-size: 13px;
+  font-size: 14px;
   margin: 9px 0 0;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -435,7 +435,7 @@
   padding: 0;
   display: grid;
   gap: 10px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .ops-history li {
   border-left: 2px solid var(--line);
@@ -459,14 +459,14 @@
   justify-content: center;
   align-items: center;
   gap: 14px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .ops-error {
   padding: 12px 14px;
-  background: #fbf6f6;
-  border: 1px solid #ead4d1;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
-  color: #993c34;
+  color: var(--danger);
   font-size: 14px;
 }
 .ops-page .stat-grid,
@@ -633,4 +633,36 @@
   .ops-date-controls .btn {
     padding: 8px;
   }
+}
+
+/* Dark design system: chips and selectable choices */
+.ops-availability {
+  border: 0;
+  border-radius: 12px;
+  background: var(--inset);
+  padding: 16px;
+}
+.ops-time-option {
+  min-height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+}
+.ops-time-option:hover {
+  border-color: #383842;
+  background: var(--surface-2);
+}
+.ops-time-option.selected {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.ops-choice {
+  border-radius: 12px;
+}
+.ops-choice.selected {
+  border-color: var(--accent);
+  background: var(--inset);
 }

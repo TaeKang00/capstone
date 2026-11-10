@@ -42,19 +42,22 @@ const pages = {
   attendance: Attendance,
   notices: Notices,
 };
+// [page, short visible label, icon, full accessible name]
 const navigation = [
-  ["dashboard", "오늘의 매장", "workspace", "업무"],
-  ["appointments", "예약 일정", "calendar"],
-  ["customers", "고객 관리", "users"],
-  ["payments", "수납 · 환불", "credit-card"],
-  ["attendance", "근태 · 휴가", "clock"],
-  ["notices", "공지사항", "bell"],
-  ["sales", "매출 · 정산", "chart", "운영"],
-  ["inventory", "재고 · 입고", "inventory"],
-  ["purchases", "발주 · 거래처", "inventory"],
-  ["staff", "직원 관리", "staff"],
-  ["payroll", "급여명세", "payroll"],
-  ["settings", "매장 설정", "settings"],
+  ["dashboard", "오늘", "workspace", "오늘의 매장"],
+  ["appointments", "예약", "calendar", "예약 일정"],
+  ["customers", "고객", "users", "고객 관리"],
+  ["payments", "수납", "credit-card", "수납 · 환불"],
+  ["inventory", "재고", "inventory", "재고 · 입고"],
+  ["purchases", "발주", "truck", "발주 · 거래처"],
+  ["attendance", "근태", "clock", "근태 · 휴가"],
+  ["notices", "공지", "bell", "공지사항"],
+];
+const bottomTabs = [
+  ["dashboard", "오늘", "workspace"],
+  ["appointments", "예약", "calendar"],
+  ["customers", "고객", "users"],
+  ["attendance", "근태", "clock"],
 ];
 class ErrorBoundary extends React.Component {
   state = { failed: false };
@@ -93,7 +96,8 @@ export default function App() {
     [online, setOnline] = useState(navigator.onLine),
     [refreshing, setRefreshing] = useState(false),
     [lastSynced, setLastSynced] = useState(null),
-    [syncError, setSyncError] = useState(false);
+    [syncError, setSyncError] = useState(false),
+    [globalQuery, setGlobalQuery] = useState("");
   const notify = useCallback(
     (message, tone = "success") => setToast({ message, tone, key: Date.now() }),
     [],
@@ -497,55 +501,93 @@ export default function App() {
               (row) => row.noticeId === notice.id && row.userId === user.id,
             ),
         ).length;
-  const counts = { inventory: low, notices: unreadNotices };
-  const nav = (
-    <>
-      <a
-        className="brand"
-        href="#main"
-        onClick={(e) => {
-          e.preventDefault();
-          navigate("dashboard");
-        }}
+  const unpaid =
+    alerts.unpaid === false
+      ? 0
+      : (data?.appointments || []).filter(
+          (a) =>
+            a.date === today() &&
+            !a.transactionId &&
+            ["checked_in", "in_service", "completed"].includes(a.status),
+        ).length;
+  const counts = {
+    inventory: [low, true],
+    notices: [unreadNotices, false],
+    payments: [unpaid, true],
+  };
+  const lead = ["owner", "manager"].includes(user.role);
+  const day = today();
+  const team = lead
+    ? (data?.staff || [])
+        .filter((s) => s.status === "active")
+        .map((s) => {
+          const record = (data?.attendance || []).find(
+            (row) => row.staffId === s.id && row.date === day,
+          );
+          const leave = (data?.staffRequests || []).find(
+            (row) =>
+              row.staffId === s.id &&
+              row.kind === "leave" &&
+              row.status === "approved" &&
+              row.from <= day &&
+              row.to >= day,
+          );
+          const state = leave
+            ? ["휴가", "off"]
+            : record && record.clockOut == null
+              ? ["근무 중", "on"]
+              : record
+                ? ["퇴근", "off"]
+                : ["미출근", "warn"];
+          return { id: s.id, name: s.name, state };
+        })
+    : [];
+  const navItem = ([key, label, icon, name]) => {
+    const [count, alert] = counts[key] || [0, false];
+    return (
+      <button
+        key={key}
+        className={`nav-item ${activePage === key ? "active" : ""}`}
+        aria-current={activePage === key ? "page" : undefined}
+        aria-label={count ? `${name} ${count}건` : name}
+        onClick={() => navigate(key)}
       >
-        {data?.store?.logo ? (
-          <img className="brand-logo" src={data.store.logo} alt="" />
-        ) : (
-          <span className="brand-mark">
-            <Icon name="workspace" size={19} />
+        <span className="nav-icon" aria-hidden="true">
+          <Icon name={icon} />
+        </span>
+        {label}
+        {count > 0 && (
+          <span className={`nav-count ${alert ? "nav-count-alert" : ""}`}>
+            {count}
           </span>
         )}
-        <span>
-          살롱 데스크<small>매장 관리</small>
-        </span>
-      </a>
-      <div className="store-label">
-        <span className="store-caption">현재 매장</span>
-        <strong>{data?.store?.name || "우리 매장"}</strong>
-      </div>
-      <nav aria-label="주 메뉴">
+      </button>
+    );
+  };
+  const nav = (
+    <>
+      <nav aria-label="주 메뉴" className="sidebar-menu">
         {navigation
           .filter(([key]) => allowed(key, user.role))
-          .map(([key, label, icon, group]) => (
-            <React.Fragment key={key}>
-              {group && <p className="nav-group">{group}</p>}
-              <button
-                className={`nav-item ${activePage === key ? "active" : ""}`}
-                aria-current={activePage === key ? "page" : undefined}
-                onClick={() => navigate(key)}
-              >
-                <span className="nav-icon" aria-hidden="true">
-                  <Icon name={icon} />
+          .map(navItem)}
+      </nav>
+      {team.length > 0 && (
+        <section className="sidebar-section" aria-label="지금 근무 중">
+          <p className="nav-group">지금 근무 중</p>
+          <ul className="team-list">
+            {team.map((member) => (
+              <li key={member.id}>
+                <span className={`team-avatar team-${member.state[1]}`}>
+                  {member.name.slice(0, 1)}
                 </span>
-                {label}
-                {counts[key] > 0 && (
-                  <span className="nav-count" aria-label={`${counts[key]}건`}>
-                    {counts[key]}
-                  </span>
-                )}
-              </button>
-            </React.Fragment>
-          ))}
+                <span className="team-name">{member.name}</span>
+                <span className="team-state">{member.state[0]}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section className="sidebar-section" aria-label="보호 영역">
         <p className="nav-group">보호 영역</p>
         <button
           className="nav-item"
@@ -554,7 +596,7 @@ export default function App() {
             security.requestPrivate("personal", "payroll");
           }}
         >
-          <span className="nav-icon">
+          <span className="nav-icon" aria-hidden="true">
             <Icon name="payroll" />
           </span>
           내 급여명세
@@ -566,14 +608,62 @@ export default function App() {
             security.requestPrivate("owner", "staff");
           }}
         >
-          <span className="nav-icon">
+          <span className="nav-icon" aria-hidden="true">
             <Icon name="lock" />
           </span>
           원장 관리
         </button>
-      </nav>
+      </section>
+      <section className="sidebar-footer" aria-label="작업자">
+        <button
+          type="button"
+          className="sidebar-user"
+          onClick={() => setPasswordModal(true)}
+          title="내 비밀번호 변경"
+        >
+          <span className="avatar">{user.name.slice(0, 1)}</span>
+          <span>
+            <strong>{user.name}</strong>
+            <small>{roleLabel(user.role)}</small>
+          </span>
+        </button>
+        <p className="sidebar-note">5분 동안 쓰지 않으면 공용 화면으로 잠겨요</p>
+        <div className="sidebar-actions">
+          <Button variant="ghost" onClick={() => security.operator()}>
+            작업자 전환
+          </Button>
+          <Button
+            variant="ghost"
+            busy={refreshing}
+            aria-label="새로고침"
+            title={
+              lastSynced
+                ? `마지막 확인 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)}`
+                : undefined
+            }
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                await refresh();
+                notify("최신 내용을 불러왔어요");
+              } catch (e) {
+                notify(e.message, "danger");
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+          >
+            <Icon name="refresh" size={16} />
+            {syncError ? "연결 확인" : "새로고침"}
+          </Button>
+        </div>
+      </section>
     </>
   );
+  const searchCustomers = (event) => {
+    event.preventDefault();
+    navigate("customers", { query: globalQuery.trim() });
+  };
   return (
     <>
       <a
@@ -586,194 +676,191 @@ export default function App() {
       >
         본문으로 바로가기
       </a>
-      <div className="app-layout">
-        <aside className="sidebar">{nav}</aside>
-        {drawer && (
-          <div className="drawer-backdrop" onClick={() => setDrawer(false)}>
-            <aside
-              ref={drawerRef}
-              id="mobile-navigation"
-              role="dialog"
-              aria-modal="true"
-              aria-label="매장 메뉴"
-              className="sidebar mobile-drawer"
-              onClick={(e) => e.stopPropagation()}
+      <div className="app-shell">
+        <header className="app-header">
+          <button
+            className="icon-btn menu-toggle"
+            aria-label="메뉴 열기"
+            aria-expanded={drawer}
+            aria-controls="mobile-navigation"
+            onClick={() => setDrawer(true)}
+          >
+            <Icon name="menu" size={20} />
+          </button>
+          <a
+            className="brand"
+            href="#main"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("dashboard");
+            }}
+          >
+            {data?.store?.logo ? (
+              <img className="brand-logo" src={data.store.logo} alt="" />
+            ) : (
+              <span className="brand-dot" aria-hidden="true" />
+            )}
+            <span className="brand-name">{data?.store?.name || "살롱 데스크"}</span>
+          </a>
+          <form className="app-search" role="search" onSubmit={searchCustomers}>
+            <Icon name="search" size={20} />
+            <input
+              type="search"
+              aria-label="손님 찾기"
+              placeholder="손님 이름이나 전화번호"
+              value={globalQuery}
+              onChange={(e) => setGlobalQuery(e.target.value)}
+            />
+          </form>
+          <div className="app-header-actions">
+            {data?.services?.some((s) => s.active) && (
+              <Button
+                variant="primary"
+                className="header-cta"
+                aria-label="＋ 예약 등록"
+                onClick={() => navigate("appointments", { create: true })}
+              >
+                <Icon name="plus" size={16} />
+                예약 등록
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              className="header-lock"
+              onClick={security.lockWork}
             >
-              <button
-                className="icon-btn drawer-close"
-                onClick={() => setDrawer(false)}
-                aria-label="메뉴 닫기"
-              >
-                <Icon name="close" />
-              </button>
-              {nav}
-            </aside>
+              <Icon name="lock" size={16} />
+              공용 화면 잠금
+            </Button>
+            <Button variant="ghost" onClick={() => setLogoutModal(true)}>
+              로그아웃
+            </Button>
           </div>
-        )}
-        <div className="workspace">
-          <header className="topbar">
-            <div className="row">
-              <button
-                className="icon-btn menu-toggle"
-                aria-label="메뉴 열기"
-                aria-expanded={drawer}
-                aria-controls="mobile-navigation"
-                onClick={() => setDrawer(true)}
+        </header>
+        <div className="app-layout">
+          <aside className="sidebar">{nav}</aside>
+          {drawer && (
+            <div className="drawer-backdrop" onClick={() => setDrawer(false)}>
+              <aside
+                ref={drawerRef}
+                id="mobile-navigation"
+                role="dialog"
+                aria-modal="true"
+                aria-label="매장 메뉴"
+                className="sidebar mobile-drawer"
+                onClick={(e) => e.stopPropagation()}
               >
-                <Icon name="menu" size={20} />
-              </button>
-              <span className="topbar-title">
-                {navigation.find(([id]) => id === activePage)?.[1]}
-              </span>
-              <span className="topbar-date">
-                {today().replaceAll("-", ". ")}
-              </span>
-            </div>
-            <div className="row topbar-tools">
-              {lastSynced && (
-                <span
-                  className="sync-status"
-                  title="서버에서 마지막으로 확인한 시각"
+                <button
+                  className="icon-btn drawer-close"
+                  onClick={() => setDrawer(false)}
+                  aria-label="메뉴 닫기"
                 >
-                  {syncError
-                    ? "연결 확인 필요"
-                    : `동기화 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)}`}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                busy={refreshing}
-                onClick={async () => {
-                  setRefreshing(true);
-                  try {
-                    await refresh();
-                    notify("최신 내용을 불러왔습니다.");
-                  } catch (e) {
-                    notify(e.message, "danger");
-                  } finally {
-                    setRefreshing(false);
-                  }
-                }}
-              >
-                새로고침
-              </Button>
-              <button
-                className="user-chip"
-                onClick={() => setPasswordModal(true)}
-                title="내 비밀번호 변경"
-              >
-                <span className="avatar">{user.name.slice(0, 1)}</span>
-                <span>
-                  {user.name}
-                  <small>{roleLabel(user.role)}</small>
-                </span>
-              </button>
-              <Button variant="ghost" onClick={() => setLogoutModal(true)}>
-                로그아웃
-              </Button>
-            </div>
-          </header>
-          <div className="work-access-bar">
-            <span>
-              <strong>{user.name}</strong> 계정으로 업무 기록 중 · 5분간 미사용
-              시 잠금
-            </span>
-            <div className="row">
-              <Button variant="ghost" onClick={() => security.operator()}>
-                작업자 전환
-              </Button>
-              <Button onClick={security.lockWork}>
-                <Icon name="lock" size={15} />
-                공용 화면 잠금
-              </Button>
-            </div>
-          </div>
-          {(!online || syncError) && (
-            <div role="alert" className="connection-banner">
-              <span>
-                {!online
-                  ? "인터넷 연결이 끊겼습니다."
-                  : "서버의 최신 내용을 확인하지 못했습니다."}{" "}
-                현재 화면은 마지막으로 확인한 자료입니다.
-              </span>
-              <Button
-                variant="ghost"
-                busy={refreshing}
-                onClick={async () => {
-                  setRefreshing(true);
-                  try {
-                    await refresh();
-                    setLoadError("");
-                    notify("최신 내용을 불러왔습니다.");
-                  } catch (e) {
-                    notify(e.message, "danger");
-                  } finally {
-                    setRefreshing(false);
-                  }
-                }}
-              >
-                연결 다시 확인
-              </Button>
+                  <Icon name="close" />
+                </button>
+                {nav}
+              </aside>
             </div>
           )}
-          <main id="main" className="main-content" tabIndex={-1}>
-            {loadError && (
-              <div className="alert alert-warning" role="alert">
-                {loadError}{" "}
+          <div className="workspace">
+            {(!online || syncError) && (
+              <div role="alert" className="connection-banner">
+                <span>
+                  {!online
+                    ? "인터넷 연결이 끊겼어요"
+                    : "서버의 최신 내용을 확인하지 못했어요"}
+                </span>
                 <Button
-                  onClick={() =>
-                    refresh()
-                      .then(() => setLoadError(""))
-                      .catch((e) => setLoadError(e.message))
-                  }
+                  variant="ghost"
+                  busy={refreshing}
+                  onClick={async () => {
+                    setRefreshing(true);
+                    try {
+                      await refresh();
+                      setLoadError("");
+                      notify("최신 내용을 불러왔어요");
+                    } catch (e) {
+                      notify(e.message, "danger");
+                    } finally {
+                      setRefreshing(false);
+                    }
+                  }}
                 >
-                  다시 불러오기
+                  연결 다시 확인
                 </Button>
               </div>
             )}
-            {data ? (
-              <ViewStateProvider key={`${user.id}-${viewEpoch}`}>
-                <ErrorBoundary key={activePage}>
-                  <Page
-                    data={data}
-                    user={user}
-                    version={state.version}
-                    noticeReads={noticeReads}
-                    runAction={runAction}
-                    refresh={refresh}
-                    notify={notify}
-                    navigate={navigate}
-                    routeContext={routeContext}
-                  />
-                </ErrorBoundary>
-              </ViewStateProvider>
-            ) : (
-              <div className="empty-state">
-                매장 데이터를 불러오는 중입니다…
-              </div>
-            )}
-          </main>
-          <footer className="app-footer">
-            <span>
-              © {new Date().getFullYear()} {data?.store?.name || "살롱 데스크"}
-            </span>
-            <span>
-              살롱 데스크 v2.0 <span className="footer-dot">·</span> 매장 내부
-              업무용 <span className="footer-dot">·</span> 한국 표준시 (KST)
-            </span>
-            <button
-              className="text-btn"
-              onClick={() =>
-                notify(
-                  "고객·직원 정보는 업무 목적으로만 열람해 주세요. 자리 비움 시 로그아웃하고, 백업 파일은 접근이 제한된 저장소에 보관하세요.",
-                  "warning",
-                )
-              }
-            >
-              개인정보 취급 안내
-            </button>
-          </footer>
+            <main id="main" className="main-content" tabIndex={-1}>
+              {loadError && (
+                <div className="alert alert-warning" role="alert">
+                  {loadError}{" "}
+                  <Button
+                    onClick={() =>
+                      refresh()
+                        .then(() => setLoadError(""))
+                        .catch((e) => setLoadError(e.message))
+                    }
+                  >
+                    다시 불러오기
+                  </Button>
+                </div>
+              )}
+              {data ? (
+                <ViewStateProvider key={`${user.id}-${viewEpoch}`}>
+                  <ErrorBoundary key={activePage}>
+                    <Page
+                      data={data}
+                      user={user}
+                      version={state.version}
+                      noticeReads={noticeReads}
+                      runAction={runAction}
+                      refresh={refresh}
+                      notify={notify}
+                      navigate={navigate}
+                      routeContext={routeContext}
+                    />
+                  </ErrorBoundary>
+                </ViewStateProvider>
+              ) : (
+                <div className="empty-state">
+                  매장 데이터를 불러오는 중이에요
+                </div>
+              )}
+            </main>
+            <footer className="app-footer">
+              <span>{data?.store?.name || "살롱 데스크"}</span>
+              <button
+                className="text-btn"
+                onClick={() =>
+                  notify(
+                    "고객과 직원 정보는 업무 목적으로만 열람해 주세요. 자리를 비울 때는 화면을 잠가 주세요.",
+                    "warning",
+                  )
+                }
+              >
+                개인정보 취급 안내
+              </button>
+            </footer>
+          </div>
         </div>
+        <nav className="bottom-tabs" aria-label="빠른 메뉴">
+          {bottomTabs
+            .filter(([key]) => allowed(key, user.role))
+            .map(([key, label, icon]) => (
+              <button
+                key={key}
+                type="button"
+                aria-current={activePage === key ? "page" : undefined}
+                onClick={() => navigate(key)}
+              >
+                <Icon name={icon} size={20} />
+                {label}
+              </button>
+            ))}
+          <button type="button" onClick={() => setDrawer(true)}>
+            <Icon name="menu" size={20} />
+            더보기
+          </button>
+        </nav>
       </div>
       {toast && (
         <div
