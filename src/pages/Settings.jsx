@@ -344,7 +344,7 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
                   </Field>
                 ))}
               </div>
-              <span className="small muted st-tight">
+              <span className="small muted">
                 급여명세의 4대보험 계산이 이 값을 써요. 해마다 고시되는 요율을 확인해
                 고쳐 주세요
               </span>

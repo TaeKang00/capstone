@@ -352,6 +352,7 @@ span.ops-meta,
   gap: 8px;
 }
 .ops-detail-range {
+  word-break: keep-all;
   font-size: 40px;
   line-height: 48px;
   font-weight: 700;
@@ -428,6 +429,9 @@ span.ops-meta,
 }
 .ops-warning-note > .icon {
   flex: none;
+}
+.ops-m-detail .ops-warning.ops-warning-note {
+  gap: 8px;
 }
 .ops-warning-note strong {
   font-weight: 600;

@@ -375,7 +375,10 @@ function CustomerDetail({
           )}
         </div>
         {customer.warning && (
-          <div className="ops-warning">시술 전 확인: {customer.warning}</div>
+          <div className={`ops-warning ${compact ? "ops-warning-note" : ""}`}>
+            {compact && <Icon name="alert" size={16} />}
+            시술 전 확인: {customer.warning}
+          </div>
         )}
         {compact && actions.length > 0 && (
           <div className="ops-m-actions">{actions}</div>

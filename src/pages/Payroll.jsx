@@ -8,7 +8,6 @@ import {
   Modal,
   Field,
   EmptyState,
-  Money,
   ConfirmDialog,
 } from "../components/ui";
 import "./Payroll.css";

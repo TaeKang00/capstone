@@ -174,6 +174,7 @@ test('급여명세서를 작성·확정·지급 처리하고 출력할 수 있�
   expect(await page.evaluate(() => window.__printCalls)).toBe(1);
   await expect(page.locator('.payroll-statement')).toContainText('테스트 월 정액 급여');
   await page.getByRole('button', { name: '지급 완료 기록', exact: true }).click();
+  await page.getByRole('dialog').getByRole('checkbox', { name: /계좌로 보냈어요/ }).check();
   await page.getByRole('button', { name: '지급 완료로 기록', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   snapshot = await adminState(page);

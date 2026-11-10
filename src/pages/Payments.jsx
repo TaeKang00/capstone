@@ -1430,6 +1430,8 @@ function PaymentDetail({
     data.staff.find((s) => s.id === id)?.name || "기존 담당자";
   const name = tx.customerName || "방문 고객";
   const canReprice = tx.status === "paid" && !refunds.length;
+  // Refunds already have their own history; keep the correction log to edits.
+  const changes = (tx.changes || []).filter((c) => c.kind !== "환불");
   const changeLines = (c) => {
     if (!c.before || !c.after) return [];
     const rows = [];
@@ -1514,7 +1516,7 @@ function PaymentDetail({
                 <span>재고는 다시 빼지 않았어요.</span>
               </>
             ) : (
-              <strong>수납 {tx.replacedBy}로 금액을 정정했어요</strong>
+              <strong>수납 {withRo(tx.replacedBy)} 금액을 정정했어요</strong>
             )}
           </span>
         </p>
@@ -1643,7 +1645,7 @@ function PaymentDetail({
           <strong>{money(tx.total - refundTotal)}</strong>
         </div>
       </div>
-      {(refunds.length > 0 || (tx.changes || []).length > 0) && (
+      {(refunds.length > 0 || changes.length > 0) && (
         <div className="paym-detail-history">
           {refunds.length > 0 && (
             <section aria-labelledby="paym-refund-history">
@@ -1686,11 +1688,11 @@ function PaymentDetail({
               </ul>
             </section>
           )}
-          {(tx.changes || []).length > 0 && (
+          {changes.length > 0 && (
             <section aria-labelledby="paym-change-history">
               <h3 id="paym-change-history">정보 정정 이력</h3>
               <ul>
-                {tx.changes.map((c, index) => (
+                {changes.map((c, index) => (
                   <li key={index}>
                     <span className="paym-detail-history-top">
                       <strong>{c.actorName || "직원"}</strong>
@@ -1769,6 +1771,7 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
   return (
     <Modal
       title="수납 정보 정정"
+      size="wide"
       subtitle={`${tx.customerName ? `${tx.customerName} 님` : "방문 고객"} ${shortDate(tx.date)} 결제`}
       onClose={busy ? undefined : onClose}
       dirty={dirty}

@@ -145,6 +145,7 @@ test('급여 지급 저장 중에는 닫기를 막고 지급일 입력을 고정
     await route.continue();
   });
   try {
+    await dialog.getByRole('checkbox', { name: /계좌로 보냈어요/ }).check();
     await dialog.getByRole('button', { name: '지급 완료로 기록', exact: true }).click();
     await requested;
     await expect(dialog).toHaveAttribute('data-busy', 'true');

@@ -1413,7 +1413,7 @@
     max-width: none;
   }
   .modal-footer .paym-detail-print {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
     display: flex;
   }
   .modal-footer .paym-detail-print .btn {
@@ -1597,8 +1597,6 @@
     flex: none;
   }
   .paym-filter-chips > .chip-row[aria-label="처리 상태"] {
-    margin: 0 -16px;
-    padding: 0 16px;
     overflow-x: auto;
     scrollbar-width: none;
   }

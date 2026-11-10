@@ -78,7 +78,7 @@ test("실제 사용량 입력 → 금액 정정 재수납 → 금액 일부 환�
     .getByLabel("케어 시술 정정 단가 (원)", { exact: true })
     .fill("30000");
   await dialog(page)
-    .getByLabel("금액 정정 사유", { exact: true })
+    .getByLabel("금액 정정 사유 (필수)", { exact: true })
     .fill("단가 오입력");
   await dialog(page)
     .getByRole("checkbox", { name: /기존 결제 취소와/ })
@@ -238,7 +238,7 @@ test("원장이 복구 코드를 발급하고 로그인 화면에서 아이디 �
   await expect(input).toBeVisible();
   const code = await input.inputValue();
   expect(code).toHaveLength(43);
-  await expect(page.getByText("자동 백업 상태", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "자동 백업", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "지금 잠그기", exact: true }).click();
   await page.getByRole('button', { name: /내 메뉴$/ }).click();
   await page.getByRole('menuitem', { name: '로그아웃', exact: true }).click();
