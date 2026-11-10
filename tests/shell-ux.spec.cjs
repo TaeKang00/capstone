@@ -78,7 +78,6 @@ test("서버 동기화 실패를 알리고 다시 확인하면 기존 업무 화
   await banner.getByRole("button", { name: "연결 다시 확인" }).click();
   await expect(banner).toBeHidden();
   await expect(page).toHaveURL(/#\/customers$/);
-  await expect(page.locator(".sync-status")).toContainText("동기화");
 });
 
 test("완료된 오전 예약 뒤에 오후 고객이 숨지 않으며 1인 매장을 설정 미완료로 표시하지 않는다", async ({

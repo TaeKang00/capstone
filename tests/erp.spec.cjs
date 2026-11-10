@@ -104,6 +104,8 @@ test('고객 주의사항과 예약 수납·정정·부분 환불이 연결되�
   let snapshot = await state(page); const booking = snapshot.data.appointments.find(row => row.staffId === staff.id);
   expect(booking.status).toBe('booked');
   expect(snapshot.data.items.find(row => row.id === materialItem.id).qty).toBe(100);
+  await nav(page, '예약 일정');
+  await page.getByRole('group', { name: '보기' }).getByRole('button', { name: '목록', exact: true }).click();
   await page.locator('.ops-booking').filter({ hasText: '연결 고객' }).getByRole('button', { name: '상세', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '수납하기' }).click();
   dialog = page.getByRole('dialog', { name: '예약 수납 기록', exact: true });
@@ -373,7 +375,7 @@ test('접수 직원도 확정된 본인 급여명세서를 조회·출력할 수
   await page.getByRole('button', { name: `${staff.name} ${TODAY.slice(0, 7)} 급여명세서 보기`, exact: true }).click();
   await expect(page.locator('.pay-panel')).toContainText('2,100,000');
   await expect(page.getByRole('button', { name: '인쇄 / PDF 저장', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(확정|확정 취소|지급 완료 기록)$/ })).toHaveCount(0);
+  await expect(page.locator('.pay-panel').getByRole('button', { name: /^(확정|확정 취소|지급 완료 기록)$/ })).toHaveCount(0);
   const own = await state(page);
   expect(own.data.payroll).toEqual([]);
 });

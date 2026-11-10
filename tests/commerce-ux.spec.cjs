@@ -58,8 +58,9 @@ test('수납에서 연락처와 시술을 검색해 선택하고 모바일에서
   await dialog.getByLabel('고객', { exact: true }).selectOption(customer.id);
   await dialog.getByLabel('담당 직원', { exact: true }).selectOption(staff.id);
   await dialog.getByRole('combobox', { name: '시술이나 상품 담기', exact: true }).fill('염색');
-  await expect(dialog.getByRole('option')).toHaveCount(1);
-  await dialog.getByRole('option', { name: /프리미엄 염색/ }).click();
+  const results = dialog.getByRole('listbox');
+  await expect(results.getByRole('option')).toHaveCount(1);
+  await results.getByRole('option', { name: /프리미엄 염색/ }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
   await dialog.getByRole('checkbox', { name: /단말기 승인/ }).check();
