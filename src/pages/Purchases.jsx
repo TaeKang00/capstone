@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import {
   Button,
   Field,
@@ -6,10 +6,12 @@ import {
   Badge,
   Money,
   EmptyState,
+  ConfirmDialog,
 } from "../components/ui";
+import Icon from "../components/Icon";
 import { DateInput } from "../components/DateInput";
 import { useViewState } from "../components/ViewState";
-import { todayInSeoul, quantity } from "./commerce-utils";
+import { todayInSeoul, quantity, matchesSearch } from "./commerce-utils";
 import "../procurement.js";
 import { printDocument, escapeHtml, printMoney, storeBlock, logoTag } from "../print";
 import "./Commerce.css";
@@ -25,18 +27,57 @@ const {
   paidAmount,
   balance,
 } = globalThis.SalonProcurement;
-const lineStatus = (o, l, receipts) =>
-  o.cancelled || cancelled(o, l) >= l.quantity
-    ? "cancelled"
-    : pending(o, l, receipts) === 0
-      ? "delivered"
-      : received(l, receipts) > 0
-        ? "waiting"
-        : o.shipped
-          ? "shipping"
-          : "waiting";
 const tone = (s) =>
   s === "delivered" ? "success" : s === "cancelled" ? "muted" : "warning";
+const itemsLabel = (o) =>
+  o.lines.length > 1
+    ? `${o.lines[0].itemName} 외 ${o.lines.length - 1}품목`
+    : o.lines[0]?.itemName || "품목 없음";
+const dateLabel = (date) => {
+  const [y, m, d] = String(date || "").split("-").map(Number);
+  if (!y || !m || !d) return date || "";
+  const thisYear = Number(todayInSeoul().slice(0, 4));
+  return `${y === thisYear ? "" : `${y}년 `}${m}월 ${d}일`;
+};
+const shipChip = (o, receipts) => {
+  const s = status(o, receipts);
+  if (s === "waiting" && o.lines.some((l) => received(l, receipts) > 0))
+    return ["부분 입고", "warning"];
+  return [labels[s], s === "delivered" ? "success" : "muted"];
+};
+const payChip = (o) => {
+  if (o.cancelled) return null;
+  if (balance(o) < 0) return ["환급 대기", "warning"];
+  if (o.paid) return ["지급 완료", "success"];
+  if (paidAmount(o) > 0) return ["일부 지급", "warning"];
+  return ["미지급", "warning"];
+};
+const payText = (o) =>
+  balance(o) < 0
+    ? "거래처 환급 대기"
+    : o.paid
+      ? "대금 지급 완료"
+      : paidAmount(o) > 0
+        ? "일부 지급"
+        : "대금 미지급";
+
+// Footer "취소" buttons must honour the same unsaved-changes guard as the dialog's close button.
+function useCloseGuard(dirty, onClose) {
+  const [asking, setAsking] = useState(false);
+  const request = () => (dirty ? setAsking(true) : onClose());
+  const confirm = asking && (
+    <ConfirmDialog
+      title="작성 중인 내용을 닫을까요?"
+      onClose={() => setAsking(false)}
+      onConfirm={onClose}
+      confirmLabel="내용 버리고 닫기"
+      variant="danger"
+    >
+      저장하지 않은 변경사항이 사라집니다.
+    </ConfirmDialog>
+  );
+  return [request, confirm];
+}
 
 export default function Purchases({
   data,
@@ -59,12 +100,24 @@ export default function Purchases({
   const [active, setActive] = useViewState("purchases", "active", "active");
   const [from, setFrom] = useViewState("purchases", "from", "");
   const [to, setTo] = useViewState("purchases", "to", "");
+  const [selectedId, setSelectedId] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [limit, setLimit] = useState(50);
   const suppliers = data.suppliers || [],
     categories = data.itemCategories || [],
     orders = data.purchaseOrders || [],
     receipts = data.receipts || [];
+  const changeTab = (value) => {
+    setTab(value);
+    setQuery("");
+    setLimit(50);
+  };
+  const usedContext = useRef(null);
+  useEffect(() => {
+    if (!routeContext || routeContext === usedContext.current) return;
+    usedContext.current = routeContext;
+    if (routeContext.tab) changeTab(routeContext.tab);
+  }, [routeContext]);
   const match = (...v) =>
     v.join(" ").toLowerCase().includes(query.toLowerCase());
   const rows = orders
@@ -75,48 +128,49 @@ export default function Purchases({
         (!supplierId || o.supplierId === supplierId) &&
         (!from || o.date >= from) &&
         (!to || o.date <= to) &&
-        (payment === "all" || (payment === "paid" ? o.paid : !o.paid)),
-    )
-    .flatMap((o) =>
-      o.lines.map((l) => ({ o, l, state: lineStatus(o, l, receipts) })),
-    )
-    .filter(
-      ({ o, l, state }) =>
-        (delivery === "all" || delivery === state) &&
-        match(o.supplierName, l.itemName, o.notes, o.id),
+        (payment === "all" || (payment === "paid" ? o.paid : !o.paid)) &&
+        (delivery === "all" || status(o, receipts) === delivery) &&
+        match(
+          o.supplierName,
+          ...o.lines.map((l) => l.itemName),
+          o.notes || "",
+          o.id,
+        ),
     );
   const masters = (tab === "suppliers" ? suppliers : categories).filter(
     (s) =>
       (active === "all" || s.active === (active === "active")) &&
       match(s.name, s.contact || "", s.phone || ""),
   );
+  const selected = selectedId ? orders.find((o) => o.id === selectedId) : null;
   const current = dialog?.id ? orders.find((o) => o.id === dialog.id) : null;
   const pendingRequests = (data.purchaseRequests || []).filter(
     (r) => r.status === "requested",
   ).length;
+  const openOrders = orders.filter(
+    (o) => !["delivered", "cancelled"].includes(status(o, receipts)),
+  ).length;
+  const orderNo = (o) => orders.indexOf(o) + 1;
   const saved = () => {
     setDialog(null);
     notify("저장했습니다.");
   };
-  const changeTab = (value) => {
-    setTab(value);
-    setQuery("");
-    setLimit(50);
-  };
+  const tabs = [
+    ["orders", "발주 내역"],
+    ["requests", "구매 요청"],
+    ["summary", "매입 현황"],
+    ["suppliers", "거래처"],
+    ["categories", "품목 분류"],
+  ];
   return (
-    <>
+    <div className="po-page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">발주 · 거래처</h1>
-          <p className="page-description">
-            필요한 품목을 발주하고 실제 입고와 대금 지급을 확인합니다.
-          </p>
+          <p className="page-eyebrow">진행 중 {openOrders}건</p>
+          <h1 className="page-title">발주</h1>
         </div>
-        <div className="page-actions">
-          <Button onClick={() => navigate("inventory")}>
-            재고 · 품목 관리
-          </Button>
-          {canManage && (
+        {canManage && (
+          <div className="page-actions">
             <Button
               variant="primary"
               onClick={() =>
@@ -131,65 +185,16 @@ export default function Purchases({
               }
             >
               {tab === "suppliers"
-                ? "+ 거래처 등록"
+                ? "거래처 등록"
                 : tab === "categories"
-                  ? "+ 분류 등록"
-                  : "+ 발주 등록"}
+                  ? "분류 등록"
+                  : "발주 등록"}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </header>
-      <div className="commerce-stats">
-        <div className="stat-card">
-          <span>입고 대기 발주</span>
-          <strong>
-            {
-              orders.filter(
-                (o) =>
-                  !o.cancelled &&
-                  !["delivered", "cancelled"].includes(status(o, receipts)),
-              ).length
-            }
-            <small>건</small>
-          </strong>
-          <span className="muted">부분 입고 포함</span>
-        </div>
-        <div className="stat-card">
-          <span>입고 완료 발주</span>
-          <strong>
-            {orders.filter((o) => status(o, receipts) === "delivered").length}
-            <small>건</small>
-          </strong>
-          <span className="muted">전체 수량 수령</span>
-        </div>
-        <div className="stat-card">
-          <span>대금 미지급</span>
-          <strong>
-            <Money
-              value={orders
-                .filter((o) => !o.cancelled && !o.paid)
-                .reduce((s, o) => s + Math.max(0, balance(o)), 0)}
-            />
-          </strong>
-          <span className="muted">실제 이체 후 지급 기록</span>
-        </div>
-        <div className="stat-card">
-          <span>거래 중인 거래처</span>
-          <strong>
-            {suppliers.filter((s) => s.active).length}
-            <small>곳</small>
-          </strong>
-          <span className="muted">사용 중인 거래처</span>
-        </div>
-      </div>
       <div className="tabs" role="tablist" aria-label="발주 관리 메뉴">
-        {[
-          ["orders", "발주 내역"],
-          ["requests", "구매 요청"],
-          ["summary", "매입 현황"],
-          ["suppliers", "거래처"],
-          ["categories", "품목 분류"],
-        ].map(([id, label]) => (
+        {tabs.map(([id, label]) => (
           <button
             key={id}
             role="tab"
@@ -199,7 +204,7 @@ export default function Purchases({
           >
             {label}
             {id === "requests" && pendingRequests > 0 && (
-              <span className="commerce-tab-count">{pendingRequests}</span>
+              <span className="po-tab-count">{pendingRequests}</span>
             )}
           </button>
         ))}
@@ -210,81 +215,202 @@ export default function Purchases({
           canManage={canManage}
           runAction={runAction}
           notify={notify}
-          onOrder={() => setDialog({ kind: "new" })}
         />
       ) : tab === "summary" ? (
         <PurchaseSummary orders={orders} />
+      ) : tab === "orders" ? (
+        <>
+          <div className="po-filters">
+            <label className="input-icon po-search">
+              <Icon name="search" />
+              <span className="sr-only">검색</span>
+              <input
+                type="search"
+                placeholder="거래처, 품목, 발주 메모"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setLimit(50);
+                }}
+              />
+            </label>
+            <Field label="배송 상태">
+              <select
+                value={delivery}
+                onChange={(e) => setDelivery(e.target.value)}
+              >
+                <option value="all">전체 상태</option>
+                {Object.entries(labels).map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="대금 지급">
+              <select
+                value={payment}
+                onChange={(e) => setPayment(e.target.value)}
+              >
+                <option value="all">전체</option>
+                <option value="unpaid">미지급</option>
+                <option value="paid">지급 완료</option>
+              </select>
+            </Field>
+            <Field label="거래처">
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+              >
+                <option value="">전체 거래처</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                    {s.active ? "" : " (미사용)"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="발주 시작일">
+              <DateInput
+                value={from}
+                max={to || undefined}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </Field>
+            <Field label="발주 종료일">
+              <DateInput
+                value={to}
+                min={from || undefined}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="po-layout">
+            <section className="po-list" aria-label="발주 목록">
+              {rows.length ? (
+                <table className="po-cards">
+                  <thead className="sr-only">
+                    <tr>
+                      <th scope="col">발주</th>
+                      <th scope="col">금액과 상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0, limit).map((o) => {
+                      const [ship, shipTone] = shipChip(o, receipts);
+                      const pay = payChip(o);
+                      const isSelected = o.id === selectedId;
+                      return (
+                        <tr
+                          key={o.id}
+                          className="po-card"
+                          aria-current={isSelected || undefined}
+                        >
+                          <td className="po-card-main">
+                            <button
+                              type="button"
+                              className="po-card-button"
+                              aria-label={`${o.supplierName} ${itemsLabel(o)} 발주 상세`}
+                              onClick={() => setSelectedId(o.id)}
+                            >
+                              <span className="po-card-top">
+                                <strong>{o.supplierName}</strong>
+                                <span className="small muted">
+                                  발주 {orderNo(o)}
+                                </span>
+                              </span>
+                              <span className="po-card-items">
+                                {itemsLabel(o)}
+                              </span>
+                              <span className="small muted">
+                                {dateLabel(o.date)} 발주
+                              </span>
+                            </button>
+                          </td>
+                          <td className="po-card-side">
+                            <strong className="po-card-amount num">
+                              <Money value={total(o)} />
+                            </strong>
+                            <span className="po-chips">
+                              <Badge tone={shipTone}>{ship}</Badge>
+                              {pay && <Badge tone={pay[1]}>{pay[0]}</Badge>}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="panel">
+                  <EmptyState
+                    title="조회할 발주가 없어요"
+                    description="거래처와 품목을 등록한 다음 필요한 품목을 골라 발주하세요"
+                  />
+                </div>
+              )}
+              {rows.length > limit && (
+                <Button
+                  className="po-more-button"
+                  onClick={() => setLimit((v) => v + 50)}
+                >
+                  발주 더 보기
+                </Button>
+              )}
+              {rows.length > 0 && (
+                <p className="po-list-sum">
+                  <span className="small muted">조회한 발주 {rows.length}건</span>
+                  <span className="small muted">
+                    취소 제외 합계{" "}
+                    <Money
+                      value={rows.reduce(
+                        (s, o) => s + (o.cancelled ? 0 : total(o)),
+                        0,
+                      )}
+                    />
+                  </span>
+                </p>
+              )}
+            </section>
+            {selected ? (
+              <OrderPanel
+                order={selected}
+                orderNo={orderNo(selected)}
+                store={data.store}
+                receipts={receipts}
+                canManage={canManage}
+                onClose={() => setSelectedId(null)}
+                onAction={(kind, receiptId) =>
+                  setDialog({ kind, id: selected.id, receiptId })
+                }
+              />
+            ) : (
+              <aside className="panel po-detail po-detail-empty">
+                <Icon name="truck" />
+                <p className="muted">
+                  발주를 고르면 입고와 지급을 여기서 기록해요
+                </p>
+              </aside>
+            )}
+          </div>
+        </>
       ) : (
-      <section className="card purchase-card">
-        <div className="commerce-filters">
-          <Field label="검색">
-            <input
-              type="search"
-              placeholder={
-                tab === "orders" ? "거래처, 품목, 발주 메모" : "이름으로 검색"
-              }
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setLimit(50);
-              }}
-            />
-          </Field>
-          {tab === "orders" ? (
-            <>
-              <Field label="배송 상태">
-                <select
-                  value={delivery}
-                  onChange={(e) => setDelivery(e.target.value)}
-                >
-                  <option value="all">전체 상태</option>
-                  {Object.entries(labels).map(([id, label]) => (
-                    <option key={id} value={id}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="대금 지급">
-                <select
-                  value={payment}
-                  onChange={(e) => setPayment(e.target.value)}
-                >
-                  <option value="all">전체</option>
-                  <option value="unpaid">미지급</option>
-                  <option value="paid">지급 완료</option>
-                </select>
-              </Field>
-              <Field label="거래처">
-                <select
-                  value={supplierId}
-                  onChange={(e) => setSupplierId(e.target.value)}
-                >
-                  <option value="">전체 거래처</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                      {s.active ? "" : " · 미사용"}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="발주 시작일">
-                <DateInput
-                  value={from}
-                  max={to || undefined}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-              </Field>
-              <Field label="발주 종료일">
-                <DateInput
-                  value={to}
-                  min={from || undefined}
-                  onChange={(e) => setTo(e.target.value)}
-                />
-              </Field>
-            </>
-          ) : (
+        <section className="panel po-master">
+          <div className="po-filters">
+            <label className="input-icon po-search">
+              <Icon name="search" />
+              <span className="sr-only">검색</span>
+              <input
+                type="search"
+                placeholder="이름으로 검색"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setLimit(50);
+                }}
+              />
+            </label>
             <Field label="사용 상태">
               <select
                 value={active}
@@ -295,215 +421,80 @@ export default function Purchases({
                 <option value="all">전체</option>
               </select>
             </Field>
-          )}
-        </div>
-        {tab === "orders" ? (
-          <>
+          </div>
+          {tab === "categories" && (
             <p className="help">
-              수량을 일부만 받았다면 ‘대기 · 부분 입고’로 표시합니다. 배송완료는
-              해당 품목의 발주 수량을 모두 입고하면 자동으로 반영됩니다.
+              품목을 묶어 보는 분류예요. 시술 재료와 판매 상품 구분은 품목에서
+              따로 골라요. 미사용 분류는 새 품목에 고를 수 없어요
             </p>
-            {rows.length ? (
-              <div className="table-wrap">
-                <table className="table commerce-table commerce-mobile-cards">
-                  <thead>
-                    <tr>
-                      {[
-                        "발주일 / 거래처",
-                        "품목",
-                        "수량 / 입고",
-                        "제품 총 금액",
-                        "납품 예정일",
-                        "배송 / 지급",
-                        "관리",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.slice(0, limit).map(({ o, l, state }) => (
-                      <tr key={l.id}>
-                        <td data-label="발주일 / 거래처">
-                          <strong>{o.supplierName}</strong>
-                          <span className="commerce-secondary">
-                            {o.date} · 발주 #{orders.indexOf(o) + 1}
-                          </span>
-                        </td>
-                        <td data-label="품목">
-                          {l.itemName}
-                          {!(l.packSize === 1 && l.unit === "개") && (
-                            <span className="commerce-secondary">
-                              1개 = {quantity(l.packSize)}
-                              {l.unit}
-                            </span>
-                          )}
-                        </td>
-                        <td data-label="수량 / 입고">
-                          {l.quantity}개 발주
-                          <span className="commerce-secondary">
-                            {received(l, receipts)}개 입고 · 잔량{" "}
-                            {pending(o, l, receipts)}개
-                          </span>
-                        </td>
-                        <td data-label="제품 총 금액">
-                          <Money
-                            value={
-                              (l.quantity - cancelled(o, l) - returned(o, l)) *
-                              l.unitCost
-                            }
-                          />
-                          <span className="commerce-secondary">
-                            개당 <Money value={l.unitCost} />
-                          </span>
-                        </td>
-                        <td data-label="납품 예정일">
-                          {o.deliveryDate || "미정"}
-                        </td>
-                        <td data-label="배송 / 지급">
-                          <Badge tone={tone(state)}>{labels[state]}</Badge>
-                          {state === "waiting" && received(l, receipts) > 0 && (
-                            <span className="commerce-secondary">
-                              부분 입고
-                            </span>
-                          )}
-                          <span className="commerce-secondary">
-                            {balance(o) < 0
-                              ? "거래처 환급 대기"
-                              : o.paid
-                                ? "대금 지급 완료"
-                                : paidAmount(o) > 0
-                                  ? "일부 지급"
-                                  : "대금 미지급"}
-                          </span>
-                        </td>
-                        <td>
-                          <Button
-                            aria-label={`${o.supplierName} ${l.itemName} 발주 상세`}
-                            onClick={() =>
-                              setDialog({ kind: "detail", id: o.id })
-                            }
-                          >
-                            상세 · 입고
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan="7">
-                        조회한 품목 {rows.length}건 · 총 금액{" "}
-                        <Money
-                          value={rows.reduce(
-                            (s, { o, l }) =>
-                              s +
-                              (o.cancelled
-                                ? 0
-                                : (l.quantity -
-                                    cancelled(o, l) -
-                                    returned(o, l)) *
-                                  l.unitCost),
-                            0,
-                          )}
-                        />{" "}
-                        <span className="help">취소 제외</span>
+          )}
+          {masters.length ? (
+            <div className="table-wrap">
+              <table className="table po-table">
+                <thead>
+                  <tr>
+                    <th>{tab === "suppliers" ? "거래처" : "분류"} 이름</th>
+                    {tab === "suppliers" && (
+                      <>
+                        <th>담당자 / 연락처</th>
+                        <th>메모</th>
+                      </>
+                    )}
+                    <th>사용 상태</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {masters.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <strong>{s.name}</strong>
                       </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            ) : (
-              <EmptyState
-                title="조회할 발주가 없습니다"
-                description="거래처와 품목을 등록한 다음 필요한 품목을 체크해서 발주하세요."
-              />
-            )}
-            {rows.length > limit && (
-              <Button onClick={() => setLimit((v) => v + 50)}>
-                발주 더 보기
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            {tab === "categories" && (
-              <p className="help">
-                품목을 묶어 조회하는 분류입니다. 시술 재료·판매 상품 용도는
-                품목에서 별도로 선택합니다. 미사용 분류는 새 품목에 선택할 수
-                없습니다.
-              </p>
-            )}
-            {masters.length ? (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>{tab === "suppliers" ? "거래처" : "분류"} 이름</th>
                       {tab === "suppliers" && (
                         <>
-                          <th>담당자 / 연락처</th>
-                          <th>메모</th>
+                          <td>
+                            {s.contact || "없음"}
+                            <span className="po-secondary">
+                              {s.phone || "연락처 없음"}
+                            </span>
+                          </td>
+                          <td>{s.note || "없음"}</td>
                         </>
                       )}
-                      <th>사용 상태</th>
-                      <th>관리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {masters.map((s) => (
-                      <tr key={s.id}>
-                        <td>
-                          <strong>{s.name}</strong>
-                        </td>
-                        {tab === "suppliers" && (
-                          <>
-                            <td>
-                              {s.contact || "—"}
-                              <span className="commerce-secondary">
-                                {s.phone || "—"}
-                              </span>
-                            </td>
-                            <td>{s.note || "—"}</td>
-                          </>
+                      <td>
+                        <Badge tone={s.active ? "success" : "muted"}>
+                          {s.active ? "사용" : "미사용"}
+                        </Badge>
+                      </td>
+                      <td>
+                        {canManage && (
+                          <Button
+                            variant="ghost"
+                            aria-label={`${s.name} 수정`}
+                            onClick={() =>
+                              setDialog({
+                                kind:
+                                  tab === "suppliers" ? "supplier" : "category",
+                                record: s,
+                              })
+                            }
+                          >
+                            수정
+                          </Button>
                         )}
-                        <td>
-                          <Badge tone={s.active ? "success" : "muted"}>
-                            {s.active ? "사용" : "미사용"}
-                          </Badge>
-                        </td>
-                        <td>
-                          {canManage && (
-                            <Button
-                              aria-label={`${s.name} 수정`}
-                              onClick={() =>
-                                setDialog({
-                                  kind:
-                                    tab === "suppliers"
-                                      ? "supplier"
-                                      : "category",
-                                  record: s,
-                                })
-                              }
-                            >
-                              수정
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <EmptyState
-                title="조회 결과가 없습니다"
-                description="사용 상태와 검색 조건을 확인하거나 새로 등록하세요."
-              />
-            )}
-          </>
-        )}
-      </section>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              title="조회 결과가 없어요"
+              description="사용 상태와 검색어를 확인하거나 새로 등록하세요"
+            />
+          )}
+        </section>
       )}
       {["supplier", "category"].includes(dialog?.kind) && (
         <MasterForm
@@ -520,18 +511,6 @@ export default function Purchases({
           runAction={runAction}
           onClose={() => setDialog(null)}
           onSaved={saved}
-        />
-      )}
-      {dialog?.kind === "detail" && current && (
-        <OrderDetail
-          order={current}
-          store={data.store}
-          receipts={receipts}
-          canManage={canManage}
-          onClose={() => setDialog(null)}
-          onAction={(kind, receiptId) =>
-            setDialog({ kind, id: current.id, receiptId })
-          }
         />
       )}
       {[
@@ -551,14 +530,14 @@ export default function Purchases({
             receiptId={dialog.receiptId}
             receipts={receipts}
             runAction={runAction}
-            onClose={() => setDialog({ kind: "detail", id: current.id })}
+            onClose={() => setDialog(null)}
             onSaved={() => {
-              setDialog({ kind: "detail", id: current.id });
+              setDialog(null);
               notify("발주 내역에 반영했습니다.");
             }}
           />
         )}
-    </>
+    </div>
   );
 }
 function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
@@ -568,6 +547,7 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
   const [dirty, setDirty] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [requestClose, closeGuard] = useCloseGuard(dirty, onClose);
   const update = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
     setDirty(true);
@@ -595,18 +575,23 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
-        <Button
-          type="submit"
-          form="purchase-master"
-          variant="primary"
-          busy={busy}
-        >
-          저장
-        </Button>
+        <>
+          <Button variant="secondary" onClick={requestClose} disabled={busy}>
+            취소
+          </Button>
+          <Button
+            type="submit"
+            form="purchase-master"
+            variant="primary"
+            busy={busy}
+          >
+            저장
+          </Button>
+        </>
       }
     >
-      <form id="purchase-master" onSubmit={submit}>
-        <fieldset className="stack commerce-fieldset" disabled={busy}>
+      <form id="purchase-master" onSubmit={submit} className="po-form">
+        <fieldset className="po-fieldset" disabled={busy}>
           {error && (
             <div role="alert" className="alert alert-danger">
               {error}
@@ -622,21 +607,23 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
           </Field>
           {kind === "supplier" && (
             <>
-              <Field label="담당자">
-                <input
-                  maxLength={100}
-                  value={form.contact}
-                  onChange={(e) => update("contact", e.target.value)}
-                />
-              </Field>
-              <Field label="연락처">
-                <input
-                  type="tel"
-                  maxLength={30}
-                  value={form.phone}
-                  onChange={(e) => update("phone", e.target.value)}
-                />
-              </Field>
+              <div className="po-grid-2">
+                <Field label="담당자">
+                  <input
+                    maxLength={100}
+                    value={form.contact}
+                    onChange={(e) => update("contact", e.target.value)}
+                  />
+                </Field>
+                <Field label="연락처">
+                  <input
+                    type="tel"
+                    maxLength={30}
+                    value={form.phone}
+                    onChange={(e) => update("phone", e.target.value)}
+                  />
+                </Field>
+              </div>
               <Field label="거래처 메모">
                 <textarea
                   maxLength={500}
@@ -646,7 +633,10 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
               </Field>
             </>
           )}
-          <Field label="사용 상태">
+          <Field
+            label="사용 상태"
+            help="미사용으로 바꿔도 기존 품목과 발주 이력은 남아요"
+          >
             <select
               value={String(form.active)}
               onChange={(e) => update("active", e.target.value === "true")}
@@ -655,14 +645,17 @@ function MasterForm({ kind, initial, runAction, onClose, onSaved }) {
               <option value="false">미사용</option>
             </select>
           </Field>
-          <p className="help">
-            미사용으로 바꿔도 기존 품목과 발주 이력은 보관됩니다.
-          </p>
         </fieldset>
       </form>
+      {closeGuard}
     </Modal>
   );
 }
+const ORDER_SCOPES = [
+  ["supplier", "이 거래처 품목"],
+  ["low", "보충 필요"],
+  ["all", "모든 품목"],
+];
 function OrderForm({ data, runAction, onClose, onSaved }) {
   const [form, setForm] = useState({
     supplierId: "",
@@ -673,29 +666,39 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
   const [selected, setSelected] = useState({}),
     [search, setSearch] = useState(""),
     [category, setCategory] = useState(""),
-    [onlyLow, setOnlyLow] = useState(false);
+    [scope, setScope] = useState("supplier");
   const [dirty, setDirty] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [requestClose, closeGuard] = useCloseGuard(dirty, onClose);
   const update = (key, v) => {
     setForm((f) => ({ ...f, [key]: v }));
     setDirty(true);
   };
+  const requestedQty = {};
+  for (const r of data.purchaseRequests || [])
+    if (r.status === "requested")
+      requestedQty[r.itemId] = (requestedQty[r.itemId] || 0) + Number(r.quantity);
+  const isLow = (i) => Number(i.qty) <= Number(i.min);
+  const ours = (i) => i.supplierId === form.supplierId;
   const items = data.items
     .filter((i) => i.active !== false)
     .sort(
       (a, b) =>
-        Number(b.supplierId === form.supplierId) -
-        Number(a.supplierId === form.supplierId),
+        Number(ours(b)) - Number(ours(a)) ||
+        Number(isLow(b) || !!requestedQty[b.id]) -
+          Number(isLow(a) || !!requestedQty[a.id]) ||
+        a.name.localeCompare(b.name, "ko"),
     );
   const shown = items.filter(
     (i) =>
+      (scope === "all" ||
+        (scope === "low" ? isLow(i) : ours(i) || !i.supplierId)) &&
       (!category ||
         (i.categoryId ||
           (i.kind === "판매 상품" ? "cat-sale" : "cat-service")) ===
           category) &&
-      (!onlyLow || i.qty <= i.min) &&
-      i.name.toLowerCase().includes(search.toLowerCase()),
+      matchesSearch(search, [i.name, i.spec, i.barcode]),
   );
   const toggle = (item, checked) => {
     setSelected((old) => {
@@ -711,6 +714,7 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
     setSelected((old) => ({ ...old, [id]: { ...old[id], [key]: v } }));
     setDirty(true);
   };
+  const count = Object.keys(selected).length;
   const amount = Object.values(selected).reduce(
     (s, l) => s + Number(l.quantity) * Number(l.unitCost),
     0,
@@ -738,40 +742,41 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
   };
   return (
     <Modal
-      title="간편 발주 등록"
+      title="발주 등록"
       size="wide"
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
         <>
-          <span>
-            {Object.keys(selected).length}개 품목 · 총 금액{" "}
-            <Money value={amount} />
+          <span className="po-total">
+            <span className="small muted">{count}품목 합계</span>
+            <strong className="num">
+              <Money value={amount} />
+            </strong>
           </span>
+          <Button variant="secondary" onClick={requestClose} disabled={busy}>
+            취소
+          </Button>
           <Button
             type="submit"
             form="purchase-new"
             variant="primary"
             busy={busy}
-            disabled={!Object.keys(selected).length}
+            disabled={!count}
           >
-            발주 등록
+            발주 저장
           </Button>
         </>
       }
     >
-      <form id="purchase-new" onSubmit={submit}>
-        <fieldset className="stack commerce-fieldset" disabled={busy}>
+      <form id="purchase-new" onSubmit={submit} className="po-form">
+        <fieldset className="po-fieldset" disabled={busy}>
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
             </div>
           )}
-          <p className="help">
-            거래처를 선택한 뒤 필요한 품목을 체크하세요. 기본 거래처가 일치하는
-            품목이 먼저 표시됩니다. 발주만 등록하면 재고는 늘어나지 않습니다.
-          </p>
-          <div className="commerce-form-grid">
+          <div className="po-grid-3">
             <Field label="발주 거래처">
               <select
                 required
@@ -809,119 +814,189 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
           </div>
           {!data.suppliers?.some((s) => s.active) && (
             <div className="alert">
-              ‘거래처’ 탭에서 사용 중인 거래처를 먼저 등록하세요.
+              거래처 탭에서 사용 중인 거래처를 먼저 등록하세요
             </div>
           )}
-          {form.supplierId && (
-            <>
-              <div className="commerce-form-grid">
-                <Field label="발주 품목 검색">
+          {form.supplierId ? (
+            <section className="po-pick-section" aria-labelledby="po-pick-title">
+              <div className="po-pick-head">
+                <h3 id="po-pick-title">
+                  {ORDER_SCOPES.find(([id]) => id === scope)?.[1]}
+                </h3>
+                <span className="small muted">
+                  보충이 필요한 품목을 먼저 보여줘요
+                </span>
+              </div>
+              <div className="po-pick-filters">
+                <label className="input-icon po-search">
+                  <Icon name="search" />
                   <input
                     type="search"
+                    aria-label="발주 품목 검색"
+                    placeholder="품목 이름이나 바코드"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
-                </Field>
-                <Field label="품목 분류">
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  >
-                    <option value="">전체 분류</option>
-                    {(data.itemCategories || []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                </label>
+                <select
+                  aria-label="품목 분류"
+                  className="po-pick-select"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="">전체 분류</option>
+                  {(data.itemCategories || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="chip-row" role="group" aria-label="품목 범위">
+                  {ORDER_SCOPES.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className="chip"
+                      aria-pressed={scope === id}
+                      onClick={() => setScope(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <label className="commerce-check">
-                <input
-                  type="checkbox"
-                  checked={onlyLow}
-                  onChange={(e) => setOnlyLow(e.target.checked)}
-                />
-                보충이 필요한 품목만 보기
-              </label>
-              <div className="purchase-items">
-                {shown.map((i) => (
-                  <div
-                    className={`purchase-pick ${selected[i.id] ? "is-selected" : ""}`}
-                    key={i.id}
-                  >
-                    <label className="commerce-check">
+              <div className="po-picks">
+                {shown.map((i) => {
+                  const line = selected[i.id];
+                  const qty = Number(line?.quantity) || 0;
+                  const low = isLow(i);
+                  return (
+                    <div
+                      className={`po-pick ${line ? "is-selected" : ""}`}
+                      key={i.id}
+                    >
                       <input
                         type="checkbox"
+                        className="po-pick-check"
                         aria-label={`${i.name} 발주 선택`}
-                        checked={!!selected[i.id]}
+                        checked={!!line}
                         onChange={(e) => toggle(i, e.target.checked)}
                       />
-                      <span>
+                      <span className="po-pick-name">
                         <strong>{i.name}</strong>
-                        <span className="commerce-secondary">
-                          1개 = {quantity(i.packSize || 1)}
-                          {i.unit} · 현재 {quantity(i.qty)}
-                          {i.unit}
+                        <span
+                          className={`small ${low ? "tone-warn-text" : "muted"}`}
+                        >
+                          {quantity(i.qty)}
+                          {i.unit} 남음{low ? " 보충 필요" : ""}
                         </span>
+                        {requestedQty[i.id] > 0 && (
+                          <span className="small tone-warn-text">
+                            구매 요청 {requestedQty[i.id]}개
+                          </span>
+                        )}
                       </span>
-                    </label>
-                    {selected[i.id] && (
-                      <div className="commerce-form-grid">
-                        <Field label={`${i.name} 발주 개수`}>
+                      <span className="po-pick-stepper">
+                        <button
+                          type="button"
+                          className="po-step"
+                          aria-label={`${i.name} 하나 줄이기`}
+                          disabled={!line || qty <= 1}
+                          onClick={() =>
+                            changeLine(i.id, "quantity", String(qty - 1))
+                          }
+                        >
+                          <Icon name="minus" size={16} />
+                        </button>
+                        <input
+                          required
+                          type="number"
+                          className="po-step-input num"
+                          aria-label={`${i.name} 발주 개수`}
+                          inputMode="numeric"
+                          min="1"
+                          max="1000000"
+                          step="1"
+                          disabled={!line}
+                          value={line ? line.quantity : 0}
+                          onChange={(e) =>
+                            changeLine(i.id, "quantity", e.target.value)
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="po-step"
+                          aria-label={`${i.name} 하나 늘리기`}
+                          onClick={() =>
+                            line
+                              ? changeLine(i.id, "quantity", String(qty + 1))
+                              : toggle(i, true)
+                          }
+                        >
+                          <Icon name="plus" size={16} />
+                        </button>
+                      </span>
+                      <strong className="po-pick-amount num">
+                        <Money
+                          value={line ? qty * Number(line.unitCost || 0) : 0}
+                        />
+                      </strong>
+                      {line && (
+                        <label className="po-pick-cost">
+                          <span className="small muted">개당</span>
                           <input
                             required
                             type="number"
-                            min="1"
-                            max="1000000"
-                            step="1"
-                            value={selected[i.id].quantity}
-                            onChange={(e) =>
-                              changeLine(i.id, "quantity", e.target.value)
-                            }
-                          />
-                        </Field>
-                        <Field label={`${i.name} 개당 금액 (원)`}>
-                          <input
-                            required
-                            type="number"
+                            inputMode="numeric"
+                            aria-label={`${i.name} 개당 금액 (원)`}
                             min="0"
                             max="1000000000"
                             step="1"
-                            value={selected[i.id].unitCost}
+                            value={line.unitCost}
                             onChange={(e) =>
                               changeLine(i.id, "unitCost", e.target.value)
                             }
                           />
-                        </Field>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          <span className="small muted">
+                            원
+                            {!(Number(i.packSize || 1) === 1 && i.unit === "개") &&
+                              ` (1개 ${quantity(i.packSize || 1)}${i.unit})`}
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
                 {!shown.length && (
                   <p className="help">
-                    조건에 맞는 품목이 없습니다. 재고 · 품목 관리에서 품목의
-                    사용 상태와 기본 거래처를 확인하세요.
+                    조건에 맞는 품목이 없어요. 모든 품목을 누르거나 재고
+                    화면에서 품목의 사용 상태와 기본 거래처를 확인하세요
                   </p>
                 )}
               </div>
               {Object.keys(selected).some(
                 (id) => !shown.some((i) => i.id === id),
               ) && (
-                <div className="alert">
-                  검색 조건 밖에도 선택한 품목이 있습니다.{" "}
+                <div className="alert po-hidden-alert">
+                  <span>검색 조건 밖에도 고른 품목이 있어요</span>
                   <Button
+                    variant="secondary"
                     onClick={() => {
                       setSearch("");
                       setCategory("");
-                      setOnlyLow(false);
+                      setScope("all");
                     }}
                   >
                     선택 품목 확인
                   </Button>
                 </div>
               )}
-            </>
+            </section>
+          ) : (
+            <p className="help">
+              거래처를 고르면 그 거래처 품목이 보여요. 발주만 등록하면 재고는
+              늘지 않아요
+            </p>
           )}
           <Field label="발주 메모">
             <textarea
@@ -932,6 +1007,7 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
           </Field>
         </fieldset>
       </form>
+      {closeGuard}
     </Modal>
   );
 }
@@ -969,191 +1045,272 @@ function printOrder(o, store) {
     <div class="footer">${escapeHtml(store?.name || "")} (인)</div>`,
   );
 }
-function OrderDetail({
+// Non-modal side panel: the list stays usable while one order is open.
+function OrderPanel({
   order: o,
+  orderNo,
   store,
   receipts,
   canManage,
   onClose,
   onAction,
 }) {
+  const titleId = useId();
+  const headingRef = useRef(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [o.id]);
   const state = status(o, receipts),
     history = receipts.filter((r) => r.orderId === o.id);
+  const hasPending =
+    !o.cancelled && o.lines.some((l) => pending(o, l, receipts) > 0);
+  const canReturn = o.lines.some((l) => received(l, receipts) > returned(o, l));
+  const canCancel =
+    paidAmount(o) === 0 && !o.lines.some((l) => received(l, receipts) > 0);
+  const due = balance(o);
   return (
-    <Modal
-      title="발주 상세"
-      size="wide"
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={() => printOrder(o, store)}>발주서 인쇄</Button>
-          {!o.cancelled && o.lines.some((l) => pending(o, l, receipts) > 0) && (
-            <Button variant="primary" onClick={() => onAction("receive")}>
-              입고 수량 입력
-            </Button>
-          )}
-          {canManage && !o.cancelled && (
-            <>
-              <Button onClick={() => onAction("settlement")}>
-                분할 지급·환급
-              </Button>
-              {o.lines.some((l) => pending(o, l, receipts) > 0) && (
-                <Button onClick={() => onAction("closeRemaining")}>
-                  미입고 잔량 취소
-                </Button>
-              )}
-              {o.lines.some((l) => received(l, receipts) > returned(o, l)) && (
-                <Button onClick={() => onAction("return")}>거래처 반품</Button>
-              )}
-              {balance(o) > 0 && (
-                <Button onClick={() => onAction("payment")}>
-                  대금 지급 기록
-                </Button>
-              )}
-              {!o.shipped &&
-                o.lines.some((l) => pending(o, l, receipts) > 0) && (
-                  <Button onClick={() => onAction("ship")}>
-                    배송 시작 기록
-                  </Button>
-                )}
-              {paidAmount(o) === 0 &&
-                !o.lines.some((l) => received(l, receipts) > 0) && (
-                  <Button variant="danger" onClick={() => onAction("cancel")}>
-                    발주 취소
-                  </Button>
-                )}
-            </>
-          )}
-        </>
-      }
+    <section
+      className="panel po-detail"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby={titleId}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !e.defaultPrevented) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
-      <div className="stack">
-        <div className="purchase-detail-summary">
-          <h3>{o.supplierName}</h3>
-          <Badge tone={tone(state)}>{labels[state]}</Badge>
-          <span>
-            {o.paid ? `대금 지급 완료 · ${o.paidDate}` : "대금 미지급"}
-          </span>
+      <div className="po-detail-head">
+        <div className="po-detail-title">
+          <h2 id={titleId} ref={headingRef} tabIndex={-1}>
+            {o.supplierName}
+          </h2>
+          <span className="muted">{dateLabel(o.date)} 발주</span>
         </div>
-        <p>
-          발주일 {o.date} · 납품 예정 {o.deliveryDate || "미정"} · 등록자{" "}
-          {o.actorName}
-        </p>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>품목 / 규격</th>
-                <th>발주</th>
-                <th>입고 / 미입고</th>
-                <th>제품 총 금액</th>
-              </tr>
-            </thead>
-            <tbody>
-              {o.lines.map((l) => (
-                <tr key={l.id}>
-                  <td>
-                    {l.itemName}
-                    <span className="commerce-secondary">
-                      1개 = {quantity(l.packSize)}
-                      {l.unit}
-                    </span>
-                  </td>
-                  <td>{l.quantity}개</td>
-                  <td>
-                    {received(l, receipts)}개 / {pending(o, l, receipts)}개
-                  </td>
-                  <td>
-                    <Money
-                      value={
-                        (l.quantity - cancelled(o, l) - returned(o, l)) *
-                        l.unitCost
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan="4">
-                  총 금액 <Money value={total(o)} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <p className="alert">
-          정산 금액 <Money value={total(o)} /> · 순지급액{" "}
-          <Money value={paidAmount(o)} /> ·{" "}
-          {balance(o) < 0 ? "돌려받을 금액" : "남은 지급액"}{" "}
-          <Money value={Math.abs(balance(o))} />
-        </p>
-        {o.lines.some((l) => cancelled(o, l) || returned(o, l)) && (
-          <p className="help">
-            {o.lines
-              .map(
-                (l) =>
-                  `${l.itemName}: 잔량 취소 ${cancelled(o, l)}개, 반품 ${returned(o, l)}개`,
-              )
-              .join(" / ")}
-          </p>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="닫기"
+          onClick={onClose}
+        >
+          <Icon name="close" />
+        </button>
+      </div>
+      <div className="po-detail-status">
+        <Badge tone={tone(state)}>{labels[state]}</Badge>
+        <span className="small muted">{payText(o)}</span>
+      </div>
+      <dl className="kv">
+        <dt>발주 번호</dt>
+        <dd>발주 {orderNo}</dd>
+        <dt>납품 예정일</dt>
+        <dd>{o.deliveryDate || "미정"}</dd>
+        <dt>등록자</dt>
+        <dd>{o.actorName}</dd>
+        {o.paid && o.paidDate && (
+          <>
+            <dt>지급일</dt>
+            <dd>{o.paidDate}</dd>
+          </>
         )}
-        {o.notes && <p className="purchase-note">{o.notes}</p>}
-        <h3>실제 입고 내역</h3>
-        {history.length ? (
-          history.map((r) => (
-            <div key={r.id} className="purchase-history">
-              <span>
-                {r.date} ·{" "}
-                {o.lines.find((l) => l.id === r.orderLineId)?.itemName}
-                <strong>
-                  {" "}
-                  {quantity(r.qty)}
-                  {o.lines.find((l) => l.id === r.orderLineId)?.unit}
-                </strong>
-                <span className="commerce-secondary">
-                  {r.actorName} · {r.memo || "메모 없음"}
+      </dl>
+      <div className="po-lines">
+        {o.lines.map((l) => {
+          const ordered = l.quantity - cancelled(o, l);
+          const got = received(l, receipts);
+          const pct = ordered > 0 ? Math.min(100, (got / ordered) * 100) : 0;
+          return (
+            <div key={l.id} className="po-line">
+              <div className="po-line-top">
+                <strong>{l.itemName}</strong>
+                <span className="num">
+                  <Money
+                    value={
+                      (l.quantity - cancelled(o, l) - returned(o, l)) *
+                      l.unitCost
+                    }
+                  />
                 </span>
+              </div>
+              <span className="po-bar" aria-hidden="true">
+                <span style={{ width: `${pct}%` }} />
               </span>
-              {r.status === "cancelled" ? (
-                <Badge>입고 취소</Badge>
-              ) : (
-                <Button onClick={() => onAction("receiptCancel", r.id)}>
-                  이 입고 취소
-                </Button>
+              <span className="small muted">
+                {ordered <= 0
+                  ? "발주 수량을 모두 취소했어요"
+                  : got >= ordered
+                    ? `${ordered}개 모두 입고`
+                    : `${ordered}개 중 ${got}개 입고`}
+              </span>
+              {!(l.packSize === 1 && l.unit === "개") && (
+                <span className="small muted">
+                  1개 {quantity(l.packSize)}
+                  {l.unit}
+                </span>
+              )}
+              {cancelled(o, l) > 0 && (
+                <span className="small muted">
+                  잔량 취소 {cancelled(o, l)}개
+                </span>
+              )}
+              {returned(o, l) > 0 && (
+                <span className="small muted">반품 {returned(o, l)}개</span>
               )}
             </div>
-          ))
-        ) : (
-          <p className="help">
-            아직 입고되지 않았습니다. 실제 받은 수량만 입력하세요.
-          </p>
+          );
+        })}
+      </div>
+      <dl className="po-money">
+        <div>
+          <dt>정산 금액</dt>
+          <dd>
+            <Money value={total(o)} />
+          </dd>
+        </div>
+        <div>
+          <dt>순지급액</dt>
+          <dd>
+            <Money value={paidAmount(o)} />
+          </dd>
+        </div>
+        <div>
+          <dt>{due < 0 ? "돌려받을 금액" : "남은 지급액"}</dt>
+          <dd className={due !== 0 ? "tone-warn-text" : ""}>
+            <Money value={Math.abs(due)} />
+          </dd>
+        </div>
+      </dl>
+      {o.notes && <p className="po-note">{o.notes}</p>}
+      <div className="po-actions">
+        <Button variant="ghost" onClick={() => printOrder(o, store)}>
+          발주서 인쇄
+        </Button>
+        {canManage && !o.cancelled && due > 0 && (
+          <Button variant="secondary" onClick={() => onAction("payment")}>
+            대금 지급 기록
+          </Button>
         )}
+        {hasPending && (
+          <Button variant="primary" onClick={() => onAction("receive")}>
+            입고 수량 입력
+          </Button>
+        )}
+      </div>
+      {canManage && !o.cancelled && (
+        <div className="po-more" role="group" aria-label="다른 처리">
+          {!o.shipped && hasPending && (
+            <button
+              type="button"
+              className="po-text-btn"
+              onClick={() => onAction("ship")}
+            >
+              배송 시작 기록
+            </button>
+          )}
+          <button
+            type="button"
+            className="po-text-btn"
+            onClick={() => onAction("settlement")}
+          >
+            분할 지급·환급
+          </button>
+          {hasPending && (
+            <button
+              type="button"
+              className="po-text-btn"
+              onClick={() => onAction("closeRemaining")}
+            >
+              미입고 잔량 취소
+            </button>
+          )}
+          {canReturn && (
+            <button
+              type="button"
+              className="po-text-btn"
+              onClick={() => onAction("return")}
+            >
+              거래처 반품
+            </button>
+          )}
+          {canCancel && (
+            <button
+              type="button"
+              className="po-text-btn po-text-danger"
+              onClick={() => onAction("cancel")}
+            >
+              발주 취소
+            </button>
+          )}
+        </div>
+      )}
+      <h3 className="po-section-title">실제 입고 내역</h3>
+      {history.length ? (
+        <ul className="po-history">
+          {history.map((r) => {
+            const line = o.lines.find((l) => l.id === r.orderLineId);
+            return (
+              <li key={r.id} className="po-history-row">
+                <span className="po-history-text">
+                  <strong>
+                    {line?.itemName} {quantity(r.qty)}
+                    {line?.unit}
+                  </strong>
+                  <span className="small muted">{r.date}</span>
+                  <span className="small muted">{r.actorName}</span>
+                  {r.memo && <span className="small muted">{r.memo}</span>}
+                </span>
+                {r.status === "cancelled" ? (
+                  <Badge>입고 취소</Badge>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={() => onAction("receiptCancel", r.id)}
+                  >
+                    이 입고 취소
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
         <p className="help">
-          잘못 입력한 입고는 취소 후 다시 등록하세요. 이미 사용한 재고로 인해
-          수량이 음수가 되는 취소는 제한됩니다.
+          아직 입고되지 않았어요. 실제 받은 수량만 입력하세요
         </p>
-        <details>
-          <summary>발주 처리 이력</summary>
+      )}
+      <p className="help">
+        잘못 넣은 입고는 취소한 뒤 다시 등록하세요. 이미 쓴 재고 때문에 수량이
+        음수가 되면 취소할 수 없어요
+      </p>
+      <details className="po-log">
+        <summary>발주 처리 이력</summary>
+        <ul>
           {o.changes
             .slice()
             .reverse()
             .map((c, i) => (
-              <p key={i}>
-                {c.at.slice(0, 10)} · {c.actorName} · {c.action}
-                {c.reason ? ` · ${c.reason}` : ""}
-                {Number.isSafeInteger(c.paymentDelta)
-                  ? ` · ${c.paymentDelta.toLocaleString("ko-KR")}원`
-                  : ""}
-                {c.lines
-                  ?.map((l) => ` · ${l.itemName || "품목"} ${l.quantity}개`)
-                  .join("")}
-              </p>
+              <li key={i}>
+                <strong>{c.action}</strong>
+                <span className="small muted">
+                  {c.at.slice(0, 10)} {c.actorName}
+                </span>
+                {c.reason && <span className="small muted">{c.reason}</span>}
+                {Number.isSafeInteger(c.paymentDelta) && (
+                  <span className="small muted">
+                    {c.paymentDelta.toLocaleString("ko-KR")}원
+                  </span>
+                )}
+                {c.lines?.map((l, index) => (
+                  <span key={index} className="small muted">
+                    {l.itemName || "품목"} {l.quantity}개
+                  </span>
+                ))}
+              </li>
             ))}
-        </details>
-      </div>
-    </Modal>
+        </ul>
+      </details>
+    </section>
   );
 }
 function OrderAction({
@@ -1181,6 +1338,7 @@ function OrderAction({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [dirty, setDirty] = useState(false);
+  const [requestClose, closeGuard] = useCloseGuard(dirty, onClose);
   const titles = {
     receive: "발주 입고",
     closeRemaining: "미입고 잔량 취소",
@@ -1236,41 +1394,49 @@ function OrderAction({
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
-        <Button
-          type="submit"
-          form="purchase-operation"
-          variant={
-            ["cancel", "receiptCancel"].includes(kind) ? "danger" : "primary"
-          }
-          busy={busy}
-        >
-          {titles[kind]} 저장
-        </Button>
+        <>
+          <Button variant="secondary" onClick={requestClose} disabled={busy}>
+            돌아가기
+          </Button>
+          <Button
+            type="submit"
+            form="purchase-operation"
+            variant={
+              ["cancel", "receiptCancel"].includes(kind) ? "danger" : "primary"
+            }
+            busy={busy}
+          >
+            {titles[kind]} 저장
+          </Button>
+        </>
       }
     >
       <form
         id="purchase-operation"
+        className="po-form"
         onSubmit={submit}
         onChange={() => setDirty(true)}
       >
-        <fieldset className="stack commerce-fieldset" disabled={busy}>
+        <fieldset className="po-fieldset" disabled={busy}>
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
             </div>
           )}
-          <p>
-            <strong>{o.supplierName}</strong> · 발주 총 금액{" "}
-            <Money value={total(o)} />
-          </p>
+          <div className="inset po-summary">
+            <strong>{o.supplierName}</strong>
+            <span className="muted">
+              발주 총 금액 <Money value={total(o)} />
+            </span>
+          </div>
           {["receive", "closeRemaining", "return"].includes(kind) && (
             <>
               <p className="help">
                 {kind === "return"
-                  ? "실제로 거래처에 반품한 개수를 입력하세요. 재고와 매입 금액이 줄며 환급은 별도로 기록합니다."
+                  ? "실제로 거래처에 반품한 개수를 넣으세요. 재고와 매입 금액이 줄고, 환급은 따로 기록해요"
                   : kind === "closeRemaining"
-                    ? "더 이상 받지 않을 잔량만 취소합니다. 이미 받은 물품의 재고는 유지됩니다."
-                    : "실제 받은 개수만 입력하세요. 미입고 잔량을 초과할 수 없습니다."}
+                    ? "더 받지 않을 잔량만 취소해요. 이미 받은 물품의 재고는 그대로예요"
+                    : "실제 받은 개수만 넣으세요. 미입고 잔량보다 많이 넣을 수 없어요"}
               </p>
               <Field label={kind === "receive" ? "입고일" : "처리일"}>
                 <DateInput
@@ -1291,6 +1457,7 @@ function OrderAction({
                   >
                     <input
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       max={maxFor(l)}
                       step="1"
@@ -1307,14 +1474,23 @@ function OrderAction({
           {kind === "settlement" && (
             <>
               <p className="help">
-                실제 송금·환급 결과를 기록합니다. 잘못 입력한 기록은 ‘입력
-                정정’으로 취소 이력을 남깁니다.
+                실제 송금이나 환급 결과를 기록해요. 잘못 넣은 기록은 입력
+                정정으로 취소 이력을 남겨요
               </p>
-              <p>
-                현재 순지급액 <Money value={paidAmount(o)} /> · 남은 지급액{" "}
-                <Money value={Math.max(0, balance(o))} /> · 환급받을 금액{" "}
-                <Money value={Math.max(0, -balance(o))} />
-              </p>
+              <dl className="kv">
+                <dt>현재 순지급액</dt>
+                <dd>
+                  <Money value={paidAmount(o)} />
+                </dd>
+                <dt>남은 지급액</dt>
+                <dd>
+                  <Money value={Math.max(0, balance(o))} />
+                </dd>
+                <dt>환급받을 금액</dt>
+                <dd>
+                  <Money value={Math.max(0, -balance(o))} />
+                </dd>
+              </dl>
               <Field label="정산 구분">
                 <select
                   value={settlementKind}
@@ -1352,9 +1528,9 @@ function OrderAction({
                       )
                       .map((c) => (
                         <option key={c.paymentId} value={c.paymentId}>
-                          {c.date || c.at.slice(0, 10)} ·{" "}
-                          {c.paymentDelta.toLocaleString("ko-KR")}원 ·{" "}
-                          {c.reason || c.action}
+                          {c.date || c.at.slice(0, 10)}{" "}
+                          {c.paymentDelta.toLocaleString("ko-KR")}원 (
+                          {c.reason || c.action})
                         </option>
                       ))}
                   </select>
@@ -1364,6 +1540,7 @@ function OrderAction({
                   <input
                     required
                     type="number"
+                    inputMode="numeric"
                     min="1"
                     step="1"
                     max={
@@ -1376,41 +1553,45 @@ function OrderAction({
                   />
                 </Field>
               )}
-              <Field label="정산일">
-                <DateInput
-                  required
-                  max={todayInSeoul()}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </Field>
-              <Field label="거래 참조번호">
-                <input
-                  value={reference}
-                  maxLength={100}
-                  onChange={(e) => setReference(e.target.value)}
-                />
-              </Field>
+              <div className="po-grid-2">
+                <Field label="정산일">
+                  <DateInput
+                    required
+                    max={todayInSeoul()}
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </Field>
+                <Field label="거래 참조번호">
+                  <input
+                    value={reference}
+                    maxLength={100}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                </Field>
+              </div>
             </>
           )}
           {kind === "ship" && (
-            <p>
-              거래처에서 배송을 시작한 것을 확인한 뒤 기록하세요. 실제 재고는
-              입고 수량을 입력할 때 늘어납니다.
+            <p className="help">
+              거래처에서 배송을 시작한 걸 확인한 뒤 기록하세요. 실제 재고는 입고
+              수량을 넣을 때 늘어요
             </p>
           )}
           {kind === "payment" && (
             <>
-              <p>
+              <p className="help">
                 {o.paid
-                  ? "ERP의 지급 기록을 미지급으로 정정합니다. 실제 이체 취소나 환불은 거래처와 별도로 처리하세요."
-                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부 금액만 지급했다면 분할 지급·환급을 이용하세요."}
+                  ? "지급 기록을 미지급으로 정정해요. 실제 이체 취소나 환불은 거래처와 따로 처리하세요"
+                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부만 지급했다면 분할 지급·환급을 쓰세요"}
               </p>
               {!o.paid && (
-                <p>
-                  이번에 기록할 남은 대금:{" "}
-                  <Money value={Math.max(0, balance(o))} />
-                </p>
+                <div className="inset po-summary">
+                  <span className="muted">이번에 기록할 남은 대금</span>
+                  <strong>
+                    <Money value={Math.max(0, balance(o))} />
+                  </strong>
+                </div>
               )}
               {!o.paid && (
                 <Field label="대금 지급일">
@@ -1445,11 +1626,12 @@ function OrderAction({
           )}
         </fieldset>
       </form>
+      {closeGuard}
     </Modal>
   );
 }
 
-function RequestList({ data, canManage, runAction, notify, onOrder }) {
+function RequestList({ data, canManage, runAction, notify }) {
   const [rejecting, setRejecting] = useState(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
@@ -1482,9 +1664,10 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
     }
   }
   return (
-    <section className="card purchase-card">
+    <section className="panel po-master">
       <p className="help">
-        직원이 재고 화면에서 요청한 품목입니다. 거래처에 발주한 뒤 ‘발주 반영’으로 표시하세요.
+        직원이 재고 화면에서 요청한 품목이에요. 거래처에 발주한 뒤 발주 반영으로
+        표시하세요
       </p>
       {error && !rejecting && (
         <div className="alert alert-danger" role="alert">
@@ -1493,7 +1676,7 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
       )}
       {requests.length ? (
         <div className="table-wrap">
-          <table className="table commerce-table commerce-mobile-cards">
+          <table className="table commerce-table commerce-mobile-cards po-table">
             <thead>
               <tr>
                 <th>품목</th>
@@ -1512,11 +1695,16 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
                     <td>
                       <strong>{item?.name || r.itemName}</strong>
                       {item && (
-                        <span className="commerce-secondary">
-                          현재 {quantity(item.qty)}
-                          {item.unit} · 기준 {quantity(item.min)}
-                          {item.unit}
-                        </span>
+                        <>
+                          <span className="po-secondary">
+                            지금 {quantity(item.qty)}
+                            {item.unit}
+                          </span>
+                          <span className="po-secondary">
+                            기준 {quantity(item.min)}
+                            {item.unit}
+                          </span>
+                        </>
                       )}
                     </td>
                     <td data-label="수량" className="numeric">
@@ -1524,15 +1712,15 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
                     </td>
                     <td data-label="요청자 / 요청일">
                       {r.requestedBy}
-                      <span className="commerce-secondary">
+                      <span className="po-secondary">
                         {String(r.createdAt).slice(0, 10)}
                       </span>
                     </td>
                     <td data-label="메모">
-                      {r.note || "—"}
+                      {r.note || "없음"}
                       {r.decisionNote && (
-                        <span className="commerce-secondary">
-                          처리: {r.decisionNote}
+                        <span className="po-secondary">
+                          처리 메모 {r.decisionNote}
                         </span>
                       )}
                     </td>
@@ -1541,12 +1729,12 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
                         {statusLabel[r.status]}
                       </Badge>
                       {r.decidedBy && (
-                        <span className="commerce-secondary">{r.decidedBy}</span>
+                        <span className="po-secondary">{r.decidedBy}</span>
                       )}
                     </td>
                     <td>
                       {canManage && r.status === "requested" ? (
-                        <div className="commerce-actions">
+                        <div className="po-row-actions">
                           <Button
                             variant="secondary"
                             busy={busy === r.id}
@@ -1568,7 +1756,7 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
                           </Button>
                         </div>
                       ) : (
-                        "—"
+                        <span className="muted">없음</span>
                       )}
                     </td>
                   </tr>
@@ -1579,14 +1767,9 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
         </div>
       ) : (
         <EmptyState
-          title="구매 요청이 없습니다"
-          description="재고 · 입고 화면에서 품목별 ‘구매 요청’을 누르면 이곳에 모입니다."
+          title="구매 요청이 없어요"
+          description="재고 화면에서 품목별 구매 요청을 누르면 여기에 모여요"
         />
-      )}
-      {canManage && requests.some((r) => r.status === "requested") && (
-        <Button variant="primary" onClick={onOrder}>
-          + 발주 등록
-        </Button>
       )}
       {rejecting && (
         <Modal
@@ -1604,13 +1787,13 @@ function RequestList({ data, canManage, runAction, notify, onOrder }) {
             </Button>
           }
         >
-          <div className="stack">
+          <div className="po-form po-fieldset">
             {error && (
               <div className="alert alert-danger" role="alert">
                 {error}
               </div>
             )}
-            <Field label="반려 사유" help="요청한 직원에게 표시됩니다.">
+            <Field label="반려 사유" help="요청한 직원에게 보여요">
               <textarea
                 className="textarea"
                 rows="3"
@@ -1672,8 +1855,8 @@ function PurchaseSummary({ orders }) {
   const items = [...byItem.values()].sort((a, b) => b.amount - a.amount);
   const sum = (rows, key) => rows.reduce((s, r) => s + r[key], 0);
   return (
-    <section className="card purchase-card">
-      <div className="commerce-filters">
+    <section className="panel po-master">
+      <div className="po-filters">
         <Field label="발주 시작일">
           <DateInput
             value={from}
@@ -1690,12 +1873,13 @@ function PurchaseSummary({ orders }) {
         </Field>
       </div>
       <p className="help">
-        발주일 기준, 취소 발주 제외. 금액은 미입고 잔량 취소와 거래처 반품을 뺀 정산 금액입니다.
+        발주일 기준이고 취소한 발주는 빼요. 금액은 미입고 잔량 취소와 거래처
+        반품을 뺀 정산 금액이에요
       </p>
-      <h2 className="purchase-summary-title">거래처별 매입</h2>
+      <h2 className="po-summary-title">거래처별 매입</h2>
       {suppliers.length ? (
         <div className="table-wrap">
-          <table className="table commerce-table commerce-mobile-cards">
+          <table className="table commerce-table commerce-mobile-cards po-table">
             <thead>
               <tr>
                 <th>거래처</th>
@@ -1747,15 +1931,15 @@ function PurchaseSummary({ orders }) {
         </div>
       ) : (
         <EmptyState
-          title="기간 내 발주가 없습니다"
-          description="조회 기간을 변경해 보세요."
+          title="기간 안에 발주가 없어요"
+          description="조회 기간을 바꿔 보세요"
         />
       )}
       {items.length > 0 && (
         <>
-          <h2 className="purchase-summary-title">품목별 매입</h2>
+          <h2 className="po-summary-title">품목별 매입</h2>
           <div className="table-wrap">
-            <table className="table commerce-table commerce-mobile-cards">
+            <table className="table commerce-table commerce-mobile-cards po-table">
               <thead>
                 <tr>
                   <th>품목</th>

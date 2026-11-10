@@ -1,28 +1,33 @@
 import React, { useState } from "react";
 import { roleLabel, today, won } from "../api";
-import { Badge, Button, ConfirmDialog, EmptyState, Field, Modal } from "../components/ui";
+import { Badge, Button, ConfirmDialog, Field, Modal } from "../components/ui";
 import { DateInput } from "../components/DateInput.jsx";
+import { Icon } from "../components/Icon";
 import { useViewState } from "../components/ViewState";
 import { printDocument } from "../print";
 import {
+  ANNUAL_TYPES,
   REQUEST_STATUS,
   clockLabel,
   hoursLabel,
+  koreanDay,
+  leaveAppointments,
   leaveBalance,
   monthSummary,
-  periodLabel,
+  closeDialogFrom,
+  requestPeriod,
   severanceEstimate,
   typeLabel,
   workedMinutes,
 } from "../workforce-utils";
-import { dateLabel, timeMinutes, timestampLabel } from "./operations-utils";
+import { timeMinutes, timestampLabel } from "./operations-utils";
 import "./Workforce.css";
 
 const TABS = [
   ["requests", "신청 승인"],
   ["attendance", "출퇴근 기록"],
   ["leave", "연차 현황"],
-  ["organization", "조직 · 인사 이력"],
+  ["organization", "인사 이력"],
   ["certificates", "증명서 발급"],
   ["severance", "퇴직금 추정"],
 ];
@@ -36,9 +41,10 @@ const koreanDate = (value) =>
     ? `${value.slice(0, 4)}년 ${Number(value.slice(5, 7))}월 ${Number(value.slice(8, 10))}일`
     : "";
 const staffName = (data, id) =>
-  data.staff.find((row) => row.id === id)?.name || "퇴사 / 미지정 직원";
+  data.staff.find((row) => row.id === id)?.name || "퇴사하거나 지정되지 않은 직원";
+const initialOf = (name) => (name || "직").trim().slice(0, 1);
 
-export default function HumanResources({ data, runAction, notify, routeContext }) {
+export default function HumanResources({ data, runAction, notify, navigate, routeContext }) {
   const [tab, setTab] = useViewState(
     "hr",
     "tab",
@@ -48,34 +54,33 @@ export default function HumanResources({ data, runAction, notify, routeContext }
     (row) => row.status === "requested",
   ).length;
   return (
-    <div className="workforce-page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">인사 · 근태</h1>
-          <p className="page-description">
-            휴가·근무 신청 승인, 출퇴근 정정, 연차·인사 이력, 증명서 발급을
-            관리합니다.
-          </p>
-        </div>
-      </div>
-      <nav className="tabs" aria-label="인사 · 근태 메뉴">
+    <div className="wf-page">
+      <h1 className="page-title">근태와 휴가</h1>
+      <nav className="chip-row" aria-label="근태와 휴가 메뉴">
         {TABS.map(([id, label]) => (
           <button
             key={id}
             type="button"
-            className={`tab ${tab === id ? "active" : ""}`}
+            className="chip"
+            aria-pressed={tab === id}
             aria-current={tab === id ? "page" : undefined}
             onClick={() => setTab(id)}
           >
             {label}
             {id === "requests" && pending > 0 && (
-              <span className="nav-count">{pending}</span>
+              <span className="wf-warn-text small wf-count">{pending}</span>
             )}
           </button>
         ))}
       </nav>
       {tab === "requests" && (
-        <Requests data={data} runAction={runAction} notify={notify} />
+        <Requests
+          data={data}
+          runAction={runAction}
+          notify={notify}
+          navigate={navigate}
+          openRecords={() => setTab("attendance")}
+        />
       )}
       {tab === "attendance" && (
         <AttendanceRecords data={data} runAction={runAction} notify={notify} />
@@ -90,113 +95,195 @@ export default function HumanResources({ data, runAction, notify, routeContext }
   );
 }
 
-function Requests({ data, runAction, notify }) {
-  const [filter, setFilter] = useViewState("hr", "requestFilter", "requested");
+function Requests({ data, runAction, notify, navigate, openRecords }) {
+  const [filter, setFilter] = useViewState("hr", "requestFilter", "approved");
   const [decision, setDecision] = useState(null);
-  const rows = (data.staffRequests || [])
-    .filter((row) => filter === "all" || row.status === filter)
+  const month = today().slice(0, 7);
+  const requests = data.staffRequests || [];
+  const queue = requests
+    .filter((row) => row.status === "requested")
     .sort((a, b) => a.from.localeCompare(b.from));
+  const history = requests
+    .filter((row) =>
+      filter === "all" ? row.status !== "requested" : row.status === filter,
+    )
+    .sort((a, b) => b.from.localeCompare(a.from));
+  const people = data.staff
+    .filter((row) => row.status === "active")
+    .map((row) => ({ row, summary: monthSummary(data, row.id, month) }));
+  const most = Math.max(1, ...people.map(({ summary }) => summary.minutes));
+  const note = (summary) =>
+    summary.open
+      ? { text: `퇴근 누락 ${summary.open}건`, warn: true }
+      : summary.late
+        ? { text: `지각 ${summary.late}회`, warn: true }
+        : summary.leave
+          ? { text: `휴가 ${summary.leave}일` }
+          : { text: `출근 ${summary.days}일` };
   return (
-    <section className="card">
-      <div className="card-header">
-        <h2>휴가 · 근무 신청</h2>
-        <select
-          aria-label="상태 필터"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="requested">승인 대기</option>
-          <option value="approved">승인</option>
-          <option value="rejected">반려</option>
-          <option value="cancelled">취소</option>
-          <option value="all">전체</option>
-        </select>
-      </div>
-      <div className="card-body">
-        {rows.length ? (
-          <div className="table-wrap">
-            <table className="table commerce-table commerce-mobile-cards">
-              <thead>
-                <tr>
-                  <th>직원</th>
-                  <th>종류</th>
-                  <th>기간</th>
-                  <th>사용</th>
-                  <th>사유</th>
-                  <th>상태</th>
-                  <th aria-label="작업" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const balance =
-                    row.kind === "leave" &&
-                    leaveBalance(data, row.staffId, Number(row.from.slice(0, 4)));
-                  return (
-                    <tr key={row.id}>
-                      <td data-label="직원">{staffName(data, row.staffId)}</td>
-                      <td data-label="종류">{typeLabel(row)}</td>
-                      <td data-label="기간">{periodLabel(row)}</td>
-                      <td data-label="사용">
-                        {row.kind === "leave"
-                          ? `${row.days}일`
-                          : hoursLabel(row.minutes)}
-                        {balance && ["annual", "half_am", "half_pm"].includes(row.type) && (
-                          <span className="help"> · 잔여 {balance.remaining}일</span>
-                        )}
-                      </td>
-                      <td data-label="사유">{row.reason || "—"}</td>
-                      <td data-label="상태">
-                        <Badge tone={REQUEST_STATUS[row.status].tone}>
-                          {REQUEST_STATUS[row.status].label}
-                        </Badge>
-                        {row.decisionNote && (
-                          <span className="help"> {row.decisionNote}</span>
-                        )}
-                      </td>
-                      <td className="row-actions">
-                        {row.status === "requested" && (
-                          <>
-                            <Button
-                              variant="primary"
-                              onClick={() => setDecision({ row, decision: "approved" })}
-                            >
-                              승인
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setDecision({ row, decision: "rejected" })}
-                            >
-                              반려
-                            </Button>
-                          </>
-                        )}
-                        {row.status === "approved" && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setDecision({ row, decision: "cancelled" })}
-                          >
-                            승인 취소
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+    <>
+      <div className="wf-columns">
+        <section aria-labelledby="queue-title" className="wf-queue">
+          <h2 id="queue-title" className="wf-section-title">
+            승인 대기 {queue.length}건
+          </h2>
+          {queue.length ? (
+            queue.map((row) => {
+              const name = staffName(data, row.staffId);
+              const balance =
+                row.kind === "leave" &&
+                ANNUAL_TYPES.includes(row.type) &&
+                leaveBalance(data, row.staffId, Number(row.from.slice(0, 4)));
+              const conflicts = leaveAppointments(data, row);
+              const meta = balance
+                ? `남은 연차 ${balance.remaining}일`
+                : row.kind === "overtime"
+                  ? row.reason
+                  : "";
+              return (
+                <article key={row.id} className="panel">
+                  <div className="wf-card-top">
+                    <span className="wf-avatar wf-avatar-lg" aria-hidden="true">
+                      {initialOf(name)}
+                    </span>
+                    <span className="wf-item-main">
+                      <strong className="wf-card-title">
+                        {name} {typeLabel(row)}
+                      </strong>
+                      <span className="muted">{requestPeriod(row, true)}</span>
+                      {row.kind === "leave" && row.days > 1 && (
+                        <span className="small muted">근무일 {row.days}일</span>
+                      )}
+                      {row.kind === "leave" && row.reason && (
+                        <span className="small muted">{row.reason}</span>
+                      )}
+                    </span>
+                    {meta && <span className="wf-card-meta">{meta}</span>}
+                  </div>
+                  {conflicts.length > 0 && (
+                    <div className="wf-conflict">
+                      <span>
+                        {row.from === row.to ? "이날" : "이 기간"} 예약 {conflicts.length}건을
+                        먼저 옮겨야 해요
+                      </span>
+                      {navigate && (
+                        <button
+                          type="button"
+                          className="wf-link"
+                          onClick={() =>
+                            navigate("appointments", { appointmentId: conflicts[0].id })
+                          }
+                        >
+                          예약 보기
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <div className="wf-card-actions">
+                    <Button
+                      variant="danger"
+                      onClick={() => setDecision({ row, decision: "rejected" })}
+                    >
+                      반려
+                    </Button>
+                    <Button
+                      variant="primary"
+                      disabled={conflicts.length > 0}
+                      onClick={() => setDecision({ row, decision: "approved" })}
+                    >
+                      승인
+                    </Button>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <p className="wf-empty">승인을 기다리는 신청이 없어요</p>
+          )}
+          <span className="small muted">
+            휴가를 승인하면 그 시간에는 예약을 받을 수 없어요
+          </span>
+        </section>
+
+        <section aria-labelledby="month-title" className="panel wf-hours">
+          <div className="panel-head">
+            <h2 id="month-title">{Number(month.slice(5, 7))}월 근무 시간</h2>
+            <button type="button" className="btn btn-ghost" onClick={openRecords}>
+              기록 고치기
+            </button>
           </div>
-        ) : (
-          <EmptyState
-            title="해당하는 신청이 없습니다"
-            description="직원이 근태 · 휴가 화면에서 신청하면 여기에 표시됩니다."
-          />
-        )}
-        <p className="help">
-          휴가를 승인하면 해당 시간에 예약을 잡을 수 없습니다. 기존 예약이
-          있으면 담당자나 시간을 먼저 변경해야 승인됩니다.
-        </p>
+          <div className="wf-people">
+            {people.map(({ row, summary }) => {
+              const line = note(summary);
+              return (
+                <div key={row.id} className="wf-person">
+                  <div className="wf-person-top">
+                    <span>{row.name}</span>
+                    <span className="num">{hoursLabel(summary.minutes)}</span>
+                  </div>
+                  <div className="wf-bar" aria-hidden="true">
+                    <span style={{ width: `${(summary.minutes / most) * 100}%` }} />
+                  </div>
+                  <span className={`small ${line.warn ? "wf-warn-text" : "muted"}`}>
+                    {line.text}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
+
+      <section aria-labelledby="history-title" className="panel wf-list">
+        <div className="panel-head">
+          <h2 id="history-title">처리한 신청</h2>
+          <div className="seg" role="group" aria-label="처리 상태">
+            {[
+              ["approved", "승인 완료"],
+              ["rejected", "반려"],
+              ["cancelled", "취소"],
+              ["all", "전체"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={filter === id}
+                onClick={() => setFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {history.length ? (
+          history.map((row) => (
+            <div key={row.id} className="wf-item">
+              <span className="wf-item-main">
+                <span className="wf-item-title">
+                  {staffName(data, row.staffId)} {typeLabel(row)}
+                </span>
+                <span className="small muted">{requestPeriod(row)}</span>
+                {row.decisionNote && (
+                  <span className="small muted">{row.decisionNote}</span>
+                )}
+              </span>
+              {row.status === "approved" && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setDecision({ row, decision: "cancelled" })}
+                >
+                  승인 취소
+                </Button>
+              )}
+              <Badge tone={REQUEST_STATUS[row.status].tone}>
+                {REQUEST_STATUS[row.status].label}
+              </Badge>
+            </div>
+          ))
+        ) : (
+          <p className="wf-empty">해당하는 신청이 없어요</p>
+        )}
+      </section>
       {decision && (
         <DecisionDialog
           {...decision}
@@ -206,7 +293,7 @@ function Requests({ data, runAction, notify }) {
           close={() => setDecision(null)}
         />
       )}
-    </section>
+    </>
   );
 }
 
@@ -217,7 +304,7 @@ function DecisionDialog({ row, decision, data, runAction, notify, close }) {
   const labels = { approved: "승인", rejected: "반려", cancelled: "승인 취소" };
   return (
     <ConfirmDialog
-      title={`${staffName(data, row.staffId)} · ${typeLabel(row)} ${labels[decision]}`}
+      title={`${staffName(data, row.staffId)} ${typeLabel(row)} ${labels[decision]}`}
       confirmLabel={labels[decision]}
       variant={decision === "approved" ? "primary" : "danger"}
       busy={busy}
@@ -241,7 +328,7 @@ function DecisionDialog({ row, decision, data, runAction, notify, close }) {
           {error}
         </div>
       )}
-      <p>{periodLabel(row)}</p>
+      <p className="muted">{requestPeriod(row, true)}</p>
       <Field label={decision === "approved" ? "메모 (선택)" : "사유 (필수)"}>
         <textarea
           rows={3}
@@ -273,7 +360,7 @@ function AttendanceRecords({ data, runAction, notify }) {
     .sort((a, b) => b.date.localeCompare(a.date) || a.staffId.localeCompare(b.staffId));
   return (
     <>
-      <div className="toolbar">
+      <div className="wf-toolbar">
         <Field label="조회 월">
           <DateInput
             className="input"
@@ -304,20 +391,20 @@ function AttendanceRecords({ data, runAction, notify }) {
             })
           }
         >
-          기록 추가
+          <Icon name="plus" size={16} /> 기록 추가
         </Button>
       </div>
-      <section className="card">
-        <div className="card-header">
-          <h2>월간 집계</h2>
+      <section className="panel" aria-labelledby="hr-summary-title">
+        <div className="panel-head">
+          <h2 id="hr-summary-title">{Number(month.slice(5, 7))}월 집계</h2>
         </div>
-        <div className="card-body table-wrap">
+        <div className="table-wrap">
           <table className="table commerce-table commerce-mobile-cards">
             <thead>
               <tr>
                 <th>직원</th>
                 <th className="numeric">출근일</th>
-                <th className="numeric">근무시간</th>
+                <th className="numeric">근무 시간</th>
                 <th className="numeric">지각</th>
                 <th className="numeric">승인 연장</th>
                 <th className="numeric">휴가</th>
@@ -333,7 +420,7 @@ function AttendanceRecords({ data, runAction, notify }) {
                     <tr key={row.id}>
                       <td data-label="직원">{row.name}</td>
                       <td data-label="출근일" className="numeric">{summary.days}일</td>
-                      <td data-label="근무시간" className="numeric">{hoursLabel(summary.minutes)}</td>
+                      <td data-label="근무 시간" className="numeric">{hoursLabel(summary.minutes)}</td>
                       <td data-label="지각" className="numeric">{summary.late}회</td>
                       <td data-label="승인 연장" className="numeric">{hoursLabel(summary.overtime)}</td>
                       <td data-label="휴가" className="numeric">{summary.leave}일</td>
@@ -345,83 +432,81 @@ function AttendanceRecords({ data, runAction, notify }) {
                 })}
             </tbody>
           </table>
-          <p className="help">
-            근무시간은 출퇴근 기록에서 설정된 휴게시간을 뺀 값입니다. 급여명세
-            작성 화면의 &lsquo;근태 기록 불러오기&rsquo;로 근무일·시간을 채울 수 있습니다.
-          </p>
         </div>
+        <span className="small muted">
+          근무 시간은 출퇴근 기록에서 휴게시간을 뺀 값이에요. 급여명세의 근태 기록
+          불러오기로 근무일과 시간을 채울 수 있어요
+        </span>
       </section>
-      <section className="card">
-        <div className="card-header">
-          <h2>상세 기록</h2>
+      <section className="panel" aria-labelledby="hr-records-title">
+        <div className="panel-head">
+          <h2 id="hr-records-title">상세 기록</h2>
         </div>
-        <div className="card-body">
-          {records.length ? (
-            <div className="table-wrap">
-              <table className="table commerce-table commerce-mobile-cards">
-                <thead>
-                  <tr>
-                    <th>날짜</th>
-                    <th>직원</th>
-                    <th>출근</th>
-                    <th>퇴근</th>
-                    <th className="numeric">근무</th>
-                    <th>구분</th>
-                    <th aria-label="작업" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.map((row) => {
-                    const staff = data.staff.find((s) => s.id === row.staffId);
-                    return (
-                      <tr key={row.id}>
-                        <td data-label="날짜">{dateLabel(row.date)}</td>
-                        <td data-label="직원">{staff?.name || "직원"}</td>
-                        <td data-label="출근">
-                          {clockLabel(row.clockIn)}
-                          {staff && row.clockIn > staff.startMinutes && (
-                            <Badge tone="warning">지각</Badge>
-                          )}
-                        </td>
-                        <td data-label="퇴근">{clockLabel(row.clockOut)}</td>
-                        <td data-label="근무" className="numeric">
-                          {row.clockOut != null ? hoursLabel(workedMinutes(row, staff)) : "—"}
-                        </td>
-                        <td data-label="구분">
-                          {row.source === "manual" || row.changes?.some((c) => c.kind === "corrected")
-                            ? "정정"
-                            : "본인 기록"}
-                        </td>
-                        <td className="row-actions">
-                          <Button
-                            variant="ghost"
-                            onClick={() =>
-                              setEditing({
-                                id: row.id,
-                                staffId: row.staffId,
-                                date: row.date,
-                                clockIn: clockLabel(row.clockIn),
-                                clockOut: row.clockOut == null ? "" : clockLabel(row.clockOut),
-                                reason: "",
-                              })
-                            }
-                          >
-                            정정
-                          </Button>
-                          <Button variant="ghost" onClick={() => setRemoving(row)}>
-                            삭제
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">이 달의 출퇴근 기록이 없습니다.</p>
-          )}
-        </div>
+        {records.length ? (
+          <div className="table-wrap">
+            <table className="table commerce-table commerce-mobile-cards">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>직원</th>
+                  <th>출근</th>
+                  <th>퇴근</th>
+                  <th className="numeric">근무</th>
+                  <th>구분</th>
+                  <th aria-label="작업" />
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((row) => {
+                  const staff = data.staff.find((s) => s.id === row.staffId);
+                  return (
+                    <tr key={row.id}>
+                      <td data-label="날짜">{koreanDay(row.date, true)}</td>
+                      <td data-label="직원">{staff?.name || "직원"}</td>
+                      <td data-label="출근">
+                        {clockLabel(row.clockIn)}{" "}
+                        {staff && row.clockIn > staff.startMinutes && (
+                          <Badge tone="warning">지각</Badge>
+                        )}
+                      </td>
+                      <td data-label="퇴근">{clockLabel(row.clockOut)}</td>
+                      <td data-label="근무" className="numeric">
+                        {row.clockOut != null ? hoursLabel(workedMinutes(row, staff)) : "근무 중"}
+                      </td>
+                      <td data-label="구분">
+                        {row.source === "manual" || row.changes?.some((c) => c.kind === "corrected")
+                          ? "정정"
+                          : "본인 기록"}
+                      </td>
+                      <td className="row-actions">
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            setEditing({
+                              id: row.id,
+                              staffId: row.staffId,
+                              date: row.date,
+                              clockIn: clockLabel(row.clockIn),
+                              clockOut: row.clockOut == null ? "" : clockLabel(row.clockOut),
+                              reason: "",
+                            })
+                          }
+                        >
+                          정정
+                        </Button>
+                        <Button variant="ghost" onClick={() => setRemoving(row)}>
+                          삭제
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="wf-empty">이 달의 출퇴근 기록이 없어요</p>
+        )}
       </section>
       {editing && (
         <AttendanceForm
@@ -477,18 +562,23 @@ function AttendanceForm({ initial, staff, runAction, notify, close }) {
       onClose={busy ? undefined : close}
       dirty={JSON.stringify(form) !== JSON.stringify(initial)}
       footer={
-        <Button form="attendance-form" type="submit" variant="primary" busy={busy}>
-          저장
-        </Button>
+        <>
+          <Button variant="secondary" disabled={busy} onClick={closeDialogFrom}>
+            취소
+          </Button>
+          <Button form="attendance-form" type="submit" variant="primary" busy={busy}>
+            저장
+          </Button>
+        </>
       }
     >
-      <form id="attendance-form" className="stack" onSubmit={submit}>
+      <form id="attendance-form" className="wf-form" onSubmit={submit}>
         {error && (
           <div className="alert alert-warning" role="alert">
             {error}
           </div>
         )}
-        <div className="grid grid-2">
+        <div className="wf-grid-2">
           <Field label="직원">
             <select
               required
@@ -520,7 +610,7 @@ function AttendanceForm({ initial, staff, runAction, notify, close }) {
               onChange={(e) => set("clockIn", e.target.value)}
             />
           </Field>
-          <Field label="퇴근 시각" help="비우면 근무 중으로 남습니다.">
+          <Field label="퇴근 시각" help="비우면 근무 중으로 남아요">
             <input
               type="time"
               value={form.clockOut}
@@ -532,7 +622,7 @@ function AttendanceForm({ initial, staff, runAction, notify, close }) {
           <input
             required
             maxLength={300}
-            placeholder="예: 퇴근 기록 누락, 지문 인식 오류"
+            placeholder="예: 퇴근 기록 누락"
             value={form.reason}
             onChange={(e) => set("reason", e.target.value)}
           />
@@ -571,10 +661,15 @@ function RemoveAttendance({ row, data, runAction, notify, close }) {
           {error}
         </div>
       )}
-      <p>
-        {staffName(data, row.staffId)} · {dateLabel(row.date)}{" "}
-        {clockLabel(row.clockIn)}–{clockLabel(row.clockOut)}
-      </p>
+      <div className="wf-lines">
+        <span className="wf-item-title">{staffName(data, row.staffId)}</span>
+        <span className="muted">{koreanDay(row.date, true)}</span>
+        <span className="muted">
+          {row.clockOut != null
+            ? `${clockLabel(row.clockIn)}부터 ${clockLabel(row.clockOut)}까지`
+            : `${clockLabel(row.clockIn)} 출근`}
+        </span>
+      </div>
       <Field label="삭제 사유">
         <input
           required
@@ -591,19 +686,29 @@ function LeaveOverview({ data }) {
   const [year, setYear] = useViewState("hr", "year", Number(today().slice(0, 4)));
   const staff = data.staff.filter((row) => row.status === "active");
   return (
-    <section className="card">
-      <div className="card-header">
-        <h2>{year}년 연차 현황</h2>
-        <div className="row">
-          <Button variant="ghost" onClick={() => setYear(year - 1)} aria-label="이전 해">
-            ‹
-          </Button>
-          <Button variant="ghost" onClick={() => setYear(year + 1)} aria-label="다음 해">
-            ›
-          </Button>
-        </div>
+    <section className="panel" aria-labelledby="hr-leave-title">
+      <div className="panel-head">
+        <h2 id="hr-leave-title">{year}년 연차 현황</h2>
+        <span className="wf-stepper">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setYear(year - 1)}
+            aria-label="이전 해"
+          >
+            <Icon name="chevron-left" />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setYear(year + 1)}
+            aria-label="다음 해"
+          >
+            <Icon name="chevron-right" />
+          </button>
+        </span>
       </div>
-      <div className="card-body table-wrap">
+      <div className="table-wrap">
         <table className="table commerce-table commerce-mobile-cards">
           <thead>
             <tr>
@@ -612,7 +717,7 @@ function LeaveOverview({ data }) {
               <th className="numeric">부여</th>
               <th className="numeric">사용</th>
               <th className="numeric">승인 대기</th>
-              <th className="numeric">잔여</th>
+              <th className="numeric">남은 연차</th>
             </tr>
           </thead>
           <tbody>
@@ -625,7 +730,7 @@ function LeaveOverview({ data }) {
                   <td data-label="부여" className="numeric">{balance.allowance}일</td>
                   <td data-label="사용" className="numeric">{balance.used}일</td>
                   <td data-label="승인 대기" className="numeric">{balance.reserved}일</td>
-                  <td data-label="잔여" className="numeric">
+                  <td data-label="남은 연차" className="numeric">
                     <strong>{balance.remaining}일</strong>
                   </td>
                 </tr>
@@ -633,12 +738,11 @@ function LeaveOverview({ data }) {
             })}
           </tbody>
         </table>
-        <p className="help">
-          연차·반차만 차감합니다. 부여 일수는 직원 · 계정의 직원 정보에서
-          변경합니다. 근로기준법상 발생 일수(1년 미만 월 1일, 1년 이상 15일
-          + 가산)는 매장에서 확인해 입력해 주세요.
-        </p>
       </div>
+      <span className="small muted">
+        연차와 반차만 빠져요. 부여 일수는 직원 메뉴의 직원 정보에서 바꿔요. 근로기준법
+        발생 일수(1년 미만 월 1일, 1년 이상 15일과 가산)는 매장에서 확인해 넣어 주세요
+      </span>
     </section>
   );
 }
@@ -657,7 +761,7 @@ function Organization({ data }) {
     hire: "입사",
     rehire: "재입사",
     resign: "퇴사",
-    promotion: "승진·직책 변경",
+    promotion: "직책 변경",
     transfer: "부서 이동",
     update: "정보 변경",
   };
@@ -668,90 +772,82 @@ function Organization({ data }) {
         ? raw === "active"
           ? "재직"
           : raw
-            ? "퇴사·비활성"
+            ? "퇴사"
             : ""
         : raw || "없음";
+  const representative =
+    data.store.representative || data.staff.find((s) => s.role === "owner")?.name || "";
   return (
     <>
-      <section className="card">
-        <div className="card-header">
-          <h2>조직도</h2>
+      <section className="panel" aria-labelledby="hr-org-title">
+        <div className="panel-head">
+          <h2 id="hr-org-title">조직도</h2>
         </div>
-        <div className="card-body">
-          <div className="org-chart">
-            <div className="org-root">
-              <strong>{data.store.name}</strong>
-              <span className="help">
-                대표 {data.store.representative ||
-                  data.staff.find((s) => s.role === "owner")?.name ||
-                  ""}
-              </span>
-            </div>
-            <div className="org-teams">
-              {[...teams.entries()].map(([team, members]) => (
-                <div key={team} className="org-team">
-                  <h3>
-                    {team} <span className="help">{members.length}명</span>
-                  </h3>
-                  <ul>
-                    {members.map((row) => (
-                      <li key={row.id}>
-                        <strong>{row.name}</strong>
-                        <span className="help">
-                          {row.title || roleLabel(row.role)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="help">
-            팀과 직위는 직원 · 계정의 직원 정보에서 지정합니다.
-          </p>
+        <div className="wf-item">
+          <span className="wf-avatar wf-avatar-lg" aria-hidden="true">
+            {initialOf(data.store.name)}
+          </span>
+          <span className="wf-item-main">
+            <span className="wf-item-title">{data.store.name}</span>
+            {representative && <span className="small muted">대표 {representative}</span>}
+          </span>
         </div>
+        <div className="wf-org">
+          {[...teams.entries()].map(([team, members]) => (
+            <div key={team} className="wf-org-team">
+              <h3>{team}</h3>
+              <span className="small muted">{members.length}명</span>
+              <ul>
+                {members.map((row) => (
+                  <li key={row.id}>
+                    <strong>{row.name}</strong>
+                    <span className="small muted">{row.title || roleLabel(row.role)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <span className="small muted">팀과 직위는 직원 메뉴의 직원 정보에서 정해요</span>
       </section>
-      <section className="card">
-        <div className="card-header">
-          <h2>인사 발령 이력</h2>
+      <section className="panel" aria-labelledby="hr-history-title">
+        <div className="panel-head">
+          <h2 id="hr-history-title">인사 발령 이력</h2>
         </div>
-        <div className="card-body">
-          {history.length ? (
-            <div className="table-wrap">
-              <table className="table commerce-table commerce-mobile-cards">
-                <thead>
-                  <tr>
-                    <th>일자</th>
-                    <th>직원</th>
-                    <th>구분</th>
-                    <th>변경 내용</th>
-                    <th>처리자</th>
+        {history.length ? (
+          <div className="table-wrap">
+            <table className="table commerce-table commerce-mobile-cards">
+              <thead>
+                <tr>
+                  <th>일자</th>
+                  <th>직원</th>
+                  <th>구분</th>
+                  <th>변경 내용</th>
+                  <th>처리자</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr key={row.id}>
+                    <td data-label="일자">{row.date}</td>
+                    <td data-label="직원">{staffName(data, row.staffId)}</td>
+                    <td data-label="구분">{kinds[row.kind] || row.kind}</td>
+                    <td data-label="변경 내용">
+                      {row.kind === "hire"
+                        ? "직원 등록"
+                        : `${row.label}: ${value(row, row.before)} → ${value(row, row.after)}`}
+                    </td>
+                    <td data-label="처리자">{row.actorName}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {history.map((row) => (
-                    <tr key={row.id}>
-                      <td data-label="일자">{row.date}</td>
-                      <td data-label="직원">{staffName(data, row.staffId)}</td>
-                      <td data-label="구분">{kinds[row.kind] || row.kind}</td>
-                      <td data-label="변경 내용">
-                        {row.kind === "hire"
-                          ? "직원 등록"
-                          : `${row.label}: ${value(row, row.before)} → ${value(row, row.after)}`}
-                      </td>
-                      <td data-label="처리자">{row.actorName}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">
-              직원 정보에서 직책·팀·직위·재직 상태를 바꾸면 자동으로 기록됩니다.
-            </p>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="wf-empty">
+            직원 정보에서 직책, 팀, 직위, 재직 상태를 바꾸면 자동으로 기록돼요
+          </p>
+        )}
       </section>
     </>
   );
@@ -837,12 +933,12 @@ function Certificates({ data, runAction, notify }) {
     }
   };
   return (
-    <div className="grid grid-2 workforce-split">
-      <section className="card">
-        <div className="card-header">
-          <h2>증명서 발급</h2>
+    <div className="wf-row-wrap">
+      <section className="panel wf-side" aria-labelledby="hr-cert-title">
+        <div className="panel-head">
+          <h2 id="hr-cert-title">증명서 발급</h2>
         </div>
-        <form className="card-body stack" onSubmit={issue}>
+        <form className="wf-form" onSubmit={issue}>
           {error && (
             <div className="alert alert-warning" role="alert">
               {error}
@@ -862,19 +958,25 @@ function Certificates({ data, runAction, notify }) {
               ))}
             </select>
           </Field>
-          <Field label="종류">
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            >
-              <option value="employment">재직증명서</option>
-              <option value="career">경력증명서</option>
-            </select>
-          </Field>
+          <div className="seg" role="group" aria-label="증명서 종류">
+            {[
+              ["employment", "재직증명서"],
+              ["career", "경력증명서"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={form.type === id}
+                onClick={() => setForm({ ...form, type: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <Field label="담당 업무 (선택)">
             <input
               maxLength={200}
-              placeholder="예: 헤어 디자인, 고객 상담"
+              placeholder="예: 헤어 디자인"
               value={form.duties}
               onChange={(e) => setForm({ ...form, duties: e.target.value })}
             />
@@ -883,59 +985,54 @@ function Certificates({ data, runAction, notify }) {
             <input
               required
               maxLength={100}
-              placeholder="예: 금융기관 제출, 이직"
+              placeholder="예: 금융기관 제출"
               value={form.purpose}
               onChange={(e) => setForm({ ...form, purpose: e.target.value })}
             />
           </Field>
           {staff && !staff.hireDate && (
             <p className="alert alert-warning">
-              직원 정보에 입사일이 없습니다. 직원 · 계정에서 먼저 입력해 주세요.
+              직원 정보에 입사일이 없습니다. 직원 메뉴에서 먼저 넣어 주세요
             </p>
           )}
           {!data.store.representative && (
-            <p className="help">
-              대표자명·사업자등록번호는 설정 · 백업의 매장 정보에서 입력하면
-              증명서에 표시됩니다.
-            </p>
+            <span className="small muted">
+              대표자와 사업자등록번호는 설정의 매장 정보에서 넣으면 증명서에 나와요
+            </span>
           )}
           <Button type="submit" variant="primary" busy={busy}>
-            발급하고 인쇄
+            <Icon name="print" size={16} /> 발급하고 인쇄
           </Button>
         </form>
       </section>
-      <section className="card">
-        <div className="card-header">
-          <h2>발급 대장</h2>
+      <section className="panel wf-list wf-grow" aria-labelledby="hr-issued-title">
+        <div className="panel-head">
+          <h2 id="hr-issued-title">발급 대장</h2>
         </div>
-        <div className="card-body">
-          {issued.length ? (
-            <ul className="leave-list">
-              {issued.map((row) => (
-                <li key={row.id}>
-                  <strong>
-                    {row.number} · {row.snapshot.name}
-                  </strong>
-                  <span>
-                    {row.type === "employment" ? "재직증명서" : "경력증명서"} ·{" "}
-                    {row.purpose}
-                  </span>
-                  <span className="muted">
-                    {timestampLabel(row.issuedAt)} · {row.issuedBy}
-                  </span>
-                  <Button variant="ghost" onClick={() => print(row)}>
-                    다시 인쇄
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">발급한 증명서가 없습니다.</p>
-          )}
-          <p className="help">
-            발급 당시 직원·매장 정보로 보관되어 재인쇄해도 내용이 같습니다.
-          </p>
-        </div>
+        {issued.length ? (
+          issued.map((row) => (
+            <div key={row.id} className="wf-item">
+              <span className="wf-item-main">
+                <span className="wf-item-title">{row.snapshot.name}</span>
+                <span className="small muted">
+                  {row.type === "employment" ? "재직증명서" : "경력증명서"} {row.number}
+                </span>
+                <span className="small muted">{row.purpose}</span>
+                <span className="small muted">
+                  {timestampLabel(row.issuedAt)} {row.issuedBy} 발급
+                </span>
+              </span>
+              <Button variant="ghost" onClick={() => print(row)}>
+                다시 인쇄
+              </Button>
+            </div>
+          ))
+        ) : (
+          <p className="wf-empty">발급한 증명서가 없어요</p>
+        )}
+        <span className="small muted">
+          발급 당시 정보로 보관해서 다시 인쇄해도 내용이 같아요
+        </span>
       </section>
     </div>
   );
@@ -945,64 +1042,61 @@ function Severance({ data }) {
   const day = today();
   const staff = data.staff.filter((row) => row.hireDate);
   return (
-    <section className="card">
-      <div className="card-header">
-        <h2>퇴직금 추정</h2>
+    <section className="panel" aria-labelledby="hr-severance-title">
+      <div className="panel-head">
+        <h2 id="hr-severance-title">퇴직금 추정</h2>
       </div>
-      <div className="card-body">
-        {staff.length ? (
-          <div className="table-wrap">
-            <table className="table commerce-table commerce-mobile-cards">
-              <thead>
-                <tr>
-                  <th>직원</th>
-                  <th>입사일</th>
-                  <th className="numeric">재직일수</th>
-                  <th className="numeric">1일 평균임금</th>
-                  <th className="numeric">추정 퇴직금</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staff.map((row) => {
-                  const estimate = severanceEstimate(data, row, day);
-                  return (
-                    <tr key={row.id}>
-                      <td data-label="직원">
-                        {row.name}
-                        {row.status !== "active" && <span className="help"> · 퇴사</span>}
-                      </td>
-                      <td data-label="입사일">{row.hireDate}</td>
-                      <td data-label="재직일수" className="numeric">
-                        {estimate.serviceDays.toLocaleString("ko-KR")}일
-                      </td>
-                      <td data-label="1일 평균임금" className="numeric">
-                        {estimate.daily ? won(estimate.daily) : "확정 급여 없음"}
-                      </td>
-                      <td data-label="추정 퇴직금" className="numeric">
-                        {!estimate.eligible ? (
-                          <span className="help">1년 미만 · 지급 대상 아님</span>
-                        ) : estimate.amount != null ? (
-                          <strong>{won(estimate.amount)}</strong>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted">입사일이 입력된 직원이 없습니다.</p>
-        )}
-        <p className="help">
-          1일 평균임금 = 최근 3개월 확정·지급 급여명세의 지급 합계 ÷ 해당 월
-          일수, 퇴직금 = 1일 평균임금 × 30일 × 재직일수 ÷ 365. 상여금·연차수당
-          가산과 퇴직연금(DB·DC) 가입 여부에 따라 실제 금액이 달라지므로 노무
-          담당자와 확인하세요.
-        </p>
-      </div>
+      {staff.length ? (
+        <div className="table-wrap">
+          <table className="table commerce-table commerce-mobile-cards">
+            <thead>
+              <tr>
+                <th>직원</th>
+                <th>입사일</th>
+                <th className="numeric">재직일수</th>
+                <th className="numeric">1일 평균임금</th>
+                <th className="numeric">추정 퇴직금</th>
+              </tr>
+            </thead>
+            <tbody>
+              {staff.map((row) => {
+                const estimate = severanceEstimate(data, row, day);
+                return (
+                  <tr key={row.id}>
+                    <td data-label="직원">
+                      {row.name}{" "}
+                      {row.status !== "active" && <Badge tone="muted">퇴사</Badge>}
+                    </td>
+                    <td data-label="입사일">{row.hireDate}</td>
+                    <td data-label="재직일수" className="numeric">
+                      {estimate.serviceDays.toLocaleString("ko-KR")}일
+                    </td>
+                    <td data-label="1일 평균임금" className="numeric">
+                      {estimate.daily ? won(estimate.daily) : "확정 급여 없음"}
+                    </td>
+                    <td data-label="추정 퇴직금" className="numeric">
+                      {!estimate.eligible ? (
+                        <span className="small muted">1년 미만이라 대상 아님</span>
+                      ) : estimate.amount != null ? (
+                        <strong>{won(estimate.amount)}</strong>
+                      ) : (
+                        "계산 불가"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="wf-empty">입사일을 넣은 직원이 없어요</p>
+      )}
+      <span className="small muted">
+        1일 평균임금은 최근 3개월 확정 급여의 지급 합계를 그 기간 일수로 나눈 값이에요.
+        퇴직금은 1일 평균임금에 30일과 재직일수를 곱하고 365로 나눠요. 상여금, 연차수당,
+        퇴직연금 가입 여부에 따라 실제 금액이 달라지니 노무 담당자와 확인해 주세요
+      </span>
     </section>
   );
 }

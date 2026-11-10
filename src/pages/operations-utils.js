@@ -57,7 +57,64 @@ export const serviceNames = (ids, data) =>
       (id) =>
         data.services.find((item) => item.id === id)?.name || "삭제된 시술",
     )
-    .join(" · ");
+    .join(", ");
+// "11월 10일 화요일"
+export const longDateLabel = (date) =>
+  date
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        month: "long",
+        day: "numeric",
+        weekday: "long",
+      }).format(new Date(`${date}T12:00:00+09:00`))
+    : "날짜 없음";
+// "11월 10일"
+export const shortDateLabel = (date) =>
+  date
+    ? new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        month: "long",
+        day: "numeric",
+      }).format(new Date(`${date}T12:00:00+09:00`))
+    : "날짜 없음";
+// "오늘", "내일", "어제" or "11월 12일"
+export const relativeDayLabel = (date, today = todaySeoul()) =>
+  date === today
+    ? "오늘"
+    : date === shiftDate(today, 1)
+      ? "내일"
+      : date === shiftDate(today, -1)
+        ? "어제"
+        : shortDateLabel(date);
+// "2시간 30분", "45분"
+export const durationLabel = (minutes) => {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  if (!hours) return `${rest}분`;
+  return rest ? `${hours}시간 ${rest}분` : `${hours}시간`;
+};
+// "10:00부터 20:00까지"
+export const rangeLabel = (start, end) =>
+  `${timeLabel(start)}부터 ${timeLabel(end)}까지`;
+export const LEAVE_LABELS = {
+  annual: "연차",
+  half_am: "오전 반차",
+  half_pm: "오후 반차",
+  sick: "병가",
+  special: "경조사 휴가",
+  unpaid: "무급 휴가",
+};
+// Approved leave for one staff member on one date. start == null means all day.
+export const staffLeaves = (data, staffId, date) =>
+  (data.staffRequests || []).filter(
+    (item) =>
+      item.kind === "leave" &&
+      item.status === "approved" &&
+      item.staffId === staffId &&
+      item.from <= date &&
+      item.to >= date,
+  );
 export const timestampLabel = (at) =>
   at
     ? new Intl.DateTimeFormat("ko-KR", {
@@ -101,14 +158,7 @@ export function availableAppointmentTimes(
       item.staffId === staffId &&
       ["booked", "checked_in", "in_service"].includes(item.status),
   );
-  const leaves = (data.staffRequests || []).filter(
-    (item) =>
-      item.kind === "leave" &&
-      item.status === "approved" &&
-      item.staffId === staffId &&
-      item.from <= date &&
-      item.to >= date,
-  );
+  const leaves = staffLeaves(data, staffId, date);
   if (leaves.some((item) => item.start == null)) return [];
   const result = [];
   const first =

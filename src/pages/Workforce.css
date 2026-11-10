@@ -1,335 +1,460 @@
-/* 근태·공지·인사·경비 화면 */
-.workforce-page > .card,
-.workforce-page > .grid {
-  margin-top: 20px;
-}
-.workforce-page > .tabs + .card,
-.workforce-page > .toolbar + .card,
-.workforce-page > .workforce-top + .card {
-  margin-top: 0;
-}
-.workforce-page .grid > .card,
-.workforce-top > .card {
-  margin: 0;
-}
-.workforce-page .card-header select {
-  width: auto;
-  min-width: 140px;
-}
-.workforce-page .tabs .nav-count {
-  margin-left: 6px;
-}
-.workforce-page .card-header {
+/* 근태와 휴가 (직원 화면, 원장 관리) */
+.wf-page {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.workforce-page h2 {
-  font-size: 16px;
-  margin: 0;
-}
-.workforce-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.clock-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-.clock-head p {
-  margin: 4px 0 0;
-}
-.clock-now {
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -1px;
-  margin: 12px 0;
-  font-variant-numeric: tabular-nums;
-}
-.clock-times,
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0 0 16px;
-}
-.clock-times div,
-.summary-grid div {
-  background: var(--surface-soft);
-  border-radius: var(--radius);
-  padding: 10px 12px;
+  flex-direction: column;
+  gap: 32px;
   min-width: 0;
 }
-.clock-times dt,
-.summary-grid dt {
-  font-size: 12px;
-  color: var(--muted);
+.wf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 }
-.clock-times dd,
-.summary-grid dd {
-  margin: 2px 0 0;
-  font-weight: 600;
+.wf-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.wf-page .page-title {
+  margin: 0;
+}
+.wf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wf-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.wf-tile-tight {
+  gap: 12px;
+}
+.wf-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  margin: -12px -12px 0 0;
+}
+.wf-stepper {
+  display: inline-flex;
+  gap: 4px;
+}
+.status-pill.wf-pill {
+  position: static;
+  align-self: flex-start;
+}
+.wf-big {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
-.summary-grid {
-  margin-top: 14px;
-}
-.input-compact {
-  width: 190px;
-  max-width: 100%;
-}
-.balance-meter {
+.wf-lines {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 14px 0 10px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
-.balance-meter strong {
-  font-size: 34px;
+.wf-meter {
+  display: flex;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--chip);
+  overflow: hidden;
+}
+.wf-meter > span {
+  height: 4px;
+  background: var(--accent);
+}
+.wf-meter > .wf-meter-reserved {
+  background: rgba(76, 125, 255, 0.4);
+}
+.wf-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.wf-mini {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.wf-mini > span {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.wf-mini > strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.wf-mini > strong.warn {
+  color: var(--warn);
+}
+.wf-row-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.wf-grow {
+  flex: 999 1 480px;
+}
+.wf-side {
+  flex: 1 1 320px;
+}
+.panel.wf-list {
+  gap: 12px;
+}
+.wf-item {
+  min-height: 64px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.wf-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.wf-item-title {
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+}
+.wf-item-value {
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+.wf-item .btn {
+  min-height: 40px;
+  padding: 0 12px;
+}
+.wf-avatar {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 600;
 }
-.balance-meter span {
-  color: var(--muted);
-}
-.meter {
-  display: flex;
-  height: 8px;
-  border-radius: 99px;
-  background: var(--line);
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.meter-used {
-  background: var(--brand);
-}
-.meter-reserved {
-  background: var(--chip);
-}
-.team-status,
-.leave-list,
-.bar-list,
-.notice-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.team-status {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-}
-.team-status li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "name badge" "time badge";
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  gap: 2px 8px;
-  align-items: center;
-}
-.team-status strong {
-  grid-area: name;
-}
-.team-status span:not(.badge) {
-  grid-area: time;
-  color: var(--muted);
+.wf-avatar.wf-avatar-lg {
+  width: 40px;
+  height: 40px;
   font-size: 14px;
+  line-height: 20px;
 }
-.team-status .badge {
-  grid-area: badge;
+.wf-empty {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text-meta);
 }
-.leave-list li {
+.wf-team {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+/* Dialogs */
+.modal:has(.wf-dialog) {
+  max-width: 800px;
+}
+.wf-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+.wf-dialog-tight {
+  gap: 16px;
+}
+.wf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.wf-group-label {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.wf-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wf-choice {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+}
+.wf-choice:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.wf-choice[aria-checked="true"] {
+  background: var(--chip);
+  border-color: var(--chip);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.wf-grid-2,
+.wf-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.wf-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.wf-sum {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.wf-sum > div {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wf-sum span {
+  color: var(--text-meta);
+}
+.wf-sum strong {
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+/* 원장 관리: 근태와 휴가 */
+.wf-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.wf-queue {
+  flex: 999 1 520px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wf-section-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.wf-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.wf-card-title {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.wf-card-meta {
+  color: var(--text-meta);
+  text-align: right;
+  max-width: 40%;
+  overflow-wrap: anywhere;
+}
+.wf-conflict {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(245, 185, 74, 0.1);
+  color: var(--warn);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
+  justify-content: space-between;
+  gap: 12px;
 }
-.leave-list li:last-child {
-  border-bottom: 0;
+.wf-link {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
-.leave-list .btn {
-  margin-left: auto;
+.wf-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.wf-card-actions .btn-primary {
+  padding: 0 24px;
+}
+.wf-hours {
+  flex: 1 1 360px;
+}
+.panel.wf-hours {
+  gap: 12px;
+}
+.wf-people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wf-person {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wf-person-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.wf-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--chip);
+}
+.wf-bar > span {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.wf-warn-text {
+  color: var(--warn);
+}
+.wf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.wf-toolbar .field {
+  min-width: 180px;
+}
+.wf-page .table-wrap {
+  overflow-x: auto;
 }
 .row-actions {
   white-space: nowrap;
   text-align: right;
 }
 .row-actions .btn + .btn {
-  margin-left: 6px;
+  margin-left: 8px;
 }
-/* 공지 */
-.notice-list {
+.wf-org {
   display: grid;
-  gap: 10px;
-}
-.notice-item {
-  display: grid;
-  gap: 6px;
-  width: 100%;
-  text-align: left;
-  padding: 16px 18px;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  min-height: 44px;
-}
-.notice-item:hover {
-  background: var(--surface-2);
-}
-.notice-item.unread {
-  border-left: 3px solid var(--brand);
-}
-.notice-title {
-  display: flex;
-  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
-  font-size: 16px;
 }
-.unread-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--brand);
-  flex: none;
+.wf-org-team {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.notice-preview {
-  color: var(--muted);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  white-space: pre-line;
-}
-.notice-body {
-  white-space: pre-wrap;
-  line-height: 1.7;
-  margin: 12px 0 20px;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-.notice-readers {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-}
-/* 조직도 */
-.org-chart {
-  display: grid;
-  gap: 16px;
-}
-.org-root {
-  display: grid;
-  justify-items: center;
-  padding: 14px;
-  border: 1px solid var(--brand);
-  border-radius: var(--radius);
-  max-width: 280px;
-  margin: 0 auto;
-  text-align: center;
-}
-.org-teams {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-}
-.org-team {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-}
-.org-team h3 {
+.wf-org-team h3 {
+  margin: 0;
   font-size: 14px;
-  margin: 0 0 8px;
+  line-height: 20px;
+  font-weight: 600;
 }
-.org-team ul {
+.wf-org-team ul {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.org-team li {
+.wf-org-team li {
   display: flex;
   justify-content: space-between;
   gap: 8px;
 }
-/* 손익 */
-.profit-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+.wf-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.profit-total {
-  background: var(--surface-2);
-}
-.profit-total.loss .stat-value,
-td.negative {
-  color: var(--danger);
-}
-.bar-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-.bar-list li {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) 2fr auto;
-  align-items: center;
-  gap: 10px;
-}
-.bar-list .bar {
-  height: 8px;
-  border-radius: 99px;
-  background: var(--brand);
-  min-width: 2px;
-}
-tr.voided td {
-  color: var(--muted);
-  text-decoration: line-through;
-}
-tr.voided td:last-child {
-  text-decoration: none;
-}
-@media (max-width: 1100px) {
-  .workforce-top {
-    grid-template-columns: 1fr 1fr;
-  }
-  .workforce-top .clock-card {
-    grid-column: 1 / -1;
-  }
-  .profit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .profit-grid .stat-card {
-    border-bottom: 1px solid var(--line);
-  }
-}
+
 @media (max-width: 700px) {
-  .workforce-top {
+  .wf-grid-2,
+  .wf-grid-3,
+  .wf-sum {
     grid-template-columns: 1fr;
   }
-  .clock-times,
-  .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .wf-item {
+    flex-wrap: wrap;
+  }
+  .wf-card-meta {
+    max-width: none;
+    text-align: left;
+  }
+  .wf-card-top {
+    flex-wrap: wrap;
   }
   .row-actions {
     text-align: left;
     white-space: normal;
   }
-  .row-actions .btn {
-    min-height: 44px;
-  }
-  .bar-list li {
-    grid-template-columns: 1fr auto;
-  }
-  .bar-list .bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
+}
+.wf-count {
+  margin-left: 4px;
 }

@@ -3,7 +3,7 @@ export const LEAVE_TYPES = {
   half_am: "오전 반차",
   half_pm: "오후 반차",
   sick: "병가",
-  special: "경조사·공가",
+  special: "경조사",
   unpaid: "무급 휴가",
 };
 export const OVERTIME_TYPES = {
@@ -66,6 +66,69 @@ export const periodLabel = (request) => {
     ? `${range} ${clockLabel(request.start)}–${clockLabel(request.end)}`
     : range;
 };
+
+const WEEKDAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+const weekdayOf = (value) => new Date(`${value}T12:00:00Z`).getUTCDay();
+/** "11월 17일" or, with weekday, "11월 17일 월요일". */
+export function koreanDay(value, withWeekday = false) {
+  if (!value) return "";
+  const label = `${Number(value.slice(5, 7))}월 ${Number(value.slice(8, 10))}일`;
+  return withWeekday ? `${label} ${WEEKDAY_NAMES[weekdayOf(value)]}요일` : label;
+}
+/** Plain Korean period: "11월 17일", "11월 17일부터 11월 19일까지", "11월 12일 20:00부터 22:00까지". */
+export function requestPeriod(request, withWeekday = false) {
+  if (request.kind === "overtime")
+    return `${koreanDay(request.from, withWeekday)} ${clockLabel(request.start)}부터 ${clockLabel(request.end)}까지`;
+  if (!request.to || request.from === request.to)
+    return koreanDay(request.from, withWeekday);
+  return `${koreanDay(request.from)}부터 ${koreanDay(request.to)}까지`;
+}
+const addDay = (value) => {
+  const day = new Date(`${value}T12:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + 1);
+  return day.toISOString().slice(0, 10);
+};
+/** Working days a leave consumes (mirrors the server): staff working weekdays that are not store holidays. */
+export function leaveDays(data, staff, request) {
+  if (request.type === "half_am" || request.type === "half_pm") return 0.5;
+  if (!request.from || !request.to || request.to < request.from) return 0;
+  let count = 0;
+  for (let day = request.from, guard = 0; day <= request.to && guard < 400; day = addDay(day), guard += 1) {
+    const weekday = weekdayOf(day);
+    if (
+      (staff?.workingDays || []).includes(weekday) &&
+      !(data.store?.closedWeekdays || []).includes(weekday)
+    )
+      count += 1;
+  }
+  return count;
+}
+/** The time window a half-day leave covers (mirrors the server). */
+export function halfDayWindow(staff, type) {
+  if (!staff) return { start: null, end: null };
+  const middle =
+    staff.breakStart != null
+      ? staff.breakStart
+      : Math.round((staff.startMinutes + staff.endMinutes) / 2 / 10) * 10;
+  return type === "half_am"
+    ? { start: staff.startMinutes, end: middle }
+    : { start: staff.breakEnd != null ? staff.breakEnd : middle, end: staff.endMinutes };
+}
+const OPEN_APPOINTMENTS = ["booked", "checked_in", "in_service"];
+/** Open appointments of the staff member that fall inside a leave request. */
+export function leaveAppointments(data, request) {
+  if (request.kind === "overtime") return [];
+  return (data.appointments || []).filter(
+    (appointment) =>
+      appointment.staffId === request.staffId &&
+      OPEN_APPOINTMENTS.includes(appointment.status) &&
+      appointment.date >= request.from &&
+      appointment.date <= (request.to || request.from) &&
+      (request.start == null ||
+        (appointment.start < request.end &&
+          appointment.start + appointment.duration > request.start)),
+  );
+}
 
 export function leaveBalance(data, staffId, year) {
   const staff = (data.staff || []).find((row) => row.id === staffId);
@@ -219,3 +282,16 @@ export function normalizeDate(value) {
 }
 export const normalizeAmount = (value) =>
   Number(String(value || "").replace(/[^\d-]/g, "")) || 0;
+/** "2026-11" shifted by whole months. */
+export function shiftMonth(month, delta) {
+  const [y, m] = month.split("-").map(Number);
+  const total = y * 12 + (m - 1) + delta;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
+}
+/** A footer "취소" button closes its dialog the same way the header close button does (keeps the unsaved-changes check). */
+export function closeDialogFrom(event) {
+  event.currentTarget
+    .closest('[role="dialog"]')
+    ?.querySelector('.modal-header button[aria-label="닫기"]')
+    ?.click();
+}

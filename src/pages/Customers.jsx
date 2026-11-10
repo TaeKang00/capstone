@@ -10,8 +10,9 @@ import {
 } from "../components/ui.jsx";
 import {
   STATUS,
-  dateLabel,
   serviceNames,
+  shiftDate,
+  shortDateLabel,
   staffName,
   timeLabel,
   todaySeoul,
@@ -22,6 +23,31 @@ import { useViewState } from "../components/ViewState.jsx";
 
 const blankCustomer = { name: "", phone: "", memo: "", warning: "" };
 const digits = (value) => String(value || "").replace(/\D/g, "");
+const PAGE_SIZE = 24;
+const LIST_MODES = [
+  ["recent", "최근 방문"],
+  ["name", "이름순"],
+  ["visits", "방문순"],
+  ["archived", "보관"],
+];
+// Closes a dialog through its own close button so the unsaved-changes guard still runs.
+const closeDialog = (event) =>
+  event.currentTarget
+    .closest(".modal")
+    ?.querySelector('.modal-header button[aria-label="닫기"]')
+    ?.click();
+const dayWithYear = (date, today) =>
+  date.slice(0, 4) === today.slice(0, 4)
+    ? shortDateLabel(date)
+    : `${date.slice(0, 4)}년 ${shortDateLabel(date)}`;
+const lastVisitLabel = (date, today) =>
+  !date
+    ? "방문 기록 없음"
+    : date === today
+      ? "오늘 방문"
+      : date === shiftDate(today, -1)
+        ? "어제 방문"
+        : dayWithYear(date, today);
 
 export function CustomerEditor({
   customer,
@@ -50,11 +76,13 @@ export function CustomerEditor({
   const change = (key, value) =>
     setDraft((previous) => ({ ...previous, [key]: value }));
   const duplicate =
-    draft.phone &&
+    digits(draft.phone) &&
     customers.find(
       (item) =>
         item.id !== draft.id && digits(item.phone) === digits(draft.phone),
     );
+  const canUseDuplicate =
+    duplicate && onUseExisting && !(forAppointment && duplicate.archived);
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
@@ -72,7 +100,7 @@ export function CustomerEditor({
       onSaved(saved?.id);
     } catch (cause) {
       setError(
-        cause.message || "고객 정보를 저장하지 못했습니다. 다시 시도해 주세요.",
+        cause.message || "손님 정보를 저장하지 못했어요. 다시 시도해 주세요.",
       );
     } finally {
       setBusy(false);
@@ -80,18 +108,21 @@ export function CustomerEditor({
   }
   return (
     <Modal
-      title={customer ? "고객 정보 수정" : "새 고객 등록"}
+      title={customer ? "고객 정보 수정" : "고객 등록"}
       onClose={busy ? undefined : onClose}
       dirty={JSON.stringify(draft) !== JSON.stringify(initial.current)}
       footer={
         <>
+          <Button variant="secondary" onClick={closeDialog} disabled={busy}>
+            취소
+          </Button>
           <Button
             variant="primary"
             type="submit"
             form="customer-editor"
             busy={busy}
           >
-            {forAppointment ? "고객 등록 후 예약 계속" : "고객 정보 저장"}
+            {forAppointment ? "저장하고 예약 계속" : "고객 저장"}
           </Button>
         </>
       }
@@ -103,7 +134,7 @@ export function CustomerEditor({
           </div>
         )}
         <div className="grid grid-2">
-          <Field label="고객 이름 *">
+          <Field label="이름">
             <input
               className="input"
               autoFocus
@@ -111,337 +142,305 @@ export function CustomerEditor({
               onChange={(event) => change("name", event.target.value)}
               maxLength={80}
               required
-              autoComplete="name"
+              autoComplete="off"
             />
           </Field>
-          <Field label="연락처" help="예약 확인 및 동명이인 구분에 사용합니다.">
+          <Field label="전화번호">
             <input
-              className="input"
+              className={`input ${duplicate ? "ops-input-warn" : ""}`}
               type="tel"
               value={draft.phone}
               onChange={(event) => change("phone", event.target.value)}
               maxLength={30}
               placeholder="010-0000-0000"
-              autoComplete="tel"
+              autoComplete="off"
             />
           </Field>
         </div>
         {duplicate && (
-          <div className="alert alert-warning">
-            같은 연락처로 등록된 고객이 있습니다:{" "}
-            <strong>{duplicate.name}</strong>
-            {duplicate.archived ? " (보관된 고객)" : ""}. 기존 고객 차트를
-            사용하거나 연락처를 확인해 주세요.
-            {onUseExisting && !duplicate.archived && (
-              <div className="row" style={{ marginTop: 8 }}>
-                <Button onClick={() => onUseExisting(duplicate.id)}>
-                  기존 고객 선택 · {duplicate.name}
-                </Button>
-              </div>
+          <div className="ops-dup" role="status">
+            <span className="ops-dup-text">
+              <strong>같은 번호의 손님이 있어요</strong>
+              <span>
+                {duplicate.name} 님{duplicate.archived ? " (보관됨)" : ""}
+              </span>
+            </span>
+            {canUseDuplicate && (
+              <button
+                type="button"
+                className="chip ops-chip-outline"
+                onClick={() => onUseExisting(duplicate.id)}
+              >
+                {forAppointment ? "그 손님으로 예약" : "그 손님 보기"}
+              </button>
             )}
           </div>
         )}
         <Field
-          label="시술 시 주의사항"
-          help="알레르기, 두피 상태 등 시술 전에 확인해야 할 내용을 간결하게 적어 주세요. 예약과 수납 화면에도 표시됩니다."
+          label="시술 전 확인할 점"
+          help="예약과 수납 화면에 노란 글씨로 보여요"
         >
-          <textarea
-            className="textarea"
-            rows={3}
+          <input
+            className="input"
             maxLength={1000}
             value={draft.warning}
             onChange={(event) => change("warning", event.target.value)}
-            placeholder="예: 특정 염모제 사용 시 두피 자극 — 시술 전 확인"
+            placeholder="예: 두피 민감, 임신 중"
           />
         </Field>
-        <Field
-          label="상담 및 고객 메모"
-          help="선호하는 스타일, 방문 목적, 상담 내용을 기록합니다."
-        >
+        <Field label="메모" help="주민등록번호나 카드번호는 적지 말아 주세요">
           <textarea
             className="textarea"
-            rows={5}
+            rows={4}
             maxLength={4000}
             value={draft.memo}
             onChange={(event) => change("memo", event.target.value)}
-            placeholder="예: 옆머리는 짧게, 앞머리는 눈썹 위 길이 선호"
+            placeholder="선호 스타일이나 상담 내용"
           />
         </Field>
-        <p className="help">
-          {forAppointment &&
-            "고객 정보는 지금 저장되고, 입력 중인 예약은 다음 화면에서 저장합니다. "}
-          고객에게 안내하고 동의받은 범위에서 필요한 정보만 기록해 주세요.
-          주민등록번호·카드번호·비밀번호는 기록하지 않습니다.
-        </p>
+        {forAppointment && (
+          <p className="help">
+            손님 정보는 지금 저장되고, 예약은 다음 화면에서 저장해요
+          </p>
+        )}
       </form>
     </Modal>
   );
 }
 
-function CustomerChart({
+function CustomerDetail({
   customer,
   data,
   user,
-  onClose,
+  summary,
   onEdit,
   onArchive,
   navigate,
 }) {
-  const [tab, setTab] = useState("profile");
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => setShowAll(false), [customer.id]);
+  const today = todaySeoul();
   const visits = useMemo(
-    () =>
-      data.appointments
-        .filter((item) => item.customerId === customer.id)
-        .sort((a, b) => b.date.localeCompare(a.date) || b.start - a.start),
+    () => data.appointments.filter((item) => item.customerId === customer.id),
     [data.appointments, customer.id],
   );
   const payments = useMemo(
-    () =>
-      data.transactions
-        .filter((item) => item.customerId === customer.id)
-        .sort(
-          (a, b) =>
-            b.date.localeCompare(a.date) ||
-            String(b.time).localeCompare(String(a.time)),
-        ),
+    () => data.transactions.filter((item) => item.customerId === customer.id),
     [data.transactions, customer.id],
   );
   const txIds = new Set(payments.map((item) => item.id));
   const refunds = data.refunds.filter((item) => txIds.has(item.transactionId));
+  const refundedFor = (id) =>
+    refunds
+      .filter((item) => item.transactionId === id)
+      .reduce((sum, item) => sum + item.amount, 0);
   const total =
     payments.reduce((sum, item) => sum + item.total, 0) -
     refunds.reduce((sum, item) => sum + item.amount, 0);
+  const records = useMemo(() => {
+    const linked = new Set();
+    const rows = visits.map((item) => {
+      const tx =
+        payments.find((row) => row.appointmentId === item.id) ||
+        payments.find((row) => row.id === item.transactionId);
+      if (tx) linked.add(tx.id);
+      return {
+        key: `a-${item.id}`,
+        date: item.date,
+        time: timeLabel(item.start),
+        title: serviceNames(item.serviceIds, data),
+        staff: staffName(item.staffId, data),
+        status: item.status,
+        tx,
+        appointmentId: item.id,
+      };
+    });
+    for (const tx of payments) {
+      if (linked.has(tx.id)) continue;
+      rows.push({
+        key: `t-${tx.id}`,
+        date: tx.date,
+        time: String(tx.time || "").slice(0, 5),
+        title: tx.lines
+          .map(
+            (line) =>
+              `${line.name}${line.quantity > 1 ? ` ${line.quantity}개` : ""}`,
+          )
+          .join(", "),
+        staff: staffName(tx.staffId, data),
+        status: null,
+        tx,
+      });
+    }
+    return rows.sort(
+      (a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time),
+    );
+  }, [visits, payments, data]);
+  const shown = showAll ? records : records.slice(0, 8);
   const canArchive = user.role !== "designer";
+  const created = customer.createdAt ? String(customer.createdAt).slice(0, 10) : "";
   return (
-    <Modal
-      title="고객 차트"
-      size="wide"
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            닫기
-          </Button>
-          <Button variant="secondary" onClick={onEdit}>
-            고객 정보 수정
-          </Button>
-          {!customer.archived && (
-            <>
-              {user.role !== "designer" && (
-                <Button
-                  onClick={() =>
-                    navigate("payments", { customerId: customer.id })
-                  }
-                >
-                  예약 없이 수납
-                </Button>
-              )}
+    <>
+      <div className="panel ops-detail-card">
+        <div className="ops-person-head">
+          <span className="ops-avatar ops-avatar-xl" aria-hidden="true">
+            {customer.name.slice(0, 1)}
+          </span>
+          <span className="ops-person-text">
+            <h2 id="customer-detail-title" className="ops-person-title">
+              {customer.name} 님
+              {customer.archived && <Badge tone="muted">보관됨</Badge>}
+            </h2>
+            <span className="muted">{customer.phone || "전화번호 없음"}</span>
+            {created && (
+              <span className="help">{dayWithYear(created, today)} 등록</span>
+            )}
+          </span>
+          <span className="ops-inline-actions">
+            <Button variant="secondary" onClick={onEdit}>
+              정보 수정
+            </Button>
+            {!customer.archived && user.role !== "designer" && (
               <Button
+                variant="secondary"
+                onClick={() =>
+                  navigate("payments", { customerId: customer.id })
+                }
+              >
+                예약 없이 수납
+              </Button>
+            )}
+            {!customer.archived && (
+              <Button
+                variant="primary"
                 onClick={() =>
                   navigate("appointments", { customerId: customer.id })
                 }
               >
                 예약 등록
               </Button>
-            </>
-          )}
-        </>
-      }
-    >
-      <div className="ops-form">
-        <div className="ops-chart-header">
-          <div className="ops-customer-avatar" aria-hidden="true">
-            {customer.name.slice(0, 1)}
-          </div>
-          <div>
-            <h2>
-              {customer.name}{" "}
-              {customer.archived && <Badge tone="muted">보관됨</Badge>}
-            </h2>
-            <span className="muted">{customer.phone || "연락처 미등록"}</span>
-          </div>
+            )}
+          </span>
         </div>
         {customer.warning && (
-          <div className="ops-warning">
-            <strong>시술 전 확인</strong>
-            <br />
-            {customer.warning}
-          </div>
+          <div className="ops-warning">시술 전 확인: {customer.warning}</div>
         )}
-        <div className="stat-grid">
-          <div className="stat-card">
-            <span className="muted">완료된 방문</span>
-            <strong>
-              {visits.filter((item) => item.status === "completed").length}회
-            </strong>
+        <div className="ops-stat-row">
+          <div className="inset ops-stat">
+            <span className="muted">방문</span>
+            <strong className="num">{summary.visits}회</strong>
           </div>
-          <div className="stat-card">
-            <span className="muted">누적 결제 · 환불 반영</span>
-            <strong>
+          <div className="inset ops-stat">
+            <span className="muted">누적 결제</span>
+            <strong className="num">
               <Money value={total} />
             </strong>
           </div>
-          <div className="stat-card">
-            <span className="muted">고객 등록일</span>
-            <strong>
-              {customer.createdAt
-                ? String(customer.createdAt).slice(0, 10)
-                : "기록 없음"}
-            </strong>
+          <div className="inset ops-stat">
+            <span className="muted">다음 예약</span>
+            <strong>{summary.next ? dayWithYear(summary.next, today) : "없음"}</strong>
           </div>
         </div>
         {user.role === "designer" && (
-          <p className="help">
-            예약·결제 이력과 누적 금액은 본인이 담당한 기록을 기준으로
-            표시됩니다.
+          <p className="help">방문과 결제 기록은 내가 담당한 것만 보여요</p>
+        )}
+        <div className="ops-section">
+          <span className="ops-meta-label">메모</span>
+          <p className="ops-chart-notes">
+            {customer.memo || "남긴 메모가 없어요. 정보 수정에서 적을 수 있어요."}
           </p>
-        )}
-        <div
-          className="ops-chart-tabs tabs"
-          role="tablist"
-          aria-label="고객 차트 보기"
-        >
-          {[
-            ["profile", "고객 메모"],
-            ["visits", `예약·방문 ${visits.length}`],
-            ["payments", `수납·환불 ${payments.length}`],
-          ].map(([id, label]) => (
-            <Button
-              key={id}
-              role="tab"
-              aria-selected={tab === id}
-              variant="ghost"
-              className={`tab ${tab === id ? "active" : ""}`}
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </Button>
-          ))}
         </div>
-        {tab === "profile" && (
-          <div className="stack">
-            <div className="card card-body">
-              <h3>상담 및 고객 메모</h3>
-              <p className="ops-chart-notes">
-                {customer.memo ||
-                  "등록된 메모가 없습니다. 고객 정보 수정에서 상담 내용을 남길 수 있습니다."}
-              </p>
-            </div>
-            {canArchive && (
-              <div className="row">
-                <span className="help">
-                  {customer.archived
-                    ? "보관된 고객은 신규 예약 검색에서 숨겨집니다. 기존 이력은 유지됩니다."
-                    : "더 이상 방문하지 않는 고객은 보관할 수 있습니다. 기존 방문·결제 기록은 유지됩니다."}
-                </span>
-                <Button variant="ghost" onClick={onArchive}>
-                  {customer.archived ? "고객 다시 활성화" : "고객 보관"}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-        {tab === "visits" && (
-          <div className="ops-chart-records">
-            {visits.length ? (
-              visits.map((item) => (
-                <article key={item.id} className="ops-chart-record">
-                  <div className="row">
-                    <strong>
-                      {item.date} {timeLabel(item.start)}
-                    </strong>
-                    <Badge tone={STATUS[item.status]?.tone}>
-                      {STATUS[item.status]?.label || item.status}
-                    </Badge>
-                  </div>
-                  <p>
-                    {serviceNames(item.serviceIds, data)} ·{" "}
-                    {staffName(item.staffId, data)} · {item.duration}분
-                  </p>
-                  {item.notes && <p>{item.notes}</p>}
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      navigate("appointments", { appointmentId: item.id })
-                    }
-                  >
-                    예약 상세 보기
-                  </Button>
-                </article>
-              ))
-            ) : (
-              <EmptyState
-                title="예약 이력이 없습니다"
-                description="새 예약을 등록하면 이곳에 방문 이력이 쌓입니다."
-              />
-            )}
-          </div>
-        )}
-        {tab === "payments" && (
-          <div className="ops-chart-records">
-            {payments.length ? (
-              payments.map((item) => {
-                const ownRefunds = refunds.filter(
-                  (refund) => refund.transactionId === item.id,
-                );
-                return (
-                  <article key={item.id} className="ops-chart-record">
-                    <div className="row">
-                      <strong>
-                        {item.date} · <Money value={item.total} />
-                      </strong>
-                      <Badge
-                        tone={item.status === "paid" ? "success" : "warning"}
-                      >
-                        {item.status === "refunded"
-                          ? "전액 환불"
-                          : item.status === "partially_refunded"
-                            ? "부분 환불"
-                            : "수납 완료"}
-                      </Badge>
-                    </div>
-                    <p>
-                      {item.lines
-                        .map(
-                          (line) =>
-                            `${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ""}`,
-                        )
-                        .join(" · ")}
-                      <br />
-                      {staffName(item.staffId, data)} ·{" "}
-                      {{ card: "카드", cash: "현금", transfer: "계좌이체" }[
-                        item.method
-                      ] || item.method}
-                    </p>
-                    {ownRefunds.map((refund) => (
-                      <p key={refund.id} className="muted">
-                        {refund.date} 환불 <Money value={refund.amount} /> ·{" "}
-                        {refund.reason}
-                      </p>
-                    ))}
-                    {user.role !== "designer" && (
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          navigate("payments", { transactionId: item.id })
-                        }
-                      >
-                        수납 내역 보기
-                      </Button>
-                    )}
-                  </article>
-                );
-              })
-            ) : (
-              <EmptyState
-                title="수납 이력이 없습니다"
-                description="완료된 결제와 환불 내역을 여기에서 확인할 수 있습니다."
-              />
-            )}
+        {canArchive && (
+          <div className="ops-archive-row">
+            <span className="help">
+              {customer.archived
+                ? "보관한 손님은 예약할 때 검색되지 않아요. 기록은 그대로 남아 있어요."
+                : "더 이상 오지 않는 손님은 보관할 수 있어요. 기록은 그대로 남아요."}
+            </span>
+            <Button variant="ghost" onClick={onArchive}>
+              {customer.archived ? "고객 다시 활성화" : "고객 보관"}
+            </Button>
           </div>
         )}
       </div>
-    </Modal>
+      <div className="panel ops-records">
+        <h3 className="ops-panel-title">방문 기록</h3>
+        {records.length ? (
+          <ul className="ops-record-list">
+            {shown.map((row) => {
+              const refunded = row.tx ? refundedFor(row.tx.id) : 0;
+              const content = (
+                <>
+                  <span className="ops-record-date">
+                    <span>{dayWithYear(row.date, today)}</span>
+                    {row.time && <span className="help num">{row.time}</span>}
+                  </span>
+                  <span className="ops-record-main">
+                    <strong>{row.title || "기록된 항목 없음"}</strong>
+                    <span className="help">{row.staff}</span>
+                  </span>
+                  <span className="ops-record-end">
+                    {row.tx && (!row.status || row.status === "completed") ? (
+                      <>
+                        <strong className="num">
+                          <Money value={row.tx.total - refunded} />
+                        </strong>
+                        {refunded > 0 && (
+                          <span className="help tone-warn-text">
+                            환불 <Money value={refunded} />
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <Badge tone={STATUS[row.status]?.tone}>
+                        {STATUS[row.status]?.label || row.status}
+                      </Badge>
+                    )}
+                  </span>
+                </>
+              );
+              const target = row.appointmentId
+                ? () =>
+                    navigate("appointments", {
+                      appointmentId: row.appointmentId,
+                    })
+                : user.role !== "designer"
+                  ? () => navigate("payments", { transactionId: row.tx.id })
+                  : null;
+              return (
+                <li key={row.key}>
+                  {target ? (
+                    <button
+                      type="button"
+                      className="ops-record"
+                      onClick={target}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div className="ops-record">{content}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="help">
+            아직 방문 기록이 없어요. 예약을 등록하면 여기에 쌓여요.
+          </p>
+        )}
+        {records.length > 8 && (
+          <button
+            type="button"
+            className="text-btn ops-text-btn"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((value) => !value)}
+          >
+            {showAll ? "최근 8건만 보기" : `모두 보기 ${records.length}건`}
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -454,33 +453,47 @@ export default function Customers({
   routeContext = {},
 }) {
   const [query, setQuery] = useViewState("customers", "query", "");
-  const [archiveFilter, setArchiveFilter] = useViewState(
+  const [listMode, setListMode] = useViewState(
     "customers",
-    "archiveFilter",
-    "active",
+    "listMode",
+    "recent",
   );
-  const [sort, setSort] = useViewState("customers", "sort", "name");
   const [page, setPage] = useViewState("customers", "page", 1);
   const [selectedId, setSelectedId] = useState(null);
   const [editor, setEditor] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const routeHandled = useRef("");
+  const detailRef = useRef(null);
+  const revealDetail = () => {
+    if (window.matchMedia?.("(max-width: 900px)").matches)
+      requestAnimationFrame(() =>
+        detailRef.current?.scrollIntoView?.({ block: "start" }),
+      );
+  };
+  const select = (id) => {
+    setSelectedId(id);
+    revealDetail();
+  };
+  // Each navigation creates a new context object, so a repeated header search still applies.
+  const routeHandled = useRef(null);
   useEffect(() => {
-    const key = JSON.stringify(routeContext);
-    if (key === routeHandled.current) return;
-    routeHandled.current = key;
-    if (typeof routeContext.query === "string") setQuery(routeContext.query);
-    if (routeContext.customerId) setSelectedId(routeContext.customerId);
+    if (routeContext === routeHandled.current) return;
+    routeHandled.current = routeContext;
+    if (typeof routeContext.query === "string") {
+      setQuery(routeContext.query);
+      setSelectedId(null);
+    }
+    if (routeContext.customerId) select(routeContext.customerId);
     else if (routeContext.create) setEditor({});
   }, [routeContext]);
-  const filterKey = JSON.stringify([query, archiveFilter, sort]);
+  const filterKey = JSON.stringify([query, listMode]);
   const previousFilters = useRef(filterKey);
   useEffect(() => {
     if (filterKey !== previousFilters.current) setPage(1);
     previousFilters.current = filterKey;
   }, [filterKey, setPage]);
+  const today = todaySeoul();
   const stats = useMemo(() => {
     const result = new Map(
       data.customers.map((item) => [
@@ -488,7 +501,6 @@ export default function Customers({
         { visits: 0, last: null, next: null },
       ]),
     );
-    const today = todaySeoul();
     for (const visit of data.appointments) {
       const entry = result.get(visit.customerId);
       if (!entry) continue;
@@ -503,15 +515,22 @@ export default function Customers({
       )
         entry.next = visit.date;
     }
+    for (const tx of data.transactions || []) {
+      const entry = result.get(tx.customerId);
+      if (entry && (!entry.last || tx.date > entry.last)) entry.last = tx.date;
+    }
     return result;
-  }, [data.customers, data.appointments]);
+  }, [data.customers, data.appointments, data.transactions, today]);
   const filtered = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
+    const archived = listMode === "archived";
+    // New customers without a visit sort by their registration date.
+    const recency = (item) =>
+      stats.get(item.id).last || String(item.createdAt || "").slice(0, 10);
     return data.customers
       .filter(
         (item) =>
-          (archiveFilter === "all" ||
-            Boolean(item.archived) === (archiveFilter === "archived")) &&
+          Boolean(item.archived) === archived &&
           (!search ||
             item.name.toLocaleLowerCase().includes(search) ||
             String(item.phone).includes(search) ||
@@ -520,17 +539,25 @@ export default function Customers({
               digits(item.phone).includes(digits(search)))),
       )
       .sort((a, b) =>
-        sort === "recent"
-          ? String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
-          : sort === "visits"
+        listMode === "recent"
+          ? recency(b).localeCompare(recency(a)) ||
+            String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+          : listMode === "visits"
             ? stats.get(b.id).visits - stats.get(a.id).visits ||
               a.name.localeCompare(b.name, "ko")
             : a.name.localeCompare(b.name, "ko"),
       );
-  }, [data.customers, query, archiveFilter, sort, stats]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / 24));
+  }, [data.customers, query, listMode, stats]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const selected = data.customers.find((item) => item.id === selectedId);
+  const pageRows = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+  const current =
+    data.customers.find((item) => item.id === selectedId) || pageRows[0];
+  const activeCount = data.customers.filter((item) => !item.archived).length;
+  const archivedCount = data.customers.length - activeCount;
   async function archiveCustomer() {
     if (busy) return;
     setBusy(true);
@@ -542,10 +569,11 @@ export default function Customers({
       });
       notify?.(
         archiveTarget.archived
-          ? "고객을 다시 활성화했습니다."
-          : "고객을 보관했습니다.",
+          ? "손님을 다시 활성화했어요"
+          : "손님을 보관했어요",
         "success",
       );
+      setSelectedId(archiveTarget.id);
       setArchiveTarget(null);
     } catch (cause) {
       setError(cause.message);
@@ -555,203 +583,153 @@ export default function Customers({
   }
   return (
     <section className="ops-page">
-      <header className="page-header">
+      <header className="page-header ops-page-header">
         <div>
-          <h1 className="page-title">고객 관리</h1>
-          <p className="page-description">
-            연락처, 상담 메모와 예약·방문 내역을 확인합니다.
+          <p className="page-eyebrow">
+            {listMode === "archived"
+              ? `보관 ${archivedCount}명`
+              : `전체 ${activeCount}명`}
           </p>
+          <h1 className="page-title">고객</h1>
         </div>
-        <div className="page-actions">
-          <Button
-            variant="primary"
-            onClick={() => setEditor({})}
-            aria-label="+ 고객 등록"
-          >
-            <Icon name="plus" size={16} /> 고객 등록
-          </Button>
-        </div>
+        <Button
+          variant="primary"
+          onClick={() => setEditor({})}
+          aria-label="+ 고객 등록"
+        >
+          고객 등록
+        </Button>
       </header>
-      <div className="stat-grid">
-        <div className="stat-card">
-          <span className="muted">활성 고객</span>
-          <strong>
-            {data.customers.filter((item) => !item.archived).length}명
-          </strong>
-        </div>
-        <div className="stat-card">
-          <span className="muted">주의사항 등록</span>
-          <strong>
-            {
-              data.customers.filter((item) => !item.archived && item.warning)
-                .length
-            }
-            명
-          </strong>
-        </div>
-        <div className="stat-card">
-          <span className="muted">보관된 고객</span>
-          <strong>
-            {data.customers.filter((item) => item.archived).length}명
-          </strong>
-        </div>
-      </div>
-      <div className="card card-body ops-filters">
-        <Field label="고객 검색" className="ops-search">
-          <input
-            className="input"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="고객 이름 또는 연락처"
-          />
-        </Field>
-        <Field label="고객 상태">
-          <select
-            className="select"
-            value={archiveFilter}
-            onChange={(event) => setArchiveFilter(event.target.value)}
-          >
-            <option value="active">활성 고객</option>
-            <option value="archived">보관된 고객</option>
-            <option value="all">전체 고객</option>
-          </select>
-        </Field>
-        <Field label="정렬">
-          <select
-            className="select"
-            value={sort}
-            onChange={(event) => setSort(event.target.value)}
-          >
-            <option value="name">이름순</option>
-            <option value="recent">최근 등록순</option>
-            <option value="visits">방문 많은 순</option>
-          </select>
-        </Field>
-      </div>
-      <p className="help" style={{ margin: 0 }}>
-        검색 결과 {filtered.length}명
-        {user.role === "designer"
-          ? " · 방문 횟수는 본인 담당 예약 기준입니다."
-          : ""}
-      </p>
-      {filtered.length ? (
-        <div className="ops-customer-list">
-          {filtered
-            .slice((currentPage - 1) * 24, currentPage * 24)
-            .map((customer) => {
-              const summary = stats.get(customer.id);
-              return (
-                <article key={customer.id} className="card ops-customer-card">
-                  <div className="ops-customer-title">
-                    <div className="row">
-                      <div className="ops-customer-avatar" aria-hidden="true">
+      <div className="ops-split">
+        <section className="panel ops-customer-pane" aria-label="고객 목록">
+          <div className="input-icon">
+            <Icon name="search" size={20} />
+            <input
+              type="search"
+              aria-label="고객 검색"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="이름이나 전화번호"
+            />
+          </div>
+          <div className="chip-row" role="group" aria-label="정렬">
+            {LIST_MODES.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className="chip"
+                aria-pressed={listMode === value}
+                onClick={() => {
+                  setListMode(value);
+                  setSelectedId(null);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {user.role === "designer" && (
+            <p className="help">방문 횟수는 내가 담당한 예약 기준이에요</p>
+          )}
+          {filtered.length ? (
+            <ul className="ops-customer-list">
+              {pageRows.map((customer) => {
+                const summary = stats.get(customer.id);
+                return (
+                  <li key={customer.id}>
+                    <button
+                      type="button"
+                      className="list-row ops-customer-row"
+                      aria-current={current?.id === customer.id ? "true" : undefined}
+                      onClick={() => select(customer.id)}
+                    >
+                      <span className="ops-avatar ops-avatar-md" aria-hidden="true">
                         {customer.name.slice(0, 1)}
-                      </div>
-                      <div>
-                        <h2>{customer.name}</h2>
-                        <span className="help">
-                          {customer.phone || "연락처 미등록"}
-                        </span>
-                      </div>
-                    </div>
-                    {customer.archived && <Badge tone="muted">보관</Badge>}
-                  </div>
-                  <div className="ops-customer-summary">
-                    <div className="muted">
-                      완료된 방문<strong>{summary.visits}회</strong>
-                    </div>
-                    <div className="muted">
-                      최근 방문
-                      <strong>{summary.last || "방문 기록 없음"}</strong>
-                    </div>
-                  </div>
-                  <div className="ops-customer-note">
-                    {customer.warning ? (
-                      <p className="ops-customer-caution">
-                        <strong>주의</strong>{" "}
-                        {customer.warning.length > 90
-                          ? `${customer.warning.slice(0, 90)}…`
-                          : customer.warning}
-                      </p>
-                    ) : (
-                      <span className="help">등록된 주의사항 없음</span>
-                    )}
-                    {summary.next && (
-                      <span className="help">
-                        다음 예약 · {dateLabel(summary.next)}
                       </span>
-                    )}
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setSelectedId(customer.id)}
-                    aria-label={`${customer.name} 고객 차트 보기`}
-                  >
-                    고객 차트 보기
+                      <span className="ops-customer-text">
+                        <strong>{customer.name}</strong>
+                        <span className="help">
+                          {lastVisitLabel(summary.last, today)}
+                        </span>
+                      </span>
+                      <span
+                        className={`help ops-customer-note ${customer.warning ? "tone-warn-text" : ""}`}
+                      >
+                        {customer.warning ? "주의" : `${summary.visits}회`}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              title={
+                query
+                  ? "찾는 손님이 없어요"
+                  : listMode === "archived"
+                    ? "보관한 손님이 없어요"
+                    : "첫 손님을 등록해 보세요"
+              }
+              description={
+                query
+                  ? "이름이나 전화번호 일부로 다시 찾아 주세요."
+                  : listMode === "archived"
+                    ? undefined
+                    : "연락처와 상담 메모, 예약과 수납 기록을 한곳에서 볼 수 있어요."
+              }
+              action={
+                listMode !== "archived" ? (
+                  <Button variant="primary" onClick={() => setEditor({})}>
+                    고객 등록
                   </Button>
-                </article>
-              );
-            })}
-        </div>
-      ) : (
-        <div className="card">
-          <EmptyState
-            title={
-              query
-                ? "검색한 고객이 없습니다"
-                : archiveFilter === "archived"
-                  ? "보관된 고객이 없습니다"
-                  : "첫 고객을 등록해 보세요"
-            }
-            description={
-              query
-                ? "이름이나 전화번호 일부로 다시 검색해 주세요."
-                : "고객 정보, 상담 메모, 예약과 수납 내역을 한곳에서 관리합니다."
-            }
-            action={
-              archiveFilter !== "archived" ? (
-                <Button onClick={() => setEditor({})}>고객 등록</Button>
-              ) : undefined
-            }
-          />
-        </div>
-      )}
-      {pageCount > 1 && (
-        <nav className="ops-pagination" aria-label="고객 목록 페이지">
-          <Button
-            variant="secondary"
-            disabled={currentPage === 1}
-            onClick={() => setPage(currentPage - 1)}
+                ) : undefined
+              }
+            />
+          )}
+          {pageCount > 1 && (
+            <nav className="ops-pagination" aria-label="고객 목록 페이지">
+              <Button
+                variant="secondary"
+                disabled={currentPage === 1}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                이전
+              </Button>
+              <span className="num">
+                {currentPage} / {pageCount}
+              </span>
+              <Button
+                variant="secondary"
+                disabled={currentPage === pageCount}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                다음
+              </Button>
+            </nav>
+          )}
+        </section>
+        {current && (
+          <section
+            ref={detailRef}
+            className="ops-customer-detail"
+            aria-labelledby="customer-detail-title"
           >
-            이전
-          </Button>
-          <span>
-            {currentPage} / {pageCount}
-          </span>
-          <Button
-            variant="secondary"
-            disabled={currentPage === pageCount}
-            onClick={() => setPage(currentPage + 1)}
-          >
-            다음
-          </Button>
-        </nav>
-      )}
-      {selected && !editor && !archiveTarget && (
-        <CustomerChart
-          customer={selected}
-          data={data}
-          user={user}
-          onClose={() => setSelectedId(null)}
-          onEdit={() => setEditor(selected)}
-          onArchive={() => {
-            setError("");
-            setArchiveTarget(selected);
-          }}
-          navigate={navigate}
-        />
-      )}
+            <CustomerDetail
+              customer={current}
+              data={data}
+              user={user}
+              summary={stats.get(current.id)}
+              onEdit={() => setEditor(current)}
+              onArchive={() => {
+                setError("");
+                setArchiveTarget(current);
+              }}
+              navigate={navigate}
+            />
+          </section>
+        )}
+      </div>
       {editor && (
         <CustomerEditor
           customer={editor.id ? editor : null}
@@ -760,12 +738,17 @@ export default function Customers({
           onClose={() => setEditor(null)}
           onUseExisting={(id) => {
             setEditor(null);
-            setSelectedId(id);
+            select(id);
           }}
           onSaved={(id) => {
             setEditor(null);
-            if (id) setSelectedId(id);
-            notify?.("고객 정보를 저장했습니다.", "success");
+            if (id) {
+              const saved = data.customers.find((item) => item.id === id);
+              if (!saved?.archived && listMode === "archived")
+                setListMode("recent");
+              select(id);
+            }
+            notify?.("손님 정보를 저장했어요", "success");
           }}
         />
       )}
@@ -773,8 +756,8 @@ export default function Customers({
         <ConfirmDialog
           title={
             archiveTarget.archived
-              ? "고객을 다시 활성화할까요?"
-              : "고객을 보관할까요?"
+              ? "손님을 다시 활성화할까요?"
+              : "손님을 보관할까요?"
           }
           onClose={() => !busy && setArchiveTarget(null)}
           onConfirm={archiveCustomer}
@@ -782,10 +765,10 @@ export default function Customers({
           confirmLabel={archiveTarget.archived ? "다시 활성화" : "보관하기"}
         >
           <p>
-            <strong>{archiveTarget.name}</strong> 고객의 기존 예약·결제·상담
-            기록은 유지됩니다.
+            <strong>{archiveTarget.name}</strong> 님의 예약, 결제, 상담 기록은
+            그대로 남아요.
             {!archiveTarget.archived &&
-              " 보관한 고객은 새 예약의 고객 검색에서 숨겨집니다."}
+              " 보관한 손님은 새 예약의 손님 검색에서 숨겨져요."}
           </p>
           {error && (
             <div className="ops-error" role="alert">
