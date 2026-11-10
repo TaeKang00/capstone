@@ -1,6 +1,22 @@
 import React from "react";
 
 const paths = {
+  user: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0"],
+  minus: ["M5 12h14"],
+  edit: ["M4 20h4L19 9l-4-4L4 16v4ZM13 7l4 4"],
+  trash: ["M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"],
+  phone: ["M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 6a2 2 0 0 1 2-2Z"],
+  "chevron-down": ["m6 9 6 6 6-6"],
+  "chevron-up": ["m6 15 6-6 6 6"],
+  more: ["M5 12h.01M12 12h.01M19 12h.01"],
+  filter: ["M4 5h16l-6 8v6l-4-2v-4L4 5Z"],
+  barcode: ["M4 5v14M8 5v14M11 5v14M15 5v14M18 5v14M21 5v14"],
+  logout: ["M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"],
+  swap: ["M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"],
+  print: ["M7 9V3h10v6M7 17H4V9h16v8h-3M7 14h10v7H7z"],
+  scissors: ["M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 7.5 20 19M8.5 16.5 20 5"],
+  info: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 11v5M12 8h.01"],
+  alert: ["M12 4 2 20h20L12 4ZM12 10v4M12 17h.01"],
   workspace: ["M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"],
   calendar: [
     "M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 3v4M16 3v4M4 10h16M8 14h2M14 14h2M8 17h2",
