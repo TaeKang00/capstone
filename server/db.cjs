@@ -17,6 +17,7 @@ function openDatabase(filename) {
     CREATE INDEX IF NOT EXISTS session_user ON sessions(user_id);
     CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, actor_id TEXT, actor_name TEXT NOT NULL, action TEXT NOT NULL, summary TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS requests (actor_id TEXT NOT NULL, request_id TEXT NOT NULL, signature TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(actor_id,request_id));
+    CREATE TABLE IF NOT EXISTS notice_reads (notice_id TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(notice_id,user_id));
     PRAGMA user_version=2;`);
   require("./procurement-db.cjs").initialize(db);
   require("./recovery.cjs").initialize(db);

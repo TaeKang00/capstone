@@ -12,6 +12,13 @@ const PRIVATE_ACTIONS = new Set([
   "payroll.finalize",
   "payroll.reopen",
   "payroll.paid",
+  "attendance.save",
+  "attendance.delete",
+  "request.decide",
+  "expense.save",
+  "expense.void",
+  "expense.import",
+  "certificate.issue",
 ]);
 const SHARED_USER = Object.freeze({
   id: "shared",
@@ -57,6 +64,8 @@ function publicStore(store) {
     close,
     slotMinutes,
     closedWeekdays,
+    logo,
+    alerts,
   } = store;
   return {
     name,
@@ -67,6 +76,8 @@ function publicStore(store) {
     close,
     slotMinutes,
     closedWeekdays,
+    logo: logo || "",
+    alerts: alerts || {},
   };
 }
 function safeEmptyState(envelope) {
@@ -87,6 +98,13 @@ function safeEmptyState(envelope) {
       inventoryOperations: [],
       payroll: [],
       payrolls: [],
+      attendance: [],
+      staffRequests: [],
+      notices: [],
+      expenses: [],
+      certificates: [],
+      purchaseRequests: [],
+      staffHistory: [],
       seq: {},
     },
   };
@@ -135,6 +153,11 @@ function personalState(envelope, user) {
           ["finalized", "paid"].includes(p.status),
       ),
     );
+  result.data.certificates = structuredClone(
+    (envelope.data.certificates || []).filter(
+      (c) => c.staffId === user.staff_id,
+    ),
+  );
   return result;
 }
 

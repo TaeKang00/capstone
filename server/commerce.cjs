@@ -737,6 +737,15 @@ function inventoryItem(data, payload, ctx) {
     payload.purchasePrice ?? item?.purchasePrice ?? 0,
     "포장 1개 입고 단가",
   );
+  const barcode = text(payload.barcode ?? item?.barcode ?? "", "바코드", 64);
+  if (barcode && !/^[0-9A-Za-z._-]+$/.test(barcode))
+    fail("바코드는 숫자·영문·점·밑줄·하이픈으로 입력해 주세요.");
+  if (
+    barcode &&
+    d.items.some((entry) => entry.id !== item?.id && entry.barcode === barcode)
+  )
+    fail("같은 바코드가 다른 품목에 등록되어 있습니다.");
+  const spec = text(payload.spec ?? item?.spec ?? "", "규격", 100);
   const materialServices = item
     ? d.services.filter((service) =>
         (service.materials || []).some(
@@ -780,6 +789,8 @@ function inventoryItem(data, payload, ctx) {
       supplierId,
       packSize,
       purchasePrice,
+      barcode,
+      spec,
     });
     if (beforeMin !== min) {
       d.logs ||= [];
@@ -805,6 +816,8 @@ function inventoryItem(data, payload, ctx) {
       supplierId,
       packSize,
       purchasePrice,
+      barcode,
+      spec,
       min,
       price,
       active,
@@ -956,6 +969,45 @@ function getReport(data, options = {}) {
   byMethod.forEach((entry) => {
     entry.net = entry.gross - entry.refunds;
   });
+  // Line-level ranking: sales are counted on the payment date, refunds on the refund date.
+  const lineMap = new Map();
+  const lineRecord = (line) => {
+    const key = `${line.type}:${line.refId}`;
+    if (!lineMap.has(key))
+      lineMap.set(key, {
+        type: line.type,
+        refId: line.refId,
+        name:
+          (line.type === "service" ? data.services : data.items).find(
+            (entry) => entry.id === line.refId,
+          )?.name || line.name,
+        quantity: 0,
+        gross: 0,
+        refunds: 0,
+        refundedQuantity: 0,
+        net: 0,
+      });
+    return lineMap.get(key);
+  };
+  for (const entry of transactions)
+    for (const line of entry.lines || []) {
+      const record = lineRecord(line);
+      record.quantity += Number(line.quantity) || 0;
+      record.gross += Number(line.total) || 0;
+    }
+  for (const entry of refundEntries) {
+    const original = byTransaction.get(entry.transactionId);
+    for (const refundLine of entry.lines || []) {
+      const line = original?.lines?.find((x) => x.id === refundLine.lineId);
+      if (!line) continue;
+      const record = lineRecord(line);
+      record.refunds += Number(refundLine.amount) || 0;
+      record.refundedQuantity += Number(refundLine.quantity) || 0;
+    }
+  }
+  const byLine = [...lineMap.values()]
+    .map((entry) => ({ ...entry, net: entry.gross - entry.refunds }))
+    .sort((a, b) => b.net - a.net || a.name.localeCompare(b.name, "ko"));
   const daily = [...days.values()].map((entry) => ({
     ...entry,
     net: entry.gross - entry.refunds,
@@ -969,6 +1021,8 @@ function getReport(data, options = {}) {
     count: transactions.length,
     byMethod,
     byStaff: [...byStaffMap.values()].sort((a, b) => b.total - a.total),
+    byService: byLine.filter((entry) => entry.type === "service"),
+    byProduct: byLine.filter((entry) => entry.type === "product"),
     daily,
     transactions,
     refundEntries,

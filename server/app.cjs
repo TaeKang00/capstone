@@ -68,6 +68,13 @@ const ALL_ACTIONS = new Set([
   "payroll.finalize",
   "payroll.reopen",
   "payroll.paid",
+  ...require("./workforce.cjs").WORKFORCE_ACTIONS,
+]);
+const SELF_SERVICE = new Set([
+  "attendance.clock",
+  "request.create",
+  "request.cancel",
+  "purchase.request",
 ]);
 function text(value, label, max = 200, required = false) {
   if (
@@ -161,6 +168,50 @@ function filterState(envelope, user) {
       }),
     );
   data.staff = (data.staff || []).map(publicStaff);
+  const mine = (row) => row.staffId === user.staff_id;
+  const lead = ["owner", "manager"].includes(user.role);
+  const day = today();
+  data.attendance = (data.attendance || [])
+    .filter((row) => mine(row) || (lead && row.date === day))
+    .map((row) =>
+      mine(row)
+        ? row
+        : {
+            id: row.id,
+            staffId: row.staffId,
+            date: row.date,
+            clockIn: row.clockIn,
+            clockOut: row.clockOut,
+          },
+    );
+  // Everyone sees approved leave (dates only) so bookings can avoid it; reasons stay private.
+  data.staffRequests = (data.staffRequests || [])
+    .filter(
+      (row) =>
+        mine(row) || (row.kind === "leave" && row.status === "approved"),
+    )
+    .map((row) =>
+      mine(row)
+        ? row
+        : {
+            id: row.id,
+            staffId: row.staffId,
+            kind: row.kind,
+            type: row.type,
+            from: row.from,
+            to: row.to,
+            start: row.start,
+            end: row.end,
+            status: row.status,
+          },
+    );
+  data.notices = (data.notices || []).filter((row) => !row.archived);
+  data.expenses = [];
+  data.certificates = [];
+  data.staffHistory = [];
+  data.purchaseRequests = (data.purchaseRequests || []).filter(
+    (row) => user.role !== "designer" || mine(row),
+  );
   if (user.role === "designer") {
     data.appointments = (data.appointments || []).filter(
       (x) => x.staffId === user.staff_id,
@@ -178,6 +229,15 @@ function filterState(envelope, user) {
   }
   return { data, version: envelope.version };
 }
+/** Own read receipts for everyone; managers also see who has read each notice. */
+function noticeReads(db, user) {
+  const lead = ["owner", "manager"].includes(user.role);
+  return db
+    .prepare(
+      `SELECT notice_id noticeId,user_id userId,user_name userName,at FROM notice_reads ${lead ? "" : "WHERE user_id=?"} ORDER BY at`,
+    )
+    .all(...(lead ? [] : [user.id]));
+}
 function ensureActorStillActive(db, req) {
   if (req.privateGrant) return req.privacy.requireOwner(req).user;
   return req.privacy.requireWork(req);
@@ -190,7 +250,8 @@ function permission(type, payload, req, state) {
     if (
       !["customer.save", "appointment.save", "appointment.status"].includes(
         type,
-      )
+      ) &&
+      !SELF_SERVICE.has(type)
     )
       throw problem(403, "FORBIDDEN", "이 작업을 수행할 권한이 없습니다.");
     if (type.startsWith("appointment.")) {
@@ -207,7 +268,8 @@ function permission(type, payload, req, state) {
   if (
     role === "reception" &&
     ((!/^(customer|appointment|payment|inventory)\./.test(type) &&
-      !["purchase.receive", "purchase.receiptCancel"].includes(type)) ||
+      !["purchase.receive", "purchase.receiptCancel"].includes(type) &&
+      !SELF_SERVICE.has(type)) ||
       type === "inventory.item")
   )
     throw problem(403, "FORBIDDEN", "이 작업을 수행할 권한이 없습니다.");
@@ -284,6 +346,20 @@ function summary(type, payload) {
     "payroll.finalize": "급여명세서 확정",
     "payroll.reopen": "급여명세서 확정 취소",
     "payroll.paid": "급여 지급 완료 기록",
+    "attendance.clock": `${payload.kind === "out" ? "퇴근" : "출근"} 기록`,
+    "attendance.save": "출퇴근 기록 정정",
+    "attendance.delete": "출퇴근 기록 삭제",
+    "request.create": payload.kind === "overtime" ? "근무 신청" : "휴가 신청",
+    "request.cancel": "근태 신청 취소",
+    "request.decide": `근태 신청 ${{ approved: "승인", rejected: "반려", cancelled: "승인 취소" }[payload.decision] || "처리"}`,
+    "notice.save": "공지사항 저장",
+    "notice.archive": "공지사항 보관",
+    "expense.save": "지출 기록 저장",
+    "expense.void": "지출 기록 취소",
+    "expense.import": "카드 사용 내역 가져오기",
+    "certificate.issue": "증명서 발급",
+    "purchase.request": "구매 요청",
+    "purchase.requestDecide": "구매 요청 처리",
   };
   const id =
     payload.id || payload.transactionId || payload.receiptId || payload.itemId;
@@ -544,21 +620,23 @@ function createApp(options = {}) {
         req.body.password,
         user?.password_hash || dummyHash,
       );
-      if (!valid || !user?.active)
+      const staff =
+        valid &&
+        user?.active &&
+        readState(db)?.data.staff.find((x) => x.id === user.staff_id);
+      if (!staff || staff.status !== "active") {
+        audit(
+          db,
+          user ? { id: user.id, name: user.name } : { id: null, name: "알 수 없음" },
+          "auth.failed",
+          `로그인 실패 (${email.slice(0, 40) || "아이디 없음"}) · ${req.ip || ""}`,
+        );
         throw problem(
           401,
           "INVALID_LOGIN",
           "아이디 또는 비밀번호가 올바르지 않습니다.",
         );
-      const staff = readState(db)?.data.staff.find(
-        (x) => x.id === user.staff_id,
-      );
-      if (!staff || staff.status !== "active")
-        throw problem(
-          401,
-          "INVALID_LOGIN",
-          "아이디 또는 비밀번호가 올바르지 않습니다.",
-        );
+      }
       let session;
       transaction(db, () => {
         const current = db
@@ -583,7 +661,7 @@ function createApp(options = {}) {
           );
         }
         session = newSession(user.id);
-        audit(db, actorFor(user), "auth.login", "로그인");
+        audit(db, actorFor(user), "auth.login", `로그인 · ${req.ip || ""}`);
       });
       respondSession(res, user, session);
     }),
@@ -852,7 +930,14 @@ function createApp(options = {}) {
           requestId,
         };
         let data;
-        if (/^(supplier|category|purchase)\./.test(type))
+        if (require("./workforce.cjs").WORKFORCE_ACTIONS.includes(type))
+          data = require("./workforce.cjs").applyWorkforce(
+            current.data,
+            type,
+            payload,
+            ctx,
+          );
+        else if (/^(supplier|category|purchase)\./.test(type))
           data = require("./procurement.cjs").applyProcurement(
             current.data,
             type,
@@ -926,6 +1011,44 @@ function createApp(options = {}) {
           validRange(req.query),
         ),
       );
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.get("/api/reports/profit", (req, res, next) => {
+    try {
+      privacy.requireOwner(req);
+      res.json(
+        require("./finance.cjs").getProfit(
+          readState(db).data,
+          validRange(req.query),
+        ),
+      );
+    } catch (e) {
+      next(e);
+    }
+  });
+  // Read receipts live outside the versioned business state so that opening a
+  // notice never causes a save conflict for colleagues.
+  app.post("/api/notices/:id/read", (req, res, next) => {
+    try {
+      const user = privacy.requireWork(req);
+      const notice = (readState(db).data.notices || []).find(
+        (row) => row.id === req.params.id && !row.archived,
+      );
+      if (!notice)
+        throw problem(404, "NOT_FOUND", "공지사항을 찾을 수 없습니다.");
+      db.prepare(
+        "INSERT OR IGNORE INTO notice_reads(notice_id,user_id,user_name,at) VALUES(?,?,?,?)",
+      ).run(notice.id, user.id, user.name, new Date().toISOString());
+      res.json({ reads: noticeReads(db, user) });
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.get("/api/notices/reads", (req, res, next) => {
+    try {
+      res.json({ reads: noticeReads(db, privacy.requireWork(req)) });
     } catch (e) {
       next(e);
     }
@@ -1108,6 +1231,21 @@ function createApp(options = {}) {
         );
         db.prepare("DELETE FROM sessions WHERE user_id=?").run(user.id);
         privacy.revokeUser(user.id);
+        if (staff.role !== nextRole) {
+          current.data.staffHistory ||= [];
+          current.data.staffHistory.push({
+            id: `hr_${randomUUID()}`,
+            staffId: staff.id,
+            date: today(),
+            kind: "promotion",
+            field: "role",
+            label: "직책",
+            before: staff.role,
+            after: nextRole,
+            at: new Date().toISOString(),
+            actorName: req.user.name,
+          });
+        }
         staff.role = nextRole;
         writeState(db, current.data, current.version + 1);
         updated = db.prepare("SELECT * FROM users WHERE id=?").get(user.id);
@@ -1125,10 +1263,11 @@ function createApp(options = {}) {
     try {
       privacy.requireOwner(req);
       const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+      const access = req.query.kind === "auth";
       res.json({
         entries: db
           .prepare(
-            "SELECT id,at,actor_name actorName,action,summary FROM audit ORDER BY id DESC LIMIT ?",
+            `SELECT id,at,actor_name actorName,action,summary FROM audit WHERE action ${access ? "" : "NOT "}LIKE 'auth.%' ORDER BY id DESC LIMIT ?`,
           )
           .all(Math.floor(limit)),
       });

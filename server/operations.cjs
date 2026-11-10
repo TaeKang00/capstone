@@ -2,6 +2,7 @@
 
 const { randomUUID } = require("node:crypto");
 const inventory = require("../src/inventory.js");
+const { leaveConflict, LEAVE_TYPES } = require("./workforce.cjs");
 const ROLES = ["owner", "manager", "designer", "reception"];
 const STATUSES = [
   "booked",
@@ -148,6 +149,13 @@ function initialState({ storeName, ownerName, ownerStaffId }) {
     logs: [],
     inventoryOperations: [],
     payroll: [],
+    attendance: [],
+    staffRequests: [],
+    notices: [],
+    expenses: [],
+    certificates: [],
+    purchaseRequests: [],
+    staffHistory: [],
     seq: {},
   };
 }
@@ -182,6 +190,19 @@ function checkSchedule(
       end > staff.breakStart
     )
       fail("담당 직원의 휴게시간과 겹칩니다.");
+    const leave = leaveConflict(
+      data,
+      staff.id,
+      appointment.date,
+      appointment.start,
+      end,
+    );
+    if (leave)
+      fail(
+        `담당 직원의 승인된 휴가(${LEAVE_TYPES[leave.type] || "휴가"})와 겹칩니다.`,
+        "STAFF_ON_LEAVE",
+        409,
+      );
   }
   const conflict = data.appointments.find(
     (other) =>
@@ -392,7 +413,19 @@ function staffSave(data, payload, ctx) {
       payload.breakEnd == null || payload.breakEnd === ""
         ? null
         : int(payload.breakEnd, "휴게 종료", 1, 1440),
+    hireDate: payload.hireDate ? date(payload.hireDate) : "",
+    resignDate: payload.resignDate ? date(payload.resignDate) : "",
+    birthDate: payload.birthDate ? date(payload.birthDate) : "",
+    team: str(payload.team, "소속 팀", 40),
+    title: str(payload.title, "직위", 40),
+    address: str(payload.address, "주소", 200),
+    annualLeave:
+      payload.annualLeave == null || payload.annualLeave === ""
+        ? (existing?.annualLeave ?? 15)
+        : int(payload.annualLeave, "연간 연차 일수", 0, 60),
   };
+  if (result.hireDate && result.resignDate && result.resignDate < result.hireDate)
+    fail("퇴사일은 입사일 이후여야 합니다.");
   if (result.startMinutes >= result.endMinutes)
     fail("퇴근 시간은 출근 시간 이후여야 합니다.");
   if (
@@ -421,6 +454,7 @@ function staffSave(data, payload, ctx) {
       "LAST_OWNER",
       409,
     );
+  recordStaffHistory(data, existing, result, ctx);
   if (existing) Object.assign(existing, result);
   else data.staff.push(result);
   for (const appointment of data.appointments.filter(
@@ -439,6 +473,52 @@ function staffSave(data, payload, ctx) {
       );
     }
   }
+}
+
+const HISTORY_FIELDS = {
+  role: "직책",
+  status: "재직 상태",
+  team: "소속 팀",
+  title: "직위",
+  hireDate: "입사일",
+  resignDate: "퇴사일",
+};
+// Personnel actions (hire, promotion, transfer, resignation) are kept as an append-only history.
+function recordStaffHistory(data, before, after, ctx) {
+  data.staffHistory ||= [];
+  const push = (kind, field, from, to) =>
+    data.staffHistory.push({
+      id: recordId("hr"),
+      staffId: after.id,
+      date: ctx.today,
+      kind,
+      field,
+      label: HISTORY_FIELDS[field] || "",
+      before: from,
+      after: to,
+      at: ctx.now,
+      actorName: ctx.actor.name,
+    });
+  if (!before) {
+    push("hire", "status", "", after.status);
+    return;
+  }
+  for (const field of Object.keys(HISTORY_FIELDS))
+    if ((before[field] ?? "") !== (after[field] ?? ""))
+      push(
+        field === "status"
+          ? after.status === "active"
+            ? "rehire"
+            : "resign"
+          : field === "role" || field === "title"
+            ? "promotion"
+            : field === "team"
+              ? "transfer"
+              : "update",
+        field,
+        before[field] ?? "",
+        after[field] ?? "",
+      );
 }
 
 function serviceSave(data, payload, ctx) {
@@ -487,6 +567,35 @@ function serviceSave(data, payload, ctx) {
   else data.services.push(result);
 }
 
+function logo(value) {
+  if (value === "") return "";
+  if (
+    typeof value !== "string" ||
+    value.length > 140000 ||
+    !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(value)
+  )
+    fail("로고는 100KB 이하의 PNG·JPG·WEBP 이미지로 선택해 주세요.");
+  return value;
+}
+const ALERT_KEYS = ["lowStock", "pendingRequests", "unreadNotices", "unpaid"];
+function alerts(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries(
+    ALERT_KEYS.map((key) => [key, source[key] === undefined ? true : bool(source[key], "알림 설정")]),
+  );
+}
+const DEFAULT_RATES = { pension: 4.75, health: 3.595, care: 13.14, employment: 0.9 };
+function payrollRates(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries(
+    Object.entries(DEFAULT_RATES).map(([key, fallback]) => {
+      const rate = source[key] ?? fallback;
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || rate > 30)
+        fail("4대보험 요율을 0~30% 사이로 입력해 주세요.");
+      return [key, Math.round(rate * 1000) / 1000];
+    }),
+  );
+}
 function storeSave(data, payload, ctx) {
   requireRole(ctx, ["owner", "manager"]);
   const result = {
@@ -502,7 +611,17 @@ function storeSave(data, payload, ctx) {
       "예약 시간 간격",
     ),
     closedWeekdays: days(payload.closedWeekdays, "정기 휴무일"),
+    businessNumber: str(payload.businessNumber, "사업자등록번호", 20),
+    representative: str(payload.representative, "대표자", 60),
+    logo: logo(payload.logo ?? data.store.logo ?? ""),
+    alerts: alerts(payload.alerts ?? data.store.alerts),
+    payrollRates: payrollRates(payload.payrollRates ?? data.store.payrollRates),
   };
+  if (
+    result.businessNumber &&
+    !/^\d{3}-?\d{2}-?\d{5}$/.test(result.businessNumber)
+  )
+    fail("사업자등록번호는 000-00-00000 형식으로 입력해 주세요.");
   if (result.open >= result.close || result.closedWeekdays.length === 7)
     fail("영업시간과 영업 요일을 확인해 주세요.");
   data.store = result;
