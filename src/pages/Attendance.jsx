@@ -178,8 +178,6 @@ export default function Attendance({ data, user, runAction, notify }) {
                 <strong className="wf-big">
                   {hoursLabel(workedMinutes(todayRecord, staff))}
                 </strong>
-                <span className="muted">{clockLabel(todayRecord.clockIn)} 출근</span>
-                <span className="muted">{clockLabel(todayRecord.clockOut)} 퇴근</span>
               </>
             )}
             {myLeave && <span className="muted">오늘은 승인된 {typeLabel(myLeave)}예요</span>}

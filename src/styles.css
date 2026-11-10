@@ -3350,3 +3350,6 @@ select:not([multiple]):not([size]), textarea, .textarea { font-size: 16px; }
 .page-alert > .icon { flex: none; }
 .page-alert-text { flex: 1; min-width: 0; color: #F4F4F6; }
 .page-alert .btn { flex: none; height: 40px; min-height: 40px; }
+.team-more { align-self: flex-start; height: 32px; padding: 0 12px; }
+.sidebar { scrollbar-width: none; }
+.sidebar::-webkit-scrollbar { display: none; }

@@ -743,16 +743,24 @@ export default function App() {
         <section className="sidebar-section" aria-label="지금 근무 중">
           <p className="nav-group">지금 근무 중</p>
           <ul className="team-list">
-            {team.map((member) => (
-              <li key={member.id}>
-                <span className={`team-avatar team-${member.state[1]}`}>
-                  {member.name.slice(0, 1)}
-                </span>
-                <span className="team-name">{member.name}</span>
-                <span className="team-state">{member.state[0]}</span>
-              </li>
-            ))}
+            {[...team]
+              .sort((a, b) => ["on", "warn", "off"].indexOf(a.state[1]) - ["on", "warn", "off"].indexOf(b.state[1]))
+              .slice(0, 4)
+              .map((member) => (
+                <li key={member.id}>
+                  <span className={`team-avatar team-${member.state[1]}`}>
+                    {member.name.slice(0, 1)}
+                  </span>
+                  <span className="team-name">{member.name}</span>
+                  <span className="team-state">{member.state[0]}</span>
+                </li>
+              ))}
           </ul>
+          {team.length > 4 && (
+            <button type="button" className="text-btn team-more" onClick={() => navigate("attendance")}>
+              외 {team.length - 4}명 보기
+            </button>
+          )}
         </section>
       )}
       <section className="sidebar-section" aria-label="보호 영역">

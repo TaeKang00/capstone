@@ -497,3 +497,17 @@
     flex-basis: 100%;
   }
 }
+
+/* Filter row: the label-less search lines up with the labelled fields; fixed field widths */
+.inv-filters { align-items: flex-end; gap: 12px; }
+.inv-filters > .inv-search { flex: 1 1 280px; }
+.inv-filter-fields { flex: 0 1 auto; gap: 12px; flex-wrap: nowrap; }
+.inv-filter-fields .field { flex: 0 0 200px; }
+.inv-filter-fields .field:first-child { flex-basis: 220px; }
+/* Tab counts read as a small marker, not part of the label */
+.inv-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 20px; margin-left: 8px; padding: 0 6px; border-radius: 999px; background: #24242C; color: #A1A1AB; font-size: 12px; line-height: 16px; font-weight: 600; }
+.tab[aria-selected="true"] .inv-tab-count, .tab.active .inv-tab-count { background: #2A2A33; color: #F4F4F6; }
+@media (max-width: 1100px) {
+  .inv-filter-fields { flex: 1 1 100%; flex-wrap: wrap; }
+  .inv-filter-fields .field, .inv-filter-fields .field:first-child { flex: 1 1 160px; }
+}
