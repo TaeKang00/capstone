@@ -45,8 +45,8 @@
   flex-wrap: wrap;
 }
 .ops-meta-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -316,8 +316,8 @@
 }
 span.ops-meta,
 .ops-m-card-text .ops-meta {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 .ops-detail-day .ops-meta {
   font-size: 14px;
@@ -366,8 +366,8 @@ span.ops-meta,
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-disabled);
 }
 .ops-steps li {
@@ -455,8 +455,8 @@ span.ops-meta,
   grid-column: 1 / -1;
 }
 .ops-facts dt {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -516,8 +516,8 @@ span.ops-meta,
 }
 .ops-chip-count {
   color: var(--warn);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
 }
 .ops-staff-grid {
@@ -612,6 +612,7 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
 .ops-tt {
   padding: 24px;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .ops-tt-grid {
   display: grid;
@@ -643,8 +644,8 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
 }
 .ops-tt-hours span {
   flex: none;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
@@ -688,8 +689,8 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   z-index: 2;
 }
 .ops-tt-meta {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -706,8 +707,8 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   text-overflow: ellipsis;
 }
 .ops-tt-service {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -730,8 +731,8 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   display: none;
 }
 .ops-tt-block.is-tiny .ops-tt-name {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 .ops-tt-block.tone-booked {
   background: var(--surface-2);
@@ -789,8 +790,8 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   border: 1px dashed var(--accent);
   background: rgba(76, 125, 255, 0.08);
   color: var(--text-strong);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1109,8 +1110,8 @@ button.ops-record:hover {
   gap: 24px;
 }
 .ops-history .help {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 @media (max-width: 640px) {
   .ops-detail-hero {
@@ -1304,6 +1305,7 @@ button.ops-record:hover {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .ops-m-chips .chip {
@@ -1314,8 +1316,8 @@ button.ops-record:hover {
   white-space: nowrap;
 }
 .ops-m-chip-count {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -1333,8 +1335,8 @@ button.ops-record:hover {
 }
 .ops-m-time {
   padding-top: 12px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
   font-variant-numeric: tabular-nums;
@@ -1460,6 +1462,7 @@ button.ops-m-card {
   padding: 0 16px;
   flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .ops-page-phone .ops-customer-pane > .chip-row .chip {
@@ -1514,8 +1517,8 @@ button.ops-m-card {
   padding: 12px;
 }
 .ops-m-detail .ops-stat .muted {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .ops-m-detail .ops-stat strong,

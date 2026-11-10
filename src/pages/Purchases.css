@@ -10,8 +10,8 @@
 }
 .po-tab-count {
   margin-left: 8px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--warn);
 }
@@ -31,8 +31,8 @@
 }
 .po-filters .field-label,
 .po-form .field-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -430,8 +430,8 @@
 .po-secondary {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .po-row-actions {

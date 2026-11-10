@@ -43,7 +43,7 @@
 }
 .private-workspace-identity div > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 2px;
 }
 .private-workspace-header > .btn {
@@ -66,7 +66,7 @@
 }
 .private-workspace-notice > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .private-workspace-navigation {
   display: flex;
@@ -200,8 +200,8 @@
   font-weight: 600;
 }
 .private-workspace-user {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .private-workspace-header > .btn {

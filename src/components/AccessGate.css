@@ -23,7 +23,7 @@
 .access-gate-account-label {
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .access-gate-account > span:last-child {
   color: var(--muted);
@@ -36,7 +36,7 @@
   padding-top: 16px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 .access-gate-note > .icon {
   margin-top: 2px;
@@ -48,7 +48,7 @@
 .access-gate-icon { width: 44px; height: 44px; flex: none; border-radius: 12px; background: rgba(76, 125, 255, 0.14); color: #4C7DFF; display: flex; align-items: center; justify-content: center; }
 .access-gate-description { color: #8B8B96; }
 .access-gate-account { gap: 4px; padding: 12px 16px; border: 0; border-radius: 12px; background: #0E0E12; }
-.access-gate-account-label { margin: 0; color: #8B8B96; font-size: 12px; line-height: 16px; }
+.access-gate-account-label { margin: 0; color: #8B8B96; font-size: 14px; line-height: 20px; }
 .access-gate-account strong { color: #F4F4F6; font-weight: 600; }
 .access-gate-account > span:last-child { color: #8B8B96; }
 .access-gate-note { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border: 0; border-radius: 12px; background: #0E0E12; color: #D4D4DA; font-size: 14px; line-height: 20px; }

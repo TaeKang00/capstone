@@ -30,13 +30,13 @@
   margin: 8px 0 4px;
 }
 .commerce-stats .stat-card .muted {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 .commerce-stats .stat-card strong small {
   margin-left: 3px;
   color: var(--muted, var(--text-muted));
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .commerce-filters {
@@ -328,7 +328,7 @@
   background: var(--surface-2);
 }
 .commerce-tab-count {
-  font-size: 12px;
+  font-size: 14px;
   border-radius: 4px;
   padding: 2px 7px;
   background: var(--surface-soft, var(--surface-2));
@@ -348,6 +348,7 @@
   align-items: stretch;
   margin: 24px 0 18px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0 4px 8px;
   border-bottom: 1px solid var(--line, var(--line-strong));
 }
@@ -421,6 +422,7 @@
   display: flex;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 6px;
   margin: 12px 0 20px;
 }
@@ -514,7 +516,7 @@
     padding-right: 8px;
   }
   .commerce-line .field-label {
-    font-size: 12px;
+    font-size: 14px;
   }
   .commerce-line .line-label {
     font-size: 0.85rem;
@@ -617,7 +619,7 @@
     display: block;
     margin-bottom: 5px;
     color: var(--muted, var(--text-muted));
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
   }
   .commerce-mobile-cards td:last-child .btn {
@@ -640,13 +642,13 @@
   }
   .commerce-compact-table {
     min-width: 0;
-    font-size: 12px;
+    font-size: 14px;
   }
   .commerce-compact-table td {
     padding: 12px 5px;
   }
   .commerce-compact-table .commerce-secondary {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.6;
   }
 }

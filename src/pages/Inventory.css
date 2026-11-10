@@ -16,8 +16,8 @@
 }
 .inv-tab-count {
   margin-left: 8px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -158,7 +158,7 @@
   min-height: 16px;
 }
 .inv-card-stock .amount small {
-  font-size: 12px;
+  font-size: 14px;
 }
 .inv-link {
   min-height: 24px;
@@ -168,8 +168,8 @@
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -217,8 +217,8 @@
 }
 .inv-page .commerce-secondary {
   margin-top: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .inv-page .table td strong {
@@ -252,8 +252,8 @@
   gap: 8px;
 }
 .inv-form .field-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }

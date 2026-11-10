@@ -29,8 +29,8 @@
   font-weight: 700;
 }
 .paym-stat-note {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 
@@ -60,8 +60,8 @@
 }
 .paym-row-main small,
 .paym-row-side {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-row-main small {
@@ -131,8 +131,8 @@
 }
 .paym-tx-head {
   padding: 0 16px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -171,8 +171,8 @@
   color: var(--text-strong);
 }
 .paym-tx-amount small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--danger);
 }
 .paym-pill {
@@ -199,8 +199,8 @@
 }
 .paym-note {
   margin: 0;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-link {
@@ -238,15 +238,15 @@
 }
 .paym-checkout .field-label,
 .paym-refund .field-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
 .paym-checkout .help,
 .paym-refund .help {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-checkout textarea {
@@ -364,8 +364,8 @@
 }
 .paym-customer-warning,
 .paym-customer-sub {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -440,8 +440,8 @@
   white-space: nowrap;
 }
 .paym-option-meta {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
   white-space: nowrap;
 }
@@ -485,8 +485,8 @@
   overflow-wrap: anywhere;
 }
 .paym-line-name small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-qty {
@@ -716,8 +716,8 @@
   overflow-wrap: anywhere;
 }
 .paym-refund-name small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-refund-amount {
@@ -755,8 +755,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-refund .paym-confirm {
@@ -941,8 +941,8 @@
   overflow-wrap: anywhere;
 }
 .paym-detail-who-text small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-detail-who > .paym-pill {
@@ -964,8 +964,8 @@
   gap: 4px;
 }
 .paym-detail-kv dt {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -981,8 +981,8 @@
   color: var(--text);
 }
 .paym-detail-kv dd.paym-detail-kv-sub {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-detail-link {
@@ -1030,8 +1030,8 @@
 }
 .paym-detail-line-head {
   padding: 0 16px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -1078,8 +1078,8 @@
   overflow-wrap: anywhere;
 }
 .paym-detail-line-name small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-tag {
@@ -1110,8 +1110,8 @@
   gap: 4px;
 }
 .paym-detail-totals span {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -1165,8 +1165,8 @@
   overflow-wrap: anywhere;
 }
 .paym-detail-history li small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
@@ -1188,8 +1188,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-detail-note > .icon {
@@ -1268,8 +1268,8 @@
   overflow-wrap: anywhere;
 }
 .paym-reprice-name small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-suffix {
@@ -1350,8 +1350,8 @@
   color: var(--text-strong);
 }
 .paym-compare-side small {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .paym-compare-side small.is-down {
@@ -1395,7 +1395,7 @@
   }
   .paym-detail-line > [data-label]:before {
     content: attr(data-label);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 20px;
     font-weight: 500;
     color: var(--text-meta);
@@ -1472,8 +1472,8 @@
     padding: 12px 16px;
   }
   .paym-stats .home-stat-label {
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     color: var(--text-meta);
   }
   .paym-stats .home-stat-value,
@@ -1508,8 +1508,8 @@
     gap: 8px;
   }
   .paym-history .panel-head [role="status"] {
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
   }
   .paym-page .paym-pending-list .list-row,
   .paym-page .paym-tx-list .list-row {
@@ -1598,6 +1598,7 @@
   }
   .paym-filter-chips > .chip-row[aria-label="처리 상태"] {
     overflow-x: auto;
+  overflow-y: hidden;
     scrollbar-width: none;
   }
   .paym-period-btn {
@@ -1641,16 +1642,16 @@
   .paym-tx > .paym-tx-staff {
     grid-area: staff;
     display: block;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     color: var(--text-meta);
   }
   .paym-tx > .paym-tx-method {
     grid-area: method;
     display: block;
     text-align: right;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     color: var(--text-meta);
   }
   .paym-tx > .paym-tx-status {

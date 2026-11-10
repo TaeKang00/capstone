@@ -1,8 +1,8 @@
 /* ===== 재고 dialogs (PurchaseRequestForm, StockAdjust, MinChange, ReceiptDetail, ReceiptCorrect boards)
    and the phone layout (InventoryMobile board). Dialogs render in a portal, so they are scoped by .inv-form. */
 .inv-form .invb-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 500;
   color: var(--text-meta);
 }
@@ -243,8 +243,8 @@
   min-width: 0;
 }
 .invb-facts dt {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .invb-facts dd {
@@ -395,8 +395,8 @@
   }
   .inv-page .page-eyebrow {
     margin: 0;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     color: var(--text-meta);
     white-space: nowrap;
   }
@@ -430,8 +430,8 @@
     background: var(--inset);
   }
   .inv-page .inv-stats .home-stat-label {
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
   }
   .inv-page .inv-stats .home-stat-value {
     font-size: 16px;
@@ -467,14 +467,15 @@
   .inv-scan-help {
     display: block;
     flex: 1 1 100%;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     color: var(--text-meta);
   }
   .inv-filters > .chip-row {
     flex: 1 1 100%;
     flex-wrap: nowrap;
     overflow-x: auto;
+  overflow-y: hidden;
     margin: 0 -16px;
     padding: 0 16px;
     scrollbar-width: none;
@@ -486,8 +487,8 @@
   .inv-chip-count {
     display: inline;
     margin-left: 4px;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     font-weight: 600;
     color: var(--warn);
   }

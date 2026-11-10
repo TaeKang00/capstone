@@ -93,8 +93,8 @@
   min-width: 0;
 }
 .wf-mini > span {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .wf-mini > strong {
@@ -388,6 +388,7 @@
 }
 .wf-page .table-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .row-actions {
   white-space: nowrap;
@@ -491,8 +492,8 @@
   height: 32px;
   padding: 0 8px;
   text-align: left;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
   white-space: nowrap;
@@ -633,8 +634,8 @@
   gap: 8px;
 }
 .wf-mini-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }

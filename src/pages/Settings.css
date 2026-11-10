@@ -418,6 +418,7 @@
 }
 .st-audit-wrap {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .st-audit {
   width: 100%;
@@ -429,8 +430,8 @@
   height: 32px;
   padding: 0 16px;
   text-align: left;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
   white-space: nowrap;
@@ -669,8 +670,8 @@
   gap: 8px;
 }
 .st-missing-title {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }

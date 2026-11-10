@@ -538,8 +538,8 @@
   min-width: 0;
 }
 .pv-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
   overflow-wrap: anywhere;
 }
@@ -628,8 +628,8 @@
   min-width: 0;
 }
 .pv-card-title {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text-meta);
 }
@@ -809,8 +809,8 @@
   grid-column: span 2;
 }
 .ps-details dt {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: #555;
 }
@@ -899,8 +899,8 @@
   overflow-wrap: anywhere;
 }
 .ps-note {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: #666;
 }
 .ps-foot {
@@ -910,8 +910,8 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: #555;
   break-inside: avoid;
   -webkit-print-color-adjust: exact;

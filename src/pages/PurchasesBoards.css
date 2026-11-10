@@ -59,8 +59,8 @@
   gap: 4px;
 }
 .pob-line-state {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--text);
 }
@@ -216,8 +216,8 @@
   min-width: 0;
 }
 .pob-facts dt {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--text-meta);
 }
 .pob-facts dd {
