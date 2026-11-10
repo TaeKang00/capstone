@@ -328,7 +328,6 @@ export default function Attendance({ data, user, runAction, notify }) {
           ) : (
             <p className="wf-empty">30일 안에 잡힌 휴가가 없어요</p>
           )}
-          <span className="small muted">휴가 시간에는 그 디자이너 예약이 막혀요</span>
         </section>
       </div>
 
