@@ -210,6 +210,9 @@ export default function Payments({
     else if (routeContext.pending) {
       pendingHeading.current?.scrollIntoView({ block: "center" });
       pendingHeading.current?.focus({ preventScroll: true });
+    } else if (routeContext.from && routeContext.to && routeContext.from <= routeContext.to) {
+      setFrom(routeContext.from);
+      setTo(routeContext.to);
     }
   }, [routeContext, canWrite]);
   const saved = (message) => {

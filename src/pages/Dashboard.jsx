@@ -285,7 +285,15 @@ export default function Dashboard({ data, user, navigate, runAction, notify }) {
         ["완료", `${views.completed.length}건`, () => navigate("appointments", { date, status: "all" })],
       ]
     : [
-        ["오늘 순매출", <Money value={net} />, () => navigate("sales", { from: date, to: date })],
+        [
+          "오늘 순매출",
+          <Money value={net} />,
+          // The sales area needs the owner password; everyone else checks payments.
+          () =>
+            user.role === "owner"
+              ? navigate("sales", { from: date, to: date })
+              : navigate("payments", { from: date, to: date }),
+        ],
         ["남은 예약", `${openAppointments.length}건`, () => navigate("appointments", { date })],
         ["수납 대기", `${unpaid.length}건`, () => navigate("payments", { pending: true })],
       ];
@@ -485,10 +493,9 @@ export default function Dashboard({ data, user, navigate, runAction, notify }) {
             <Button
               variant="secondary"
               onClick={() =>
-                navigate(
-                  designer ? "appointments" : "sales",
-                  designer ? { date, status: "all" } : { from: date, to: date },
-                )
+                designer
+                  ? navigate("appointments", { date, status: "all" })
+                  : navigate(user.role === "owner" ? "sales" : "payments", { from: date, to: date })
               }
             >
               {designer ? "내 예약 확인" : "오늘 정산 확인"} →

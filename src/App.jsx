@@ -1003,7 +1003,7 @@ export default function App() {
           </div>
         </div>
         <nav className="bottom-tabs" aria-label="빠른 메뉴">
-          {(lead
+          {(user.role === "owner"
             ? [...bottomTabs.slice(0, 2), ["hr", "승인", "check"]]
             : bottomTabs
           )
