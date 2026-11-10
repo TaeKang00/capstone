@@ -3252,3 +3252,17 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; c
   .app-header { gap: 8px; padding: 0 12px; }
   .app-header .app-search { flex: 1 1 auto; min-width: 0; }
 }
+
+/* Setup notice: one line of what's missing, one line of how, actions on the right */
+.setup-notice { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-radius: 16px; background: #111116; border: 1px solid #1D1D24; }
+.setup-notice-icon { width: 44px; height: 44px; flex: none; border-radius: 12px; background: rgba(245, 185, 74, 0.12); color: #F5B94A; display: flex; align-items: center; justify-content: center; }
+.setup-notice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.setup-notice-text strong { font-weight: 600; color: #F4F4F6; }
+.setup-notice-text span { color: #8B8B96; }
+.setup-notice-actions { display: flex; flex: none; gap: 8px; }
+@media (max-width: 640px) {
+  .setup-notice { flex-wrap: wrap; padding: 16px; }
+  .setup-notice-actions { width: 100%; }
+  .setup-notice-actions .btn { flex: 1; }
+}
+.setup-notice-title { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: #F4F4F6; }

@@ -287,5 +287,5 @@
 .date-picker-period .icon { color: #A1A1AB; }
 .date-picker-panel .date-picker-period { gap: 4px; }
 .date-input-control { display: inline-flex; align-items: center; position: relative; vertical-align: middle; }
-.field .date-input-control, .date-input-control:has(> input.input) { display: flex; width: 100%; }
+.field .date-input-control { display: flex; width: 100%; }
 .date-input-control > input.date-input-native[type] { padding-right: 44px; }

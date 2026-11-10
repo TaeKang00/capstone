@@ -320,15 +320,20 @@ export default function Dashboard({ data, user, navigate, runAction, notify }) {
       </header>
 
       {setup && (
-        <div className="welcome-card">
-          <div>
-            <h2>시술 메뉴를 등록해 주세요</h2>
-            <p>시술 가격과 소요시간을 등록하면 예약을 받을 수 있어요</p>
+        <section className="setup-notice" aria-labelledby="home-setup-title">
+          <span className="setup-notice-icon" aria-hidden="true">
+            <Icon name="info" />
+          </span>
+          <div className="setup-notice-text">
+            <h2 id="home-setup-title" className="setup-notice-title">시술 메뉴를 등록해 주세요</h2>
+            <span>시술 가격과 걸리는 시간을 넣으면 예약을 받을 수 있어요</span>
           </div>
-          <Button onClick={() => navigate("settings", { tab: "services" })}>
-            시술 메뉴 등록
-          </Button>
-        </div>
+          <div className="setup-notice-actions">
+            <Button variant="primary" onClick={() => navigate("settings", { tab: "services" })}>
+              시술 메뉴 등록
+            </Button>
+          </div>
+        </section>
       )}
 
       {designer && user.staffId && (

@@ -1964,11 +1964,11 @@ export default function Appointments({
   const selected = data.appointments.find((item) => item.id === selectedId);
   const dayOfWeek = weekdayOf(date);
   const closed = data.store.closedWeekdays?.includes(dayOfWeek);
-  const ready =
-    data.services.some((item) => item.active) &&
-    visibleStaff.some(
-      (item) => item.status === "active" && item.role !== "reception",
-    );
+  const hasService = data.services.some((item) => item.active);
+  const hasStaff = visibleStaff.some(
+    (item) => item.status === "active" && item.role !== "reception",
+  );
+  const ready = hasService && hasStaff;
   const pageCount = Math.max(1, Math.ceil(matching.length / 30));
   const currentPage = Math.min(page, pageCount);
   const startStatus = (appointment, status) => {
@@ -1991,20 +1991,39 @@ export default function Appointments({
         : "예약 목록";
   const phoneDay = phone && mode === "day";
   const setupAlert = !ready && (
-    <div className="alert alert-warning ops-setup">
-      <strong>예약을 받으려면 기본 설정이 필요해요</strong>
-      <span>일하는 직원과 시술을 등록하면 예약을 시작할 수 있어요.</span>
+    <section className="setup-notice" aria-labelledby="ops-setup-title">
+      <span className="setup-notice-icon" aria-hidden="true">
+        <Icon name="info" />
+      </span>
+      <div className="setup-notice-text">
+        <strong id="ops-setup-title">
+          {!hasService && !hasStaff
+            ? "직원과 시술을 등록하면 예약을 받을 수 있어요"
+            : !hasService
+              ? "시술을 등록하면 예약을 받을 수 있어요"
+              : "예약을 맡을 직원을 등록해 주세요"}
+        </strong>
+        <span>
+          {!hasService
+            ? "시술 이름과 가격, 걸리는 시간을 넣어 주세요"
+            : "디자이너나 매니저로 등록한 직원만 예약을 받아요"}
+        </span>
+      </div>
       {["owner", "manager"].includes(user.role) && (
-        <div className="ops-inline-actions">
-          <Button variant="secondary" onClick={() => navigate("staff")}>
-            직원 등록
-          </Button>
-          <Button variant="secondary" onClick={() => navigate("settings")}>
-            시술 설정
-          </Button>
+        <div className="setup-notice-actions">
+          {!hasStaff && (
+            <Button variant={hasService ? "primary" : "secondary"} onClick={() => navigate("staff")}>
+              직원 등록
+            </Button>
+          )}
+          {!hasService && (
+            <Button variant="primary" onClick={() => navigate("settings", { tab: "services" })}>
+              시술 등록
+            </Button>
+          )}
         </div>
       )}
-    </div>
+    </section>
   );
   return (
     <section className={`ops-page ${phoneDay ? "ops-page-phone" : ""}`}>
