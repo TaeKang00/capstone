@@ -3382,3 +3382,7 @@ body { font-size: 16px; line-height: 24px; }
 .bottom-tabs button { font-size: 14px; line-height: 20px; }
 .wf-empty, .paym-detail-who-text .num, .paym-detail-line .is-none, .empty-state p { font-size: 14px; line-height: 20px; }
 @media (max-width: 640px) { .home > .owner-phone { margin-bottom: 32px; } }
+/* Inside dialogs, h2/h3 are section names (지급, 공제, 근무 기록 ...): 16px like the boards */
+.modal-body :is(h2, h3) { font-size: 16px !important; line-height: 24px !important; font-weight: 600; }
+.pay-empty-box { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-radius: 12px; background: #0E0E12; color: #D4D4DA; }
+.pay-empty-box .muted { color: #8B8B96; font-size: 14px; line-height: 20px; }

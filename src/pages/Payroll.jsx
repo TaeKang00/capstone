@@ -613,13 +613,13 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
                 )}
               </div>
             ) : (
-              <p className="small muted pay-note">
-                4대보험 계산을 누르거나 소득세 같은 항목을 추가해 주세요
-              </p>
+              <div className="pay-empty-box">
+                <span>아직 공제 항목이 없어요</span>
+                <span className="muted">4대보험 계산을 누르거나 소득세 같은 항목을 추가해 주세요</span>
+              </div>
             )}
-            <span className="small muted">요율은 설정에서 바꿔요</span>
             <span className="small muted">
-              소득세와 지방소득세는 간이세액표를 보고 직접 넣어요
+              요율은 설정에서 바꾸고, 소득세와 지방소득세는 간이세액표를 보고 넣어요
             </span>
           </section>
           <section className="pay-section" aria-labelledby={`${ids}-work`}>
