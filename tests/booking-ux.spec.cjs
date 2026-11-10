@@ -38,7 +38,7 @@ test('예약 작성 중 신규 고객을 등록해도 시술·시간·메모를 
   await expect(customer.getByLabel('이름', { exact: true })).toHaveValue('예약 중 등록 고객');
   await expect(customer.getByLabel('전화번호', { exact: true })).toHaveValue('010-2222-4444');
   await page.goBack();
-  const leave = page.getByRole('dialog', { name: '저장하지 않은 내용이 있습니다', exact: true });
+  const leave = page.getByRole('dialog', { name: '저장하지 않은 내용이 있어요', exact: true });
   await expect(leave).toBeVisible();
   await leave.getByRole('button', { name: '돌아가기', exact: true }).click();
   await expect(customer).toBeVisible();

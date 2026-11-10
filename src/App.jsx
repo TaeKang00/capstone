@@ -30,6 +30,7 @@ import Attendance from "./pages/Attendance";
 import PrivateWorkspace from "./components/PrivateWorkspace";
 import { SharedDesk } from "./components/SharedDesk";
 import { AccessGate } from "./components/AccessGate";
+import { PasswordField, PasswordRules } from "./components/PasswordField";
 import { useAccessSecurity, broadcastAccess } from "./useAccessSecurity";
 const pages = {
   dashboard: Dashboard,
@@ -117,7 +118,10 @@ function HeaderAlerts({ alerts, onGo }) {
       </button>
       {open && (
         <div className="header-popover" role="region" aria-label="알림">
-          <p className="header-popover-title">알림</p>
+          <div className="header-popover-head">
+            <p className="header-popover-title">알림</p>
+            {alerts.length > 0 && <span className="small muted">{alerts.length}건</span>}
+          </div>
           {alerts.length === 0 ? (
             <p className="muted">확인할 알림이 없어요</p>
           ) : (
@@ -189,6 +193,11 @@ function HeaderMenu({ user, refreshing, syncError, lastSynced, onPassword, onOpe
           >
             <Icon name="refresh" size={16} />
             {syncError ? "연결 확인" : "새로고침"}
+            {lastSynced && (
+              <span className="header-menu-meta">
+                {new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)} 확인
+              </span>
+            )}
           </button>
           <button type="button" role="menuitem" onClick={pick(onLogout)}>
             <Icon name="logout" size={16} />로그아웃
@@ -529,14 +538,20 @@ export default function App() {
         </span>
         <h1>화면이 잠겼어요</h1>
         <p>{security.lockError || "공용 화면으로 바꾸고 있어요"}</p>
-        <Button variant="secondary" onClick={security.lockWork}>잠금 상태 다시 확인</Button>
+        <Button variant="secondary" onClick={security.lockWork}>
+          <Icon name="refresh" size={16} />
+          잠금 상태 다시 확인
+        </Button>
+        <span className="loading-hint">바뀌지 않으면 다시 확인을 눌러 주세요</span>
       </div>
     );
   if (loading)
     return (
       <div className="loading-screen">
         <span className="brand-dot" aria-hidden="true" />
-        <p>매장 데스크를 준비하고 있어요</p>
+        <strong className="loading-title">매장 데스크를 준비하고 있어요</strong>
+        <p>잠시만 기다려 주세요</p>
+        <span className="loading-bar" aria-hidden="true"><span /></span>
       </div>
     );
   if (!session)
@@ -550,7 +565,8 @@ export default function App() {
         />
         {toast && (
           <div role="status" className={`toast toast-${toast.tone}`}>
-            {toast.message}
+            <span className="toast-dot" aria-hidden="true" />
+            <span>{toast.message}</span>
           </div>
         )}
       </>
@@ -602,7 +618,8 @@ export default function App() {
         {securityGate}
         {toast && (
           <div role="status" className={`toast toast-${toast.tone}`}>
-            {toast.message}
+            <span className="toast-dot" aria-hidden="true" />
+            <span>{toast.message}</span>
           </div>
         )}
       </>
@@ -890,14 +907,17 @@ export default function App() {
           <div className="workspace">
             {(!online || syncError) && (
               <div role="alert" className="connection-banner">
-                <span>
-                  {!online
-                    ? "인터넷 연결이 끊겼어요"
-                    : "서버의 최신 내용을 확인하지 못했어요"}
+                <Icon name="alert" />
+                <span className="connection-banner-text">
+                  <strong>
+                    {!online
+                      ? "인터넷 연결이 끊겼어요"
+                      : "서버의 최신 내용을 확인하지 못했어요"}
+                  </strong>
+                  <span className="muted">지금 화면은 마지막으로 확인한 자료예요</span>
                 </span>
-                <span className="muted">지금 화면은 마지막으로 확인한 자료예요</span>
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   busy={refreshing}
                   onClick={async () => {
                     setRefreshing(true);
@@ -969,17 +989,24 @@ export default function App() {
           </div>
         </div>
         <nav className="bottom-tabs" aria-label="빠른 메뉴">
-          {bottomTabs
-            .filter(([key]) => allowed(key, user.role))
+          {(lead
+            ? [...bottomTabs.slice(0, 2), ["hr", "승인", "check"]]
+            : bottomTabs
+          )
+            .filter(([key]) => key === "hr" || allowed(key, user.role))
             .map(([key, label, icon]) => (
               <button
                 key={key}
                 type="button"
                 aria-current={activePage === key ? "page" : undefined}
-                onClick={() => navigate(key)}
+                aria-label={key === "hr" && pendingRequests ? `승인 ${pendingRequests}건` : undefined}
+                onClick={() => (key === "hr" ? navigate("hr", { tab: "requests" }) : navigate(key))}
               >
                 <Icon name={icon} size={20} />
                 {label}
+                {key === "hr" && pendingRequests > 0 && (
+                  <span className="bottom-tab-count" aria-hidden="true">{pendingRequests}</span>
+                )}
               </button>
             ))}
           <button type="button" onClick={() => setDrawer(true)}>
@@ -993,6 +1020,7 @@ export default function App() {
           role={toast.tone === "danger" ? "alert" : "status"}
           className={`toast toast-${toast.tone}`}
         >
+          <span className="toast-dot" aria-hidden="true" />
           <span>{toast.message}</span>
           <button
             className="icon-btn"
@@ -1006,18 +1034,20 @@ export default function App() {
       {securityGate}
       {pendingNavigation && (
         <ConfirmDialog
-          title="저장하지 않은 내용이 있습니다"
+          title="저장하지 않은 내용이 있어요"
           confirmLabel="변경 버리고 이동"
           variant="danger"
           onClose={cancelNavigation}
           onConfirm={confirmNavigation}
         >
-          다른 화면으로 이동하면 아직 저장하지 않은 입력이 사라집니다.
+          다른 화면으로 가면 아직 저장하지 않은 입력이 사라져요
         </ConfirmDialog>
       )}
       {passwordModal && (
         <Modal title="내 비밀번호 변경" onClose={() => setPasswordModal(false)}>
           <PasswordForm
+            onCancel={() => setPasswordModal(false)}
+            owner={user.role === "owner"}
             onSuccess={async (result) => {
               await security.authenticated(result);
               setPasswordModal(false);
@@ -1032,9 +1062,10 @@ export default function App() {
           confirmLabel="로그아웃"
           onClose={() => setLogoutModal(false)}
           onConfirm={doLogout}
+          icon="logout"
         >
-          로그아웃하면 저장하지 않은 입력은 사라집니다. 공용 컴퓨터에서는 업무를
-          마친 뒤 로그아웃해 주세요.
+          <span>저장하지 않은 입력은 사라져요</span>
+          <span className="muted">함께 쓰는 컴퓨터라면 일을 마친 뒤 꼭 로그아웃해 주세요</span>
         </ConfirmDialog>
       )}
     </>
@@ -1101,14 +1132,29 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
             <h1>{setup ? "매장 초기 설정" : "로그인"}</h1>
             <p className="muted">
               {setup
-                ? "매장과 첫 원장 계정을 만들어요. 직원 계정은 로그인한 뒤에 발급해요"
+                ? "매장과 첫 원장 계정을 만들어요"
                 : "기록에 내 이름이 남아요"}
             </p>
+            {setup && <p className="muted">직원 계정은 로그인한 뒤에 발급해요</p>}
           </div>
           {(externalError || error) && (
-            <div className="alert alert-warning" role="alert">
-              {externalError || error}
-              {externalError && <Button onClick={retry}>다시 연결</Button>}
+            <div className="auth-alert" role="alert">
+              <Icon name="alert" />
+              <span className="auth-alert-text">
+                {externalError ? (
+                  <>
+                    <strong>서버에 연결하지 못했어요</strong>
+                    <span>{externalError}</span>
+                  </>
+                ) : (
+                  <span>{error}</span>
+                )}
+              </span>
+              {externalError && (
+                <Button variant="primary" onClick={retry}>
+                  다시 연결
+                </Button>
+              )}
             </div>
           )}
           {setup && !bootstrap.setupAllowed ? (
@@ -1138,7 +1184,7 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
                   </Field>
                 </div>
               )}
-              <Field label="아이디">
+              <Field label="아이디" help={setup ? "로그인할 때 쓰는 이름이에요" : undefined}>
                 <input
                   required
                   type="text"
@@ -1152,54 +1198,31 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
               </Field>
               <Field
                 label="비밀번호"
-                help={
-                  setup
-                    ? !bootstrap?.requiresToken &&
-                      form.loginId.trim().toLowerCase() === "admin"
-                      ? "로컬 시연 계정은 admin을 사용할 수 있습니다. 운영 비밀번호는 12자 이상으로 설정해 주세요."
-                      : "12자 이상, 128자 이하로 입력해 주세요."
-                    : undefined
-                }
+
               >
-                <div className="password-input">
-                  <input
-                    required
-                    minLength={
-                      setup &&
-                      (bootstrap?.requiresToken ||
-                        form.loginId.trim().toLowerCase() !== "admin")
-                        ? 12
-                        : undefined
-                    }
-                    maxLength={128}
-                    type={show ? "text" : "password"}
-                    aria-label="비밀번호"
-                    autoComplete={setup ? "new-password" : "current-password"}
-                    {...field("password")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow(!show)}
-                    aria-label={show ? "비밀번호 숨기기" : "비밀번호 표시"}
-                  >
-                    {show ? "숨기기" : "표시"}
-                  </button>
-                </div>
+                <PasswordField
+                  label="비밀번호"
+                  minLength={
+                    setup &&
+                    (bootstrap?.requiresToken ||
+                      form.loginId.trim().toLowerCase() !== "admin")
+                      ? 12
+                      : undefined
+                  }
+                  autoComplete={setup ? "new-password" : "current-password"}
+                  {...field("password")}
+                />
               </Field>
               {setup && (
                 <Field label="비밀번호 확인">
-                  <input
-                    required
-                    type="password"
-                    autoComplete="new-password"
-                    {...field("confirm")}
-                  />
+                  <PasswordField label="비밀번호 확인" autoComplete="new-password" {...field("confirm")} />
                 </Field>
               )}
+              {setup && <PasswordRules value={form.password} confirm={form.confirm} />}
               {setup && bootstrap.requiresToken && (
                 <Field
                   label="초기 등록 토큰"
-                  help="서버 환경에 설정한 BOOTSTRAP_TOKEN을 입력하세요."
+                  help="서버에 설정한 BOOTSTRAP_TOKEN을 넣어 주세요"
                 >
                   <input
                     required
@@ -1230,8 +1253,17 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
             </form>
           )}
           <div className="auth-note">
-            <span>내 계정으로만 로그인해 주세요</span>
-            <span className="muted">함께 쓰는 PC는 자리를 비울 때 잠가 주세요</span>
+            {setup ? (
+              <>
+                <span>로컬 시연에서는 아이디로 admin을 쓸 수 있어요</span>
+                <span className="muted">운영할 때는 12자 이상 비밀번호를 써 주세요</span>
+              </>
+            ) : (
+              <>
+                <span>내 계정으로만 로그인해 주세요</span>
+                <span className="muted">함께 쓰는 PC는 자리를 비울 때 잠가 주세요</span>
+              </>
+            )}
           </div>
         </div>
         <footer className="auth-footer">살롱 데스크 v2.0</footer>
@@ -1239,7 +1271,7 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
     </div>
   );
 }
-function PasswordForm({ onSuccess, forced }) {
+function PasswordForm({ onSuccess, forced, onCancel, owner }) {
   const [form, setForm] = useState({
       currentPassword: "",
       newPassword: "",
@@ -1251,7 +1283,7 @@ function PasswordForm({ onSuccess, forced }) {
     e.preventDefault();
     setError("");
     if (form.newPassword !== form.confirm)
-      return setError("새 비밀번호 확인이 일치하지 않습니다.");
+      return setError("새 비밀번호 확인이 일치하지 않아요.");
     setBusy(true);
     try {
       await onSuccess(
@@ -1263,6 +1295,7 @@ function PasswordForm({ onSuccess, forced }) {
       setBusy(false);
     }
   };
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   return (
     <form className={`stack password-form${forced ? " is-forced" : ""}`} onSubmit={submit}>
       {error && (
@@ -1270,36 +1303,50 @@ function PasswordForm({ onSuccess, forced }) {
           {error}
         </div>
       )}
-      {[
-        ["currentPassword", forced ? "임시 비밀번호" : "현재 비밀번호"],
-        ["newPassword", "새 비밀번호"],
-        ["confirm", "새 비밀번호 확인"],
-      ].map(([key, label]) => (
-        <Field
-          key={key}
-          label={label}
-          help={
-            key === "newPassword"
-              ? "12자 이상이에요. 바꾸면 다른 기기는 로그아웃돼요"
-              : undefined
-          }
-        >
-          <input
-            required
-            type="password"
-            minLength={key === "currentPassword" ? undefined : 12}
-            maxLength={128}
-            autoComplete={
-              key === "currentPassword" ? "current-password" : "new-password"
-            }
-            value={form[key]}
-            onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-          />
-        </Field>
-      ))}
-      <Button variant="primary" type="submit" busy={busy}>
-        비밀번호 변경
-      </Button>
+      <Field
+        label={forced ? "임시 비밀번호" : "현재 비밀번호"}
+        help={forced ? "원장에게 받은 비밀번호예요" : undefined}
+      >
+        <PasswordField
+          label={forced ? "임시 비밀번호" : "현재 비밀번호"}
+          autoComplete="current-password"
+          value={form.currentPassword}
+          onChange={set("currentPassword")}
+        />
+      </Field>
+      <Field label="새 비밀번호">
+        <PasswordField
+          label="새 비밀번호"
+          minLength={12}
+          autoComplete="new-password"
+          value={form.newPassword}
+          onChange={set("newPassword")}
+        />
+      </Field>
+      <Field label="새 비밀번호 확인">
+        <PasswordField
+          label="새 비밀번호 확인"
+          minLength={12}
+          autoComplete="new-password"
+          value={form.confirm}
+          onChange={set("confirm")}
+        />
+      </Field>
+      <PasswordRules value={form.newPassword} confirm={form.confirm} />
+      <div className="auth-note">
+        <span>바꾸면 다른 기기는 로그아웃돼요</span>
+        {owner && <span className="muted">원장이라면 복구 코드도 새로 받아 주세요</span>}
+      </div>
+      <div className="password-form-actions">
+        {onCancel && (
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
+            취소
+          </Button>
+        )}
+        <Button variant="primary" type="submit" busy={busy}>
+          비밀번호 변경
+        </Button>
+      </div>
     </form>
   );
 }

@@ -84,6 +84,90 @@ function ClockCard({ record, runAction, notify, onLeave, leave }) {
   );
 }
 
+const shiftDay = (value, days) =>
+  new Date(Date.parse(`${value}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+const METHOD_LABEL = { card: "카드", cash: "현금", transfer: "계좌이체" };
+
+/** Phone-only owner summary (OwnerMobile board): today's sales by method and the approval shortcut. */
+function OwnerPhoneSummary({ data, date, net, unpaid, open, pending, navigate }) {
+  const sales = data.transactions.filter((t) => t.date === date);
+  const refunds = data.refunds.filter((r) => r.date === date);
+  const byMethod = Object.keys(METHOD_LABEL).map((method) => [
+    METHOD_LABEL[method],
+    sales.filter((t) => t.method === method).reduce((sum, t) => sum + t.total, 0),
+  ]);
+  const refundTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
+  const lastWeek = shiftDay(date, -7);
+  const lastNet =
+    data.transactions.filter((t) => t.date === lastWeek).reduce((sum, t) => sum + t.total, 0) -
+    data.refunds.filter((r) => r.date === lastWeek).reduce((sum, r) => sum + r.amount, 0);
+  const diff = net - lastNet;
+  const next = open.find((a) => a.status === "booked");
+  const nextName = next
+    ? data.customers.find((c) => c.id === next.customerId)?.name || next.guestName || "방문 고객"
+    : null;
+  return (
+    <div className="owner-phone">
+      <section className="owner-phone-sales" aria-label="오늘 매출">
+        <span className="home-stat-label">오늘 순매출</span>
+        <strong className="owner-phone-net">
+          <Money value={net} />
+        </strong>
+        <span className={`small ${diff > 0 ? "tone-up" : diff < 0 ? "tone-down" : "muted"}`}>
+          {diff === 0
+            ? "지난주 같은 요일과 같아요"
+            : `지난주 같은 요일보다 ${Math.abs(diff).toLocaleString("ko-KR")}원 ${diff > 0 ? "많아요" : "적어요"}`}
+        </span>
+        <div className="owner-phone-methods">
+          {byMethod.map(([label, value]) => (
+            <div key={label}>
+              <span className="small muted">{label}</span>
+              <span className="num">{value.toLocaleString("ko-KR")}원</span>
+            </div>
+          ))}
+          <div>
+            <span className="small muted">환불</span>
+            <span className="num">{refundTotal ? `−${refundTotal.toLocaleString("ko-KR")}` : 0}원</span>
+          </div>
+        </div>
+        <span className="small muted">
+          결제 {sales.length}건{refunds.length ? `, 환불 ${refunds.length}건` : ""}
+        </span>
+      </section>
+      <div className="owner-phone-tiles">
+        <button type="button" onClick={() => navigate("payments", { pending: true })}>
+          <span className="small muted">수납 대기</span>
+          <strong>{unpaid}건</strong>
+          <span className="small muted">시술을 마친 손님</span>
+        </button>
+        <button type="button" onClick={() => navigate("appointments", { date })}>
+          <span className="small muted">남은 예약</span>
+          <strong>{open.length}건</strong>
+          <span className="small muted">
+            {next ? `다음 ${timeLabel(next.start)} ${nextName} 님` : "남은 예약이 없어요"}
+          </span>
+        </button>
+      </div>
+      {pending > 0 && (
+        <button
+          type="button"
+          className="owner-phone-approval"
+          onClick={() => navigate("hr", { tab: "requests" })}
+        >
+          <span>
+            <strong>승인 대기 {pending}건</strong>
+            <span className="small muted">원장 관리에서 확인해요</span>
+          </span>
+          <span className="owner-phone-approval-cta">
+            확인
+            <Icon name="chevron-right" size={16} />
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard({ data, user, navigate, runAction, notify }) {
   const date = today();
   const [scheduleView, setScheduleView] = useViewState(
@@ -254,6 +338,18 @@ export default function Dashboard({ data, user, navigate, runAction, notify }) {
           notify={notify}
           leave={leaveBalance(data, user.staffId, Number(date.slice(0, 4)))}
           onLeave={() => navigate("attendance", { create: true })}
+        />
+      )}
+
+      {operational && (
+        <OwnerPhoneSummary
+          data={data}
+          date={date}
+          net={net}
+          unpaid={unpaid.length}
+          open={openAppointments}
+          pending={pendingStaffRequests}
+          navigate={navigate}
         />
       )}
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../api";
 import { Button, Field, Modal, ConfirmDialog } from "./ui";
+import { Icon } from "./Icon";
+import { PasswordField, PasswordRules } from "./PasswordField";
 
 export function RecoveryAccessPanel() {
   const [available, setAvailable] = useState(false),
@@ -50,51 +52,53 @@ export function RecoveryAccessPanel() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return (
-    <section className="card">
-      <div className="card-header">
-        <h2>원장 계정 복구</h2>
+    <section className="panel recovery-panel" aria-labelledby="recovery-title">
+      <div className="recovery-head">
+        <span className="modal-icon modal-icon-accent" aria-hidden="true">
+          <Icon name="lock" />
+        </span>
+        <span className="recovery-head-text">
+          <span className="recovery-title-row">
+            <h2 id="recovery-title">원장 계정 복구 코드</h2>
+            <span className={`status-pill status-${available ? "ok" : "muted"}`}>
+              {available ? "발급됨" : "없음"}
+            </span>
+          </span>
+          <span className="muted">아이디와 비밀번호를 잊었을 때 쓰는 일회용 코드예요</span>
+        </span>
+        <Button variant="secondary" onClick={() => setConfirm(true)}>
+          <Icon name="refresh" size={16} />
+          {available ? "복구 코드 재발급" : "복구 코드 발급"}
+        </Button>
       </div>
-      <div className="card-body stack">
-        <p>
-          아이디와 비밀번호를 잊었을 때 사용할 일회용 복구 코드입니다. 원장만
-          접근할 수 있는 별도 장소에 보관하세요.
+      {error && (
+        <p className="alert alert-danger" role="alert">
+          {error}
         </p>
-        <p className="help">
-          {available
-            ? "복구 코드가 발급되어 있습니다."
-            : "사용 가능한 복구 코드가 없습니다."}{" "}
-          비밀번호를 변경하면 새 코드를 발급받아야 합니다.
-        </p>
-        {error && (
-          <p className="alert alert-danger" role="alert">
-            {error}
-          </p>
-        )}
-        <div>
-          <Button onClick={() => setConfirm(true)}>
-            {available ? "복구 코드 재발급" : "복구 코드 발급"}
+      )}
+      {code && (
+        <div className="recovery-code">
+          <Field label="일회용 복구 코드" help="이 화면을 닫으면 다시 볼 수 없어요. 지금 꼭 저장해 두세요">
+            <input
+              className="input num recovery-code-input"
+              value={code}
+              readOnly
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </Field>
+          <Button variant="primary" onClick={save}>
+            <Icon name="download" size={16} />
+            복구 코드 파일 저장
           </Button>
         </div>
-        {code && (
-          <>
-            <Field label="일회용 복구 코드">
-              <input
-                className="input"
-                value={code}
-                readOnly
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </Field>
-            <p className="help">
-              이 화면을 닫으면 코드를 다시 볼 수 없습니다. 새로 발급하면 이전
-              코드는 무효가 됩니다.
-            </p>
-            <div>
-              <Button onClick={save}>복구 코드 파일 저장</Button>
-            </div>
-          </>
-        )}
+      )}
+      <div className="confirm-body">
+        <span>원장만 열 수 있는 곳에 보관해 주세요</span>
+        <span className="muted">공용 PC나 매장 자료 폴더에는 두지 마세요</span>
+        <span className="muted">새로 발급하면 이전 코드는 못 써요</span>
+        <span className="muted">비밀번호를 바꾸면 새 코드를 받아야 해요</span>
+      </div>
         {confirm && (
           <ConfirmDialog
             title="복구 코드를 발급할까요?"
@@ -103,11 +107,11 @@ export function RecoveryAccessPanel() {
             onConfirm={issue}
             busy={busy}
           >
-            기존 복구 코드는 사용할 수 없게 됩니다. 새 코드를 안전한 곳에 보관해
-            주세요.
+            <span>지금 있는 복구 코드는 쓸 수 없게 돼요</span>
+            <span className="muted">새 코드는 한 번만 보여요</span>
+            <span className="muted">새 코드를 안전한 곳에 보관해 주세요</span>
           </ConfirmDialog>
         )}
-      </div>
     </section>
   );
 }
@@ -122,7 +126,7 @@ export function AccountRecoveryDialog({ onClose, onRecovered }) {
     e.preventDefault();
     if (busy) return;
     if (password !== confirmation)
-      return setError("새 비밀번호 확인이 일치하지 않습니다.");
+      return setError("새 비밀번호 확인이 일치하지 않아요.");
     setBusy(true);
     setError("");
     try {
@@ -143,6 +147,8 @@ export function AccountRecoveryDialog({ onClose, onRecovered }) {
   return (
     <Modal
       title="아이디와 비밀번호 찾기"
+      icon="lock"
+      subtitle={result ? "계정을 찾았어요" : "복구 코드로 아이디를 확인하고 비밀번호를 바꿔요"}
       onClose={busy ? undefined : onClose}
       footer={
         result ? (
@@ -150,45 +156,44 @@ export function AccountRecoveryDialog({ onClose, onRecovered }) {
             로그인으로 돌아가기
           </Button>
         ) : (
-          <Button
-            type="submit"
-            form="account-recovery"
-            variant="primary"
-            busy={busy}
-          >
-            원장 계정 복구
-          </Button>
+          <>
+            <Button variant="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button type="submit" form="account-recovery" variant="primary" busy={busy}>
+              원장 계정 복구
+            </Button>
+          </>
         )
       }
     >
       {result ? (
-        <div className="stack">
-          <p>
-            원장 아이디: <strong>{result.loginId}</strong>
-          </p>
-          <p>{result.message}</p>
-        </div>
+        <>
+          <div className="recovery-result">
+            <span className="field-label">원장 아이디</span>
+            <strong>{result.loginId}</strong>
+          </div>
+          <div className="confirm-body">
+            <span>새 비밀번호로 바꿨어요</span>
+            <span className="muted">다른 기기에 로그인된 계정은 로그아웃돼요</span>
+            <span className="muted">쓴 복구 코드는 다시 쓸 수 없어요</span>
+          </div>
+        </>
       ) : (
         <form id="account-recovery" className="stack" onSubmit={submit}>
-          <fieldset className="stack commerce-fieldset" disabled={busy}>
-            <p>
-              직원 계정은 원장에게 재설정을 요청하세요. 원장은 설정에서 미리
-              발급받은 복구 코드로 아이디 확인과 비밀번호 재설정을 할 수
-              있습니다.
-            </p>
-            <p className="help">
-              복구 코드도 없으면 서버 운영자에게 복구를 요청하세요. 로컬 시연
-              계정은 서버 종료 후 프로젝트 폴더에서 npm run setup:demo로
-              재설정할 수 있습니다.
-            </p>
+          <fieldset className="stack" disabled={busy}>
+            <div className="confirm-body">
+              <span>원장 계정만 여기서 찾을 수 있어요</span>
+              <span className="muted">직원 계정은 원장에게 재설정을 요청해 주세요</span>
+            </div>
             {error && (
               <p role="alert" className="alert alert-danger">
                 {error}
               </p>
             )}
-            <Field label="원장 복구 코드">
+            <Field label="원장 복구 코드" help="설정에서 미리 받아 둔 일회용 코드예요">
               <input
-                className="input"
+                className="input num"
                 required
                 autoComplete="off"
                 maxLength={100}
@@ -197,29 +202,29 @@ export function AccountRecoveryDialog({ onClose, onRecovered }) {
               />
             </Field>
             <Field label="새 비밀번호">
-              <input
-                className="input"
-                required
-                type="password"
-                autoComplete="new-password"
+              <PasswordField
+                label="새 비밀번호"
                 minLength={12}
-                maxLength={128}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </Field>
             <Field label="새 비밀번호 확인">
-              <input
-                className="input"
-                required
-                type="password"
-                autoComplete="new-password"
+              <PasswordField
+                label="새 비밀번호 확인"
                 minLength={12}
-                maxLength={128}
+                autoComplete="new-password"
                 value={confirmation}
                 onChange={(e) => setConfirmation(e.target.value)}
               />
             </Field>
+            <PasswordRules value={password} confirm={confirmation} />
+            <div className="confirm-body">
+              <span>복구 코드가 없나요?</span>
+              <span className="muted">서버 운영자에게 복구를 요청해 주세요</span>
+              <span className="muted">로컬 시연 계정은 서버를 끈 뒤 npm run setup:demo로 다시 만들 수 있어요</span>
+            </div>
           </fieldset>
         </form>
       )}

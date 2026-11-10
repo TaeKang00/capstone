@@ -40,7 +40,7 @@ test("브라우저 뒤로가기에서도 입력을 보호하고 폐기를 선택
   await page.getByRole("dialog", { name: "고객 등록", exact: true }).getByLabel("이름", { exact: true }).fill("보존할 초안");
   await page.goBack();
   const confirm = page.getByRole("dialog", {
-    name: "저장하지 않은 내용이 있습니다",
+    name: "저장하지 않은 내용이 있어요",
     exact: true,
   });
   await expect(confirm).toBeVisible();

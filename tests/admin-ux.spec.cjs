@@ -151,7 +151,7 @@ test('급여 지급 저장 중에는 닫기를 막고 지급일 입력을 고정
     await expect(dialog.getByLabel('실제 지급일', { exact: true })).toBeDisabled();
     await expect(page.getByRole('navigation', { name: '원장 관리 메뉴' })).toBeVisible();
     await expect(dialog).toBeVisible();
-    await expect(page.getByRole('dialog', { name: '저장하지 않은 내용이 있습니다', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('dialog', { name: '저장하지 않은 내용이 있어요', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: '작성 중인 내용을 닫을까요?', exact: true })).toHaveCount(0);
     await expect(dialog).toBeVisible();

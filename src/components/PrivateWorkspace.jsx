@@ -254,12 +254,16 @@ export default function PrivateWorkspace({
           </main>
           {toast && (
             <div role="status" className={`toast toast-${toast.tone}`}>
-              {toast.message}
+              <span className="toast-dot" aria-hidden="true" />
+              <span>{toast.message}</span>
+              <button className="icon-btn" aria-label="알림 닫기" onClick={() => setToast(null)}>
+                <Icon name="close" size={16} />
+              </button>
             </div>
           )}
           {pendingNavigation && (
             <ConfirmDialog
-              title="저장하지 않은 내용이 있습니다"
+              title="저장하지 않은 내용이 있어요"
               confirmLabel="변경 버리고 이동"
               variant="danger"
               onClose={() => setPendingNavigation(null)}
@@ -267,7 +271,7 @@ export default function PrivateWorkspace({
                 move(pendingNavigation.target, pendingNavigation.context)
               }
             >
-              다른 화면으로 이동하면 저장하지 않은 내용이 사라집니다.
+              다른 화면으로 가면 아직 저장하지 않은 입력이 사라져요
             </ConfirmDialog>
           )}
         </div>

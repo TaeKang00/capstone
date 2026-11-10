@@ -122,6 +122,9 @@ export function Modal({
   footer,
   dirty = false,
   size,
+  icon,
+  tone = "accent",
+  subtitle,
 }) {
   const ref = useRef(null);
   const lockPrivateWorkspace = useContext(PrivateWorkspaceContext);
@@ -221,8 +224,16 @@ export function Modal({
           data-busy={typeof onClose !== "function"}
           className={`modal ${size === "wide" ? "modal-wide" : ""}`}
         >
-          <header className="modal-header">
-            <h2 id={titleId}>{title}</h2>
+          <header className={`modal-header${icon ? " has-icon" : ""}`}>
+            {icon && (
+              <span className={`modal-icon modal-icon-${tone}`} aria-hidden="true">
+                <Icon name={icon} />
+              </span>
+            )}
+            <span className="modal-title">
+              <h2 id={titleId}>{title}</h2>
+              {subtitle && <span className="modal-subtitle">{subtitle}</span>}
+            </span>
             {lockPrivateWorkspace && (
               <button
                 type="button"
@@ -255,7 +266,8 @@ export function Modal({
           confirmLabel="내용 버리고 닫기"
           variant="danger"
         >
-          저장하지 않은 변경사항이 사라집니다.
+          <span>저장하지 않은 내용이 사라져요</span>
+          <span className="muted">닫으면 되돌릴 수 없어요</span>
         </ConfirmDialog>
       )}
     </>,
@@ -270,10 +282,13 @@ export function ConfirmDialog({
   busy,
   confirmLabel = "확인",
   variant = "primary",
+  icon,
 }) {
   return (
     <Modal
       title={title}
+      icon={icon || (variant === "danger" ? "alert" : "info")}
+      tone={variant === "danger" ? "danger" : "accent"}
       onClose={busy ? undefined : onClose}
       footer={
         <>
@@ -286,7 +301,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <div className="stack">{children}</div>
+      <div className="confirm-body">{children}</div>
     </Modal>
   );
 }
