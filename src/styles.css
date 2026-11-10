@@ -3353,3 +3353,13 @@ select:not([multiple]):not([size]), textarea, .textarea { font-size: 16px; }
 .team-more { align-self: flex-start; height: 32px; padding: 0 12px; }
 .sidebar { scrollbar-width: none; }
 .sidebar::-webkit-scrollbar { display: none; }
+.amount small { font-weight: 600; }
+.home-clock-time.is-empty strong { font-size: 24px; line-height: 32px; }
+/* Phones: chip rows stay on one line and scroll sideways instead of leaving one chip on its own line */
+@media (max-width: 640px) {
+  .chip-row { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; margin-right: -16px; padding-right: 16px; }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip-row > * { flex: none; }
+  .home-section-head { flex-wrap: wrap; }
+  .home-section-head .chip-row { width: 100%; }
+}

@@ -54,7 +54,7 @@ function ClockCard({ record, runAction, notify, onLeave, leave }) {
         <span className={`status-pill status-${working ? "ok" : done ? "muted" : "warn"}`}>
           {working ? "근무 중" : done ? "퇴근" : "출근 전"}
         </span>
-        <div className="home-clock-time">
+        <div className={`home-clock-time${record ? "" : " is-empty"}`}>
           <strong>
             {working
               ? hoursLabel(Math.max(0, nowMinutes() - record.clockIn))
