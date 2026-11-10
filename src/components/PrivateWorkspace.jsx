@@ -9,7 +9,6 @@ import Payroll from "../pages/Payroll";
 import Settings from "../pages/Settings";
 import Sales from "../pages/Sales";
 import HumanResources from "../pages/HumanResources";
-import Finance from "../pages/Finance";
 import "./PrivateWorkspace.css";
 
 const pages = {
@@ -18,15 +17,13 @@ const pages = {
   settings: Settings,
   sales: Sales,
   hr: HumanResources,
-  finance: Finance,
 };
 const navigation = [
-  ["staff", "직원 · 계정", "staff"],
-  ["hr", "인사 · 근태", "clock"],
-  ["payroll", "급여명세", "payroll"],
-  ["sales", "매출 · 정산", "chart"],
-  ["finance", "경비 · 손익", "wallet"],
-  ["settings", "설정 · 백업", "settings"],
+  ["staff", "직원", "staff"],
+  ["hr", "근태와 휴가", "clock"],
+  ["payroll", "급여", "payroll"],
+  ["sales", "매출", "chart"],
+  ["settings", "설정", "settings"],
 ];
 
 export default function PrivateWorkspace({
@@ -188,11 +185,13 @@ export default function PrivateWorkspace({
                 <Icon name="lock" size={16} />
                 3분 동안 쓰지 않으면 잠겨요
               </span>
-              <span className="private-workspace-user">{access.user.name} 본인 확인됨</span>
             </div>
-            <Button variant="primary" onClick={() => onLock()}>
-              <Icon name="lock" size={16} /> 지금 잠그기
-            </Button>
+            <div className="private-workspace-actions">
+              <span className="private-workspace-user">{access.user.name} 본인 확인됨</span>
+              <Button variant="primary" onClick={() => onLock()}>
+                지금 잠그기
+              </Button>
+            </div>
           </header>
           {owner && (
             <nav
@@ -206,7 +205,7 @@ export default function PrivateWorkspace({
                   aria-current={page === id ? "page" : undefined}
                   onClick={() => navigate(id)}
                 >
-                  <Icon name={icon} size={17} /> {label}
+                  {label}
                   {id === "hr" && pendingRequests > 0 && (
                     <span className="nav-count" aria-label={`승인 대기 ${pendingRequests}건`}>
                       {pendingRequests}

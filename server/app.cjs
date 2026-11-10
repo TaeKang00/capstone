@@ -1022,6 +1022,19 @@ function createApp(options = {}) {
       next(e);
     }
   });
+  app.get("/api/reports/breakdown", (req, res, next) => {
+    try {
+      privacy.requireOwner(req);
+      res.json(
+        require("./analytics.cjs").getBreakdown(readState(db).data, {
+          from: String(req.query.from || ""),
+          to: String(req.query.to || ""),
+        }),
+      );
+    } catch (e) {
+      next(e);
+    }
+  });
   app.get("/api/reports/profit", (req, res, next) => {
     try {
       privacy.requireOwner(req);

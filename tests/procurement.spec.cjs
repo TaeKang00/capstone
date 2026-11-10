@@ -68,16 +68,16 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .getByRole("button", { name: "시술 · 재료 설정", exact: true })
     .click();
   const gate = page.getByRole("dialog", {
-    name: "원장 관리 잠금 해제",
+    name: "원장 관리 열기",
     exact: true,
   });
   await gate
-    .getByLabel("원장 계정 아이디", { exact: true })
+    .getByLabel("원장 아이디", { exact: true })
     .fill("owner@example.test");
   await gate
     .getByLabel("비밀번호", { exact: true })
     .fill("Owner-test-password-2026!");
-  await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
+  await gate.getByRole("button", { name: "열기", exact: true }).click();
   await page.getByRole("button", { name: "＋ 시술 등록", exact: true }).click();
   await dialog(page)
     .getByLabel("시술 이름", { exact: true })

@@ -16,15 +16,15 @@ test("드롭다운은 펼친 목록과 키보드로 선택하고 Escape가 작�
   const staff = result.data.staff.find((row) => row.name === "선택 확인 디자이너");
   await page.reload();
   await goTo(page, "매출 · 정산");
-  const select = page.getByLabel("담당 직원", { exact: true });
+  const select = page.getByLabel("거래 유형", { exact: true });
   await select.click();
-  await page.getByRole("option", { name: staff.name, exact: true }).click();
-  await expect(select).toHaveValue(staff.id);
+  await page.getByRole("option", { name: "환불만", exact: true }).click();
+  await expect(select).toHaveValue("refund");
   await select.focus();
   await page.keyboard.press("Space");
   await page.keyboard.press("Home");
   await page.keyboard.press("Enter");
-  await expect(select).toHaveValue("");
+  await expect(select).toHaveValue("all");
   await goTo(page, "직원 관리");
   await page.getByRole("button", { name: "＋ 직원 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "직원 등록", exact: true });
@@ -37,36 +37,31 @@ test("드롭다운은 펼친 목록과 키보드로 선택하고 Escape가 작�
   await expect(role).toHaveValue("reception");
 });
 
-test("달력에서 선택한 날짜로 조회하고 기간 제한과 직접 입력을 유지한다", async ({ page }) => {
+test("기간 달력에서 시작일과 끝나는 날을 골라 적용한다", async ({ page }) => {
   await setupOwner(page);
   await goTo(page, "매출 · 정산");
   const month = previousMonth();
-  const from = page.getByLabel("조회 시작일", { exact: true });
-  const to = page.getByLabel("조회 종료일", { exact: true });
-  await from.fill(`${month}-09`);
-  await to.fill(`${month}-20`);
-  await page.getByRole("button", { name: "조회 시작일 달력 열기", exact: true }).click();
-  const startPicker = page.getByRole("dialog", { name: "조회 시작일 날짜 선택", exact: true });
-  await startPicker.locator(`[data-date-key="${month}-12"]`).click();
-  await expect(from).toHaveValue(`${month}-12`);
-  await expect(from).toBeFocused();
-  await expect(startPicker).toBeHidden();
-  await page.getByRole("button", { name: "조회 종료일 달력 열기", exact: true }).click();
-  const endPicker = page.getByRole("dialog", { name: "조회 종료일 날짜 선택", exact: true });
-  await expect(endPicker.locator(`[data-date-key="${month}-11"]`)).toBeDisabled();
-  await expect(endPicker.getByRole("button", { name: "선택 지우기" })).toHaveCount(0);
-  await endPicker.locator(`[data-date-key="${month}-18"]`).click();
-  await expect(to).toHaveValue(`${month}-18`);
-  await page.getByRole("button", { name: "조회", exact: true }).click();
-  await expect(page.locator("p.commerce-note").filter({ hasText: `${month}-12 ~ ${month}-18` })).toBeVisible();
-  await to.focus();
-  await page.keyboard.press("Alt+ArrowDown");
-  await expect(endPicker).toBeVisible();
-  await page.keyboard.press("ArrowLeft");
-  await page.keyboard.press("Enter");
-  await expect(to).toHaveValue(`${month}-17`);
-  await from.fill(`${month}-10`);
-  await expect(from).toHaveValue(`${month}-10`);
+  const m = Number(month.slice(5, 7));
+  const trigger = page.getByRole("button", { name: /^조회 기간 .* 달력 열기$/ });
+  await trigger.click();
+  const picker = page.getByRole("dialog", { name: "조회 기간 고르기", exact: true });
+  await picker.getByRole("button", { name: "이전 달", exact: true }).click();
+  await picker.locator(`[data-date-key="${month}-18"]`).click();
+  await expect(picker.getByRole("status")).toHaveText("끝나는 날을 골라 주세요");
+  await expect(picker.getByRole("button", { name: "적용", exact: true })).toBeDisabled();
+  // Picking an earlier day swaps the ends.
+  await picker.locator(`[data-date-key="${month}-12"]`).click();
+  await expect(picker.getByRole("status")).toHaveText("7일 동안");
+  await picker.getByRole("button", { name: "적용", exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expect(trigger).toHaveText(`${m}월 12일부터 ${m}월 18일까지`);
+  await expect(page.getByRole("group", { name: "빠른 기간" }).getByRole("button", { pressed: true })).toHaveCount(0);
+  await trigger.click();
+  await page.keyboard.press("Escape");
+  await expect(picker).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await page.getByRole("button", { name: "이번 달", exact: true }).click();
+  await expect(page.getByRole("button", { name: "이번 달", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("작성 중 달력의 Escape는 달력만 닫고 월 선택과 선택 지우기를 지원한다", async ({ page }) => {
@@ -113,8 +108,8 @@ test("작은 화면에서도 달력이 화면 안에 열리고 바깥 클릭으�
   await setupOwner(page);
   await goTo(page, "매출 · 정산");
   await page.setViewportSize({ width: 390, height: 740 });
-  await page.getByRole("button", { name: "조회 종료일 달력 열기", exact: true }).click();
-  const picker = page.getByRole("dialog", { name: "조회 종료일 날짜 선택", exact: true });
+  await page.getByRole("button", { name: /^조회 기간 .* 달력 열기$/ }).click();
+  const picker = page.getByRole("dialog", { name: "조회 기간 고르기", exact: true });
   await expect(picker).toBeVisible();
   const bounds = await picker.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -122,8 +117,9 @@ test("작은 화면에서도 달력이 화면 안에 열리고 바깥 클릭으�
   expect(bounds.y).toBeGreaterThanOrEqual(0);
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(740);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  const before = await page.getByLabel("조회 종료일", { exact: true }).inputValue();
+  const trigger = page.getByRole("button", { name: /^조회 기간 .* 달력 열기$/ });
+  const before = await trigger.textContent();
   await page.locator(".private-workspace-identity").click();
   await expect(picker).toBeHidden();
-  await expect(page.getByLabel("조회 종료일", { exact: true })).toHaveValue(before);
+  await expect(trigger).toHaveText(before);
 });

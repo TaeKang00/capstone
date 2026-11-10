@@ -211,3 +211,60 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ===== DatePickers board (2026-11) ===== */
+.date-input-trigger { right: 6px; width: 32px; height: 32px; border-radius: 8px; color: #A1A1AB; }
+.date-input-trigger:hover:not(:disabled), .date-input-trigger[aria-expanded="true"] { color: #F4F4F6; background: #18181E; }
+.date-input-control:has(.date-input-trigger[aria-expanded="true"]) > input.date-input-native { border-color: #4C7DFF; }
+.date-input-trigger .icon { width: 20px; height: 20px; }
+.date-picker-panel {
+  width: 336px; padding: 16px; border-radius: 16px; border: 1px solid #2A2A33;
+  background: rgba(28, 28, 35, 0.96); backdrop-filter: blur(24px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5); color: #F4F4F6; line-height: 20px;
+}
+.date-picker-heading { margin-bottom: 12px; }
+.date-picker-panel .date-picker-nav { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 8px; color: #D4D4DA; }
+.date-picker-panel .date-picker-period { min-height: 40px; padding: 0 12px; border-radius: 8px; font-size: 16px; line-height: 24px; font-weight: 600; color: #F4F4F6; }
+.date-picker-panel .date-picker-nav:hover:not(:disabled),
+.date-picker-panel button.date-picker-period:hover,
+.date-picker-panel .date-picker-day:hover:not(:disabled),
+.date-picker-panel .date-picker-month:hover:not(:disabled) { background: #18181E; color: #F4F4F6; }
+.date-picker-week { gap: 4px; margin-bottom: 4px; }
+.date-picker-week > [role="columnheader"] { padding: 0; height: 24px; line-height: 24px; color: #8B8B96; }
+.date-picker-week > [role="columnheader"].date-picker-sunday { color: #8B8B96; }
+.date-picker-panel .date-picker-day { height: 40px; border-radius: 999px; font-size: 14px; color: #A1A1AB; border: 1px solid transparent; }
+.date-picker-panel .is-sunday { color: #A1A1AB; }
+.date-picker-panel .is-outside { color: #6B6B76; }
+.date-picker-panel .is-today { box-shadow: none; border-color: #2A2A33; color: #F4F4F6; font-weight: 600; }
+.date-picker-panel .is-selected,
+.date-picker-panel .is-selected:hover:not(:disabled) { color: #F4F4F6; background: #24242C; border-color: #4C7DFF; font-weight: 600; }
+.date-picker-panel button:disabled { opacity: 0.35; color: #6B6B76; }
+.date-picker-month-row { gap: 8px; margin-bottom: 8px; }
+.date-picker-panel .date-picker-month { min-height: 44px; border-radius: 999px; border: 1px solid transparent; color: #D4D4DA; }
+.date-picker-footer { margin-top: 12px; padding-top: 0; border-top: 0; }
+.date-picker-footer button { min-height: 40px; padding: 0 12px; border-radius: 8px; color: #A1A1AB; font-size: 14px; font-weight: 600; }
+.date-picker-footer .date-picker-clear { color: #8B8B96; font-weight: 500; }
+.date-picker-footer button:hover:not(:disabled) { background: #18181E; color: #F4F4F6; }
+
+/* Range picker (pill trigger + popover) */
+.range-picker { position: relative; display: inline-flex; }
+.range-picker-trigger { height: 40px; padding: 0 12px 0 16px; border: 1px solid #2A2A33; border-radius: 999px; background: #0E0E12; color: #F4F4F6; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.range-picker-trigger[aria-expanded="true"] { border-color: #4C7DFF; }
+.range-picker-trigger .icon { color: #A1A1AB; }
+.range-picker-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 70; width: 336px; max-width: calc(100vw - 32px); box-sizing: border-box; padding: 16px; border-radius: 16px; background: rgba(28, 28, 35, 0.96); border: 1px solid #2A2A33; backdrop-filter: blur(24px); box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 12px; }
+.range-picker-head { display: flex; align-items: center; justify-content: space-between; }
+.range-picker-head strong { font-size: 16px; line-height: 24px; font-weight: 600; color: #F4F4F6; }
+.range-picker-head button { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: #D4D4DA; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.range-picker-head button:hover { background: #18181E; }
+.range-picker-week, .range-picker-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.range-picker-week span { height: 24px; text-align: center; font-size: 12px; line-height: 24px; color: #8B8B96; }
+.range-picker-days button { height: 40px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: #A1A1AB; font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; }
+.range-picker-days button:hover:not(:disabled) { background: #18181E; color: #F4F4F6; }
+.range-picker-days button.is-today { border-color: #2A2A33; }
+.range-picker-days button.is-inside { background: #18181E; color: #D4D4DA; }
+.range-picker-days button[aria-pressed="true"] { background: #24242C; border-color: #4C7DFF; color: #F4F4F6; font-weight: 600; }
+.range-picker-days button.is-blank { visibility: hidden; }
+.range-picker-days button:disabled:not(.is-blank) { opacity: .35; cursor: not-allowed; }
+.range-picker-hint { font-size: 12px; line-height: 16px; color: #8B8B96; }
+.range-picker-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 640px) { .range-picker-panel { position: fixed; left: 16px; right: 16px; top: 120px; width: auto; } }

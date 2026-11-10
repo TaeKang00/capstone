@@ -65,7 +65,8 @@ test('첫 설치는 관리자 등록부터 시작하고 로그인과 푸터가 �
   expect(initial.data.customers).toEqual([]);
   expect(initial.data.appointments).toEqual([]);
   expect(initial.data.transactions).toEqual([]);
-  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByRole('button', { name: /내 메뉴$/ }).click();
+  await page.getByRole('menuitem', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '로그아웃', exact: true }).click();
   await expect(page.getByRole('heading', { name: '로그인' })).toBeVisible();
   await page.getByLabel('아이디', { exact: true }).fill(EMAIL);
@@ -143,7 +144,7 @@ test('고객 주의사항과 예약 수납·정정·부분 환불이 연결되�
   expect(snapshot.data.transactions.find(row => row.id === transaction.id).status).toBe('partially_refunded');
   expect(snapshot.data.refunds.find(row => row.transactionId === transaction.id).amount).toBe(9000);
   await nav(page, '매출 · 정산');
-  await expect(page.getByRole('heading', { name: '매출 · 정산', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '매출', exact: true })).toBeVisible();
 });
 
 test('급여명세서를 작성·확정·지급 처리하고 출력할 수 있다', async ({ page }) => {

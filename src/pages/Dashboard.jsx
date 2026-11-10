@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { today, timeLabel } from "../api";
 import { Button, EmptyState, Money } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { useViewState } from "../components/ViewState";
 import { STATUS } from "./operations-utils";
-import { clockLabel } from "../workforce-utils";
+import { clockLabel, hoursLabel, leaveBalance } from "../workforce-utils";
 
 const STATUS_TONE = {
   in_service: "ok",
@@ -20,7 +20,71 @@ const durationLabel = (minutes) => {
   return h && m ? `${h}시간 ${m}분` : h ? `${h}시간` : `${m}분`;
 };
 
-export default function Dashboard({ data, user, navigate, noticeReads = [] }) {
+const nowMinutes = () => {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(new Date())
+    .split(":")
+    .map(Number);
+  return h * 60 + m;
+};
+
+function ClockCard({ record, runAction, notify, onLeave, leave }) {
+  const [busy, setBusy] = useState(false);
+  const working = record && record.clockOut == null;
+  const done = record && record.clockOut != null;
+  const clock = async (kind) => {
+    setBusy(true);
+    try {
+      await runAction("attendance.clock", { kind });
+      notify(kind === "in" ? "출근을 기록했습니다." : "퇴근을 기록했습니다.");
+    } catch (err) {
+      notify(err.message, "danger");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="home-clock-row">
+      <section className="home-clock" aria-label="출퇴근">
+        <span className={`status-pill status-${working ? "ok" : done ? "muted" : "warn"}`}>
+          {working ? "근무 중" : done ? "퇴근" : "출근 전"}
+        </span>
+        <div className="home-clock-time">
+          <strong>
+            {working
+              ? hoursLabel(Math.max(0, nowMinutes() - record.clockIn))
+              : done
+                ? hoursLabel(Math.max(0, record.clockOut - record.clockIn))
+                : "아직 기록 없음"}
+          </strong>
+          <span>
+            {record ? `${clockLabel(record.clockIn)} 출근` : "출근하기를 눌러 주세요"}
+            {done ? `, ${clockLabel(record.clockOut)} 퇴근` : ""}
+          </span>
+        </div>
+        {!done && (
+          <Button variant="primary" busy={busy} onClick={() => clock(working ? "out" : "in")}>
+            {working ? "퇴근하기" : "출근하기"}
+          </Button>
+        )}
+      </section>
+      <button type="button" className="home-leave" onClick={onLeave}>
+        <span>
+          <strong>남은 연차 {leave.remaining}일</strong>
+          <small>{leave.reserved ? `승인 대기 ${leave.reserved}일` : "신청한 휴가가 없어요"}</small>
+        </span>
+        <span className="home-leave-cta">휴가 신청</span>
+      </button>
+    </div>
+  );
+}
+
+export default function Dashboard({ data, user, navigate, runAction, notify }) {
   const date = today();
   const [scheduleView, setScheduleView] = useViewState(
     "dashboard",
@@ -68,16 +132,6 @@ export default function Dashboard({ data, user, navigate, noticeReads = [] }) {
   const myClock = (data.attendance || []).find(
     (row) => row.staffId === user.staffId && row.date === date,
   );
-  const unreadNotices =
-    alertsOn.unreadNotices === false
-      ? []
-      : (data.notices || []).filter(
-          (notice) =>
-            !notice.archived &&
-            !noticeReads.some(
-              (row) => row.noticeId === notice.id && row.userId === user.id,
-            ),
-        );
   const openPurchaseRequests = operational
     ? (data.purchaseRequests || []).filter((row) => row.status === "requested")
     : [];
@@ -130,13 +184,6 @@ export default function Dashboard({ data, user, navigate, noticeReads = [] }) {
       title: `구매 요청 ${openPurchaseRequests.length}건`,
       detail: openPurchaseRequests[0].itemName,
       go: () => navigate("purchases"),
-    },
-    unreadNotices.length > 0 && {
-      key: "notice",
-      tone: "muted",
-      title: `안 읽은 공지 ${unreadNotices.length}건`,
-      detail: unreadNotices[0].title,
-      go: () => navigate("notices"),
     },
     pending.length > 0 && {
       key: "pending",
@@ -198,6 +245,16 @@ export default function Dashboard({ data, user, navigate, noticeReads = [] }) {
             시술 메뉴 등록
           </Button>
         </div>
+      )}
+
+      {designer && user.staffId && (
+        <ClockCard
+          record={myClock}
+          runAction={runAction}
+          notify={notify}
+          leave={leaveBalance(data, user.staffId, Number(date.slice(0, 4)))}
+          onLeave={() => navigate("attendance", { create: true })}
+        />
       )}
 
       <div className="home-stats">

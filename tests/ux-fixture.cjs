@@ -104,11 +104,11 @@ async function unlockOwner(page) {
   const navigation = page.getByRole("navigation", { name: "원장 관리 메뉴" });
   if (await navigation.isVisible()) return;
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await dialog.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
+  const dialog = page.getByRole("dialog", { name: "원장 관리 열기", exact: true });
+  await dialog.getByLabel("원장 아이디", { exact: true }).fill(OWNER_EMAIL);
   await dialog.getByLabel("비밀번호", { exact: true }).fill(OWNER_PASSWORD);
   const granted = page.waitForResponse(response => response.url().endsWith("/api/auth/private/unlock") && response.ok());
-  await dialog.getByRole("button", { name: "원장 인증", exact: true }).click();
+  await dialog.getByRole("button", { name: "열기", exact: true }).click();
   ownerGrants.set(page, await (await granted).json());
   await expect(navigation).toBeVisible();
 }
@@ -153,7 +153,7 @@ async function action(page, type, payload) {
   return response.json();
 }
 async function goTo(page, name) {
-  const privateNames = { "직원 관리": "직원 · 계정", "급여명세": "급여명세", "매장 설정": "설정 · 백업", "매출 · 정산": "매출 · 정산" };
+  const privateNames = { "직원 관리": "직원", "급여명세": "급여", "매장 설정": "설정", "매출 · 정산": "매출" };
   if (privateNames[name]) {
     await unlockOwner(page);
     await page.getByRole("navigation", { name: "원장 관리 메뉴" }).getByRole("button", { name: privateNames[name], exact: true }).click();

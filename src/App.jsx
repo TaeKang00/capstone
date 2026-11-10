@@ -27,7 +27,6 @@ import Payments from "./pages/Payments";
 import Purchases from "./pages/Purchases";
 import Inventory from "./pages/Inventory";
 import Attendance from "./pages/Attendance";
-import Notices, { useNoticeReads } from "./pages/Notices";
 import PrivateWorkspace from "./components/PrivateWorkspace";
 import { SharedDesk } from "./components/SharedDesk";
 import { AccessGate } from "./components/AccessGate";
@@ -40,7 +39,6 @@ const pages = {
   inventory: Inventory,
   purchases: Purchases,
   attendance: Attendance,
-  notices: Notices,
 };
 // [page, short visible label, icon, full accessible name]
 const navigation = [
@@ -51,7 +49,6 @@ const navigation = [
   ["inventory", "재고", "inventory", "재고 · 입고"],
   ["purchases", "발주", "truck", "발주 · 거래처"],
   ["attendance", "근태", "clock", "근태 · 휴가"],
-  ["notices", "공지", "bell", "공지사항"],
 ];
 const bottomTabs = [
   ["dashboard", "오늘", "workspace"],
@@ -78,6 +75,128 @@ class ErrorBoundary extends React.Component {
       this.props.children
     );
   }
+}
+
+function usePopover() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const down = (event) => {
+      if (!ref.current?.contains(event.target)) setOpen(false);
+    };
+    const key = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        ref.current?.querySelector("button")?.focus();
+      }
+    };
+    document.addEventListener("mousedown", down);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("mousedown", down);
+      document.removeEventListener("keydown", key);
+    };
+  }, [open]);
+  return [open, setOpen, ref];
+}
+function HeaderAlerts({ alerts, onGo }) {
+  const [open, setOpen, ref] = usePopover();
+  return (
+    <div className="header-pop" ref={ref}>
+      <button
+        type="button"
+        className="icon-btn header-bell"
+        aria-label={alerts.length ? `알림 ${alerts.length}건` : "알림"}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen(!open)}
+      >
+        <Icon name="bell" />
+        {alerts.length > 0 && <span className="header-bell-dot" aria-hidden="true" />}
+      </button>
+      {open && (
+        <div className="header-popover" role="region" aria-label="알림">
+          <p className="header-popover-title">알림</p>
+          {alerts.length === 0 ? (
+            <p className="muted">확인할 알림이 없어요</p>
+          ) : (
+            <ul className="header-alert-list">
+              {alerts.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      onGo(...item.go);
+                    }}
+                  >
+                    <span className={`todo-dot tone-${item.tone}`} aria-hidden="true" />
+                    <span className="todo-text">
+                      <strong>{item.title}</strong>
+                      <small>{item.detail}</small>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+function HeaderMenu({ user, refreshing, syncError, lastSynced, onPassword, onOperator, onLogout, onRefresh }) {
+  const [open, setOpen, ref] = usePopover();
+  const pick = (fn) => () => {
+    setOpen(false);
+    fn();
+  };
+  return (
+    <div className="header-pop" ref={ref}>
+      <button
+        type="button"
+        className="header-avatar"
+        aria-label={`${user.name} 내 메뉴`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen(!open)}
+      >
+        {user.name.slice(0, 1)}
+      </button>
+      {open && (
+        <div className="header-popover header-menu" role="menu" aria-label="내 메뉴">
+          <div className="header-menu-user">
+            <strong>{user.name}</strong>
+            <small>{roleLabel(user.role)}</small>
+          </div>
+          <button type="button" role="menuitem" onClick={pick(onPassword)}>
+            <Icon name="lock" size={16} />내 비밀번호 변경
+          </button>
+          <button type="button" role="menuitem" onClick={pick(onOperator)}>
+            <Icon name="swap" size={16} />작업자 전환
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={refreshing}
+            title={
+              lastSynced
+                ? `마지막 확인 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)}`
+                : undefined
+            }
+            onClick={pick(onRefresh)}
+          >
+            <Icon name="refresh" size={16} />
+            {syncError ? "연결 확인" : "새로고침"}
+          </button>
+          <button type="button" role="menuitem" onClick={pick(onLogout)}>
+            <Icon name="logout" size={16} />로그아웃
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 export default function App() {
   const [session, updateSession] = useState(null),
@@ -116,14 +235,13 @@ export default function App() {
     session.mode === "work" &&
     !session.user.mustChangePassword &&
     !!state;
-  const [noticeReads] = useNoticeReads(state?.version, workReady);
   const securityRef = useRef(null);
   const [viewEpoch, setViewEpoch] = useState(0);
   const navigate = useCallback(
     (target, context = {}) => {
       setDrawer(false);
       if (
-        ["staff", "payroll", "sales", "settings", "hr", "finance"].includes(
+        ["staff", "payroll", "sales", "settings", "hr"].includes(
           target,
         )
       ) {
@@ -491,16 +609,6 @@ export default function App() {
       : data?.items?.filter(
           (i) => i.active !== false && Number(i.qty) <= Number(i.min),
         ).length || 0;
-  const unreadNotices =
-    alerts.unreadNotices === false
-      ? 0
-      : (data?.notices || []).filter(
-          (notice) =>
-            !notice.archived &&
-            !noticeReads.some(
-              (row) => row.noticeId === notice.id && row.userId === user.id,
-            ),
-        ).length;
   const unpaid =
     alerts.unpaid === false
       ? 0
@@ -512,10 +620,44 @@ export default function App() {
         ).length;
   const counts = {
     inventory: [low, true],
-    notices: [unreadNotices, false],
     payments: [unpaid, true],
   };
   const lead = ["owner", "manager"].includes(user.role);
+  const pendingRequests =
+    alerts.pendingRequests === false ? 0 : data?.pendingRequestCount || 0;
+  const purchaseRequests = lead || user.role === "reception"
+    ? (data?.purchaseRequests || []).filter((row) => row.status === "requested").length
+    : 0;
+  const headerAlerts = [
+    pendingRequests > 0 && {
+      key: "requests",
+      tone: "accent",
+      title: `휴가 승인 ${pendingRequests}건`,
+      detail: "원장 관리에서 승인해요",
+      go: ["hr", { tab: "requests" }],
+    },
+    allowed("payments", user.role) && unpaid > 0 && {
+      key: "unpaid",
+      tone: "warn",
+      title: `수납 대기 ${unpaid}건`,
+      detail: "시술을 마친 손님",
+      go: ["payments", { pending: true }],
+    },
+    allowed("inventory", user.role) && low > 0 && {
+      key: "stock",
+      tone: "warn",
+      title: `보충할 재고 ${low}품목`,
+      detail: "재고에서 확인해요",
+      go: ["inventory", { stock: "low" }],
+    },
+    allowed("purchases", user.role) && purchaseRequests > 0 && {
+      key: "purchase",
+      tone: "warn",
+      title: `구매 요청 ${purchaseRequests}건`,
+      detail: "발주에서 확인해요",
+      go: ["purchases", {}],
+    },
+  ].filter(Boolean);
   const day = today();
   const team = lead
     ? (data?.staff || [])
@@ -614,50 +756,7 @@ export default function App() {
           원장 관리
         </button>
       </section>
-      <section className="sidebar-footer" aria-label="작업자">
-        <button
-          type="button"
-          className="sidebar-user"
-          onClick={() => setPasswordModal(true)}
-          title="내 비밀번호 변경"
-        >
-          <span className="avatar">{user.name.slice(0, 1)}</span>
-          <span>
-            <strong>{user.name}</strong>
-            <small>{roleLabel(user.role)}</small>
-          </span>
-        </button>
-        <p className="sidebar-note">5분 동안 쓰지 않으면 공용 화면으로 잠겨요</p>
-        <div className="sidebar-actions">
-          <Button variant="ghost" onClick={() => security.operator()}>
-            작업자 전환
-          </Button>
-          <Button
-            variant="ghost"
-            busy={refreshing}
-            aria-label="새로고침"
-            title={
-              lastSynced
-                ? `마지막 확인 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(lastSynced)}`
-                : undefined
-            }
-            onClick={async () => {
-              setRefreshing(true);
-              try {
-                await refresh();
-                notify("최신 내용을 불러왔어요");
-              } catch (e) {
-                notify(e.message, "danger");
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-          >
-            <Icon name="refresh" size={16} />
-            {syncError ? "연결 확인" : "새로고침"}
-          </Button>
-        </div>
-      </section>
+      <p className="sidebar-note">5분 동안 쓰지 않으면 공용 화면으로 잠겨요</p>
     </>
   );
   const searchCustomers = (event) => {
@@ -724,6 +823,7 @@ export default function App() {
                 예약 등록
               </Button>
             )}
+            <HeaderAlerts alerts={headerAlerts} onGo={navigate} />
             <Button
               variant="secondary"
               className="header-lock"
@@ -732,9 +832,26 @@ export default function App() {
               <Icon name="lock" size={16} />
               공용 화면 잠금
             </Button>
-            <Button variant="ghost" onClick={() => setLogoutModal(true)}>
-              로그아웃
-            </Button>
+            <HeaderMenu
+              user={user}
+              refreshing={refreshing}
+              syncError={syncError}
+              lastSynced={lastSynced}
+              onPassword={() => setPasswordModal(true)}
+              onOperator={() => security.operator()}
+              onLogout={() => setLogoutModal(true)}
+              onRefresh={async () => {
+                setRefreshing(true);
+                try {
+                  await refresh();
+                  notify("최신 내용을 불러왔어요");
+                } catch (e) {
+                  notify(e.message, "danger");
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
+            />
           </div>
         </header>
         <div className="app-layout">
@@ -811,7 +928,6 @@ export default function App() {
                       data={data}
                       user={user}
                       version={state.version}
-                      noticeReads={noticeReads}
                       runAction={runAction}
                       refresh={refresh}
                       notify={notify}

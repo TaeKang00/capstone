@@ -245,7 +245,8 @@ test("원장이 복구 코드를 발급하고 로그인 화면에서 아이디 �
   expect(code).toHaveLength(43);
   await expect(page.getByText("자동 백업 상태", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "지금 잠그기", exact: true }).click();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await page.getByRole('button', { name: /내 메뉴$/ }).click();
+  await page.getByRole('menuitem', { name: '로그아웃', exact: true }).click();
   await dialog(page)
     .getByRole("button", { name: "로그아웃", exact: true })
     .click();

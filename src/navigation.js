@@ -8,7 +8,6 @@ const pages = new Set([
   "inventory",
   "purchases",
   "attendance",
-  "notices",
 ]);
 const fromLocation = () => {
   const candidate = window.location.hash.slice(2);
@@ -24,7 +23,6 @@ export function canVisit(page, role) {
       "appointments",
       "customers",
       "attendance",
-      "notices",
       "payroll",
     ].includes(page);
   if (role === "reception") return !["staff", "settings"].includes(page);

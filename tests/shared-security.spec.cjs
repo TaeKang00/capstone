@@ -46,7 +46,7 @@ async function payslip(page, staffId, { finalized = true, basePay = 2100000, mon
 async function workerLogin(page, employee) {
   await page.getByRole("button", { name: "작업자 로그인", exact: true }).click();
   const gate = page.getByRole("dialog", { name: "작업자 로그인", exact: true });
-  await gate.getByLabel("계정 아이디", { exact: true }).fill(employee.email);
+  await gate.getByLabel("아이디", { exact: true }).fill(employee.email);
   await gate.getByLabel("비밀번호", { exact: true }).fill(employee.password);
   await gate.getByRole("button", { name: "작업자 로그인", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "주 메뉴" })).toBeVisible();
@@ -63,14 +63,14 @@ test("원장으로 로그인해도 급여는 별도 인증하고 잠금·뒤로�
   expect((await page.request.get("/api/users")).status()).toBe(403);
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
-  const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
+  const gate = page.getByRole("dialog", { name: "원장 관리 열기", exact: true });
+  await gate.getByLabel("원장 아이디", { exact: true }).fill(OWNER_EMAIL);
   await gate.getByLabel("비밀번호", { exact: true }).fill("incorrect-password");
-  await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
+  await gate.getByRole("button", { name: "열기", exact: true }).click();
   await expect(gate.getByRole("alert")).toBeVisible();
   await expect(page.locator(".private-workspace")).toHaveCount(0);
   await gate.getByLabel("비밀번호", { exact: true }).fill(OWNER_PASSWORD);
-  await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
+  await gate.getByRole("button", { name: "열기", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "원장 관리 메뉴" })).toBeVisible();
   await goTo(page, "급여명세");
   await expect(page.locator(".private-workspace")).toContainText("9,876,543");
@@ -93,7 +93,7 @@ test("공용 화면은 예약을 가리고 수정은 작업자 인증 후 실제
   await action(page, "appointment.save", { date: today(), start: 600, staffId: catalog.data.staff.find(row => row.role === "owner").id, serviceIds: [service.id], guestName: "민감고객실명", guestPhone: "010-7777-9999", notes: "민감상담메모" });
   await page.reload();
   await page.getByRole("button", { name: "공용 화면 잠금", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
   const shared = await state(page);
   expect(shared.session.mode).toBe("shared");
   expect(shared.data.appointments).toHaveLength(1);
@@ -155,7 +155,7 @@ test("서버의 원장 인증 유효시간이 지나면 새 요청을 거절하�
   privacyClock.advance(180001);
   const expired = await page.request.get("/api/admin/state", { headers });
   expect(expired.status()).toBe(403);
-  await page.getByRole("navigation", { name: "원장 관리 메뉴" }).getByRole("button", { name: "매출 · 정산", exact: true }).click();
+  await page.getByRole("navigation", { name: "원장 관리 메뉴" }).getByRole("button", { name: "매출", exact: true }).click();
   await expect(page.locator(".private-workspace")).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "주 메뉴" })).toBeVisible();
 });
@@ -183,14 +183,14 @@ test("다른 탭의 공용 잠금 뒤 민감한 응답이 늦게 도착해도 �
     await unlockOwner(page);
     await received;
     await otherTab.getByRole("button", { name: "공용 화면 잠금", exact: true }).evaluate(button => button.click());
-    await expect(page.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
     await expect(page.locator(".private-workspace")).toHaveCount(0);
   } finally {
     release();
   }
   expect((await lateResponse).status()).toBe(200);
   await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 0)));
-  await expect(page.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
   await expect(page.locator(".private-workspace")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("8,765,432");
   await page.reload();
@@ -223,10 +223,10 @@ test("매니저도 원장 비밀번호 인증 없이 계정 권한이나 전체 
   await workerLogin(page, manager);
   await expect(page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: /^(급여명세|직원 관리|매장 설정)$/ })).toHaveCount(0);
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
-  const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(manager.email);
+  const gate = page.getByRole("dialog", { name: "원장 관리 열기", exact: true });
+  await gate.getByLabel("원장 아이디", { exact: true }).fill(manager.email);
   await gate.getByLabel("비밀번호", { exact: true }).fill(manager.password);
-  await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
+  await gate.getByRole("button", { name: "열기", exact: true }).click();
   await expect(gate.getByRole("alert")).toBeVisible();
   await expect(page.locator(".private-workspace")).toHaveCount(0);
   expect((await page.request.get("/api/users")).status()).toBe(403);
@@ -243,7 +243,7 @@ test("작업자 유휴시간이 지나면 입력 중인 고객 정보도 지우�
   await dialog.getByLabel("고객 이름 *", { exact: true }).fill("자리를비운뒤남으면안되는이름");
   privacyClock.advance(301000);
   await page.clock.fastForward(301000);
-  await expect(page.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText("자리를비운뒤남으면안되는이름");
   expect((await state(page)).session.mode).toBe("shared");
@@ -280,8 +280,8 @@ test("두 탭에서 동시에 공용 잠금을 눌러도 두 화면 모두 잠�
   } finally {
     release();
   }
-  await expect(page.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
-  await expect(peer.getByRole("heading", { name: "공용 업무", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
+  await expect(peer.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "잠금 상태 다시 확인", exact: true })).toHaveCount(0);
   await expect(peer.getByRole("button", { name: "잠금 상태 다시 확인", exact: true })).toHaveCount(0);
   expect((await state(page)).session.mode).toBe("shared");
@@ -302,11 +302,11 @@ test("화면 이탈 후 도착한 원장 인증 응답으로 보호 화면을 �
     await route.fulfill({ response });
   }, { times: 1 });
   await page.getByRole("button", { name: "원장 관리", exact: true }).click();
-  const gate = page.getByRole("dialog", { name: "원장 관리 잠금 해제", exact: true });
-  await gate.getByLabel("원장 계정 아이디", { exact: true }).fill(OWNER_EMAIL);
+  const gate = page.getByRole("dialog", { name: "원장 관리 열기", exact: true });
+  await gate.getByLabel("원장 아이디", { exact: true }).fill(OWNER_EMAIL);
   await gate.getByLabel("비밀번호", { exact: true }).fill(OWNER_PASSWORD);
   try {
-    await gate.getByRole("button", { name: "원장 인증", exact: true }).click();
+    await gate.getByRole("button", { name: "열기", exact: true }).click();
     await received;
     await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
     await expect(gate).toHaveCount(0);
@@ -330,13 +330,14 @@ test("admin 아이디와 admin 비밀번호로 초기 설정·로그인·원장 
   await page.getByRole('button',{name:'매장 만들고 시작하기',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'주 메뉴'})).toBeVisible();
   await page.getByRole('button',{name:'원장 관리',exact:true}).click();
-  const gate=page.getByRole('dialog',{name:'원장 관리 잠금 해제',exact:true});
-  await gate.getByLabel('원장 계정 아이디',{exact:true}).fill('admin');
+  const gate=page.getByRole('dialog',{name:'원장 관리 열기',exact:true});
+  await gate.getByLabel('원장 아이디',{exact:true}).fill('admin');
   await gate.getByLabel('비밀번호',{exact:true}).fill('admin');
-  await gate.getByRole('button',{name:'원장 인증',exact:true}).click();
+  await gate.getByRole('button',{name:'열기',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'원장 관리 메뉴'})).toBeVisible();
   await page.getByRole('button',{name:'지금 잠그기',exact:true}).click();
-  await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+  await page.getByRole('button', { name: /내 메뉴$/ }).click();
+  await page.getByRole('menuitem', { name: '로그아웃', exact: true }).click();
   await page.getByRole('dialog',{name:'로그아웃할까요?',exact:true}).getByRole('button',{name:'로그아웃',exact:true}).click();
   await expect(page.getByRole('heading',{name:'로그인',exact:true})).toBeVisible();
   await page.getByLabel('아이디',{exact:true}).fill('admin');

@@ -7,23 +7,24 @@ import "./AccessGate.css";
 const COPY = {
   operator: {
     title: "작업자 로그인",
-    description:
-      "본인 계정으로 업무를 시작해 주세요. 저장한 내용에는 실제 작업자가 기록됩니다.",
+    description: "본인 계정으로 업무를 시작해 주세요",
     submit: "작업자 로그인",
-    note: "업무가 끝나거나 자리를 비울 때는 공용 화면으로 돌아가 주세요.",
+    notes: ["저장한 내용에는 로그인한 작업자가 남아요", "자리를 비울 때는 공용 화면으로 돌아가 주세요"],
+    icon: "user",
   },
   owner: {
-    title: "원장 관리 잠금 해제",
-    description:
-      "직원·급여·매출 정산·경비·설정은 원장 비밀번호로 다시 인증해야 열립니다.",
-    submit: "원장 인증",
-    note: "관리 화면을 나가거나 사용하지 않으면 자동으로 잠깁니다.",
+    title: "원장 관리 열기",
+    description: "직원, 급여, 매출은 원장만 볼 수 있어요",
+    submit: "열기",
+    notes: ["3분 동안 쓰지 않으면 다시 잠겨요", "다른 탭으로 옮겨도 잠겨요"],
+    icon: "lock",
   },
   personal: {
     title: "내 급여명세 본인 인증",
-    description: "현재 로그인한 본인의 확정된 급여명세만 확인할 수 있습니다.",
+    description: "확정된 내 급여명세만 볼 수 있어요",
     submit: "본인 인증",
-    note: "급여 화면을 나가거나 사용하지 않으면 자동으로 잠깁니다.",
+    notes: ["3분 동안 쓰지 않으면 다시 잠겨요", "다른 탭으로 옮겨도 잠겨요"],
+    icon: "payroll",
   },
 };
 
@@ -114,7 +115,12 @@ export function AccessGate({
       }
     >
       <form id={formId} className="access-gate" onSubmit={submit}>
-        <p className="access-gate-description">{copy.description}</p>
+        <div className="access-gate-intro">
+          <span className="access-gate-icon" aria-hidden="true">
+            <Icon name={copy.icon} />
+          </span>
+          <p className="access-gate-description">{copy.description}</p>
+        </div>
         {error && (
           <div className="alert alert-danger" role="alert">
             {error}
@@ -135,7 +141,7 @@ export function AccessGate({
               </div>
             ) : (
               <Field
-                label={kind === "owner" ? "원장 계정 아이디" : "계정 아이디"}
+                label={kind === "owner" ? "원장 아이디" : "아이디"}
               >
                 <input
                   type="text"
@@ -166,10 +172,13 @@ export function AccessGate({
             </Field>
           </>
         )}
-        <p className="access-gate-note">
-          <Icon name="lock" size={16} />
-          <span>{copy.note}</span>
-        </p>
+        <div className="access-gate-note">
+          {copy.notes.map((line, index) => (
+            <span key={line} className={index ? "muted" : ""}>
+              {line}
+            </span>
+          ))}
+        </div>
       </form>
     </Modal>
   );

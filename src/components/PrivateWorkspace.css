@@ -244,3 +244,5 @@
     display: none;
   }
 }
+.private-workspace-actions { display: flex; align-items: center; gap: 16px; }
+.private-workspace-actions .btn { height: 40px; }
