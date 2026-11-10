@@ -388,7 +388,6 @@ export default function Purchases({
               />
             ) : (
               <aside className="panel po-detail po-detail-empty">
-                <Icon name="truck" />
                 <p className="muted">
                   발주를 고르면 입고와 지급을 여기서 기록해요
                 </p>

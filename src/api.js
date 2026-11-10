@@ -26,7 +26,7 @@ export const setPrivateAccess = (value) => {
 };
 const stale = () =>
   Object.assign(
-    new Error("화면이 잠겼거나 계정이 변경되었습니다. 다시 인증해 주세요."),
+    new Error("화면이 잠겼거나 계정이 바뀌었어요. 다시 인증해 주세요."),
     { code: "STALE_RESPONSE" },
   );
 async function request(path, options = {}, blob = false) {

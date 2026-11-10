@@ -493,7 +493,7 @@ export default function App() {
         });
         if (getSession() !== requestedSession)
           throw new Error(
-            "로그인 계정이 변경되었습니다. 현재 계정의 내역을 다시 확인해 주세요.",
+            "로그인 계정이 바뀌었어요. 지금 계정의 내역을 다시 확인해 주세요.",
           );
         pending.current.delete(key);
         acceptState(result);
@@ -938,9 +938,11 @@ export default function App() {
             )}
             <main id="main" className="main-content" tabIndex={-1}>
               {loadError && (
-                <div className="alert alert-warning" role="alert">
-                  {loadError}{" "}
+                <div className="page-alert" role="alert">
+                  <Icon name="alert" />
+                  <span className="page-alert-text">{loadError}</span>
                   <Button
+                    variant="secondary"
                     onClick={() =>
                       refresh()
                         .then(() => setLoadError(""))

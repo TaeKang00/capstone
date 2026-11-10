@@ -3340,3 +3340,13 @@ select:not([multiple]):not([size]), textarea, .textarea { font-size: 16px; }
 :is(.main-content, .private-workspace-content, .modal-body) .empty-state :is(h2, h3):not(.page-title):not(.sr-only) { font-size: 16px !important; line-height: 24px !important; }
 /* Section names inside dialogs (손님, 시술, 디자이너, 역할 ...) sit between dialog title (20) and field labels (14) */
 .ops-section-label, .people-group-label, .wf-group-label { font-size: 16px !important; line-height: 24px !important; font-weight: 600 !important; color: #F4F4F6 !important; }
+
+/* Alerts: tinted inset, no border, 12/16 padding; page-level alert with the action on the right */
+.alert { padding: 12px 16px; border: 0; border-radius: 12px; line-height: 20px; font-size: 14px; background: #18181E; color: #D4D4DA; }
+.alert-warning { background: rgba(245, 185, 74, 0.12); color: #F5B94A; }
+.alert-danger { background: rgba(255, 122, 133, 0.12); color: #FF7A85; }
+.alert-success { background: rgba(110, 231, 183, 0.12); color: #6EE7B7; }
+.page-alert { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 24px; border-radius: 12px; background: rgba(245, 185, 74, 0.12); color: #F5B94A; }
+.page-alert > .icon { flex: none; }
+.page-alert-text { flex: 1; min-width: 0; color: #F4F4F6; }
+.page-alert .btn { flex: none; height: 40px; min-height: 40px; }
