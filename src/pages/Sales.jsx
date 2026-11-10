@@ -113,14 +113,14 @@ function TrendChart({ name, points }) {
         {grid.map((g) => (
           <g key={g.y}>
             <line x1={left} x2={right} y1={g.y} y2={g.y} stroke="#1D1D24" strokeWidth="1" />
-            <text x={left - 8} y={g.y + 4} textAnchor="end" fill="#8B8B96" fontSize="12">
+            <text x={left - 8} y={g.y + 4} textAnchor="end" fill="#8B8B96" fontSize="14">
               {short(g.value)}
             </text>
           </g>
         ))}
         {points.map((p, i) =>
           i % every === 0 ? (
-            <text key={p.key} x={xy[i].x} y="276" textAnchor="middle" fill="#8B8B96" fontSize="12">
+            <text key={p.key} x={xy[i].x} y="276" textAnchor="middle" fill="#8B8B96" fontSize="14">
               {p.tick}
             </text>
           ) : null,

@@ -3301,8 +3301,8 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; c
    12px is kept only for small markers: status pills, badges, counts, chips in a header, chart ticks. */
 .badge, .status-pill, .pill, .nav-count, .bottom-tab-count, .auth-chip, .shared-desk-status,
 .private-workspace-timer, .modal-header .status-pill, .ops-chip-sub, .people-pill, .paym-pill, kbd {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 .status-pill, .badge { line-height: 24px; }
 
@@ -3376,8 +3376,9 @@ body { font-size: 16px; line-height: 24px; }
   font-size: 14px;
   line-height: 20px;
 }
-.table th { font-size: 12px !important; line-height: 16px !important; }
-.status-pill, .badge, .pill, .nav-count, .bottom-tab-count { font-size: 12px; line-height: 16px; }
+.table th { font-size: 14px !important; line-height: 20px !important; }
+.status-pill, .badge, .pill, .nav-count, .bottom-tab-count { font-size: 14px; line-height: 20px; }
 .status-pill, .badge { line-height: 24px; }
-.bottom-tabs button { font-size: 12px; line-height: 16px; }
+.bottom-tabs button { font-size: 14px; line-height: 20px; }
 .wf-empty, .paym-detail-who-text .num, .paym-detail-line .is-none, .empty-state p { font-size: 14px; line-height: 20px; }
+@media (max-width: 640px) { .home > .owner-phone { margin-bottom: 32px; } }

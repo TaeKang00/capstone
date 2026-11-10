@@ -182,8 +182,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1088,7 +1088,7 @@
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 24px;
   font-weight: 600;
   white-space: nowrap;

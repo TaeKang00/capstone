@@ -195,8 +195,8 @@
   border-radius: 999px;
   background: rgba(76, 125, 255, 0.14);
   color: var(--accent);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
 }
 .private-workspace-user {
