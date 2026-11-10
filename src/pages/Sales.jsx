@@ -382,7 +382,7 @@ export default function Sales({ data, user, navigate, version, routeContext, not
             }}
           />
           <Button variant="secondary" onClick={exportReport} busy={exporting}>
-            <Icon name="download" size={16} />
+            <Icon name="download" size={20} />
             CSV 내보내기
           </Button>
         </div>

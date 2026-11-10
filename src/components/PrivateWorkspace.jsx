@@ -182,7 +182,7 @@ export default function PrivateWorkspace({
               <span className="brand-dot" aria-hidden="true" />
               <strong>{owner ? "원장 관리" : "내 급여명세"}</strong>
               <span className="private-workspace-timer">
-                <Icon name="lock" size={16} />
+                <Icon name="lock" size={20} />
                 3분 동안 쓰지 않으면 잠겨요
               </span>
             </div>
@@ -257,7 +257,7 @@ export default function PrivateWorkspace({
               <span className="toast-dot" aria-hidden="true" />
               <span>{toast.message}</span>
               <button className="icon-btn" aria-label="알림 닫기" onClick={() => setToast(null)}>
-                <Icon name="close" size={16} />
+                <Icon name="close" size={20} />
               </button>
             </div>
           )}

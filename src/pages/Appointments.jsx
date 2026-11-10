@@ -756,7 +756,7 @@ function AppointmentEditor({
               aria-expanded={manual}
               onClick={() => setManual((value) => !value)}
             >
-              <Icon name={manual ? "chevron-up" : "chevron-down"} size={16} />
+              <Icon name={manual ? "chevron-up" : "chevron-down"} size={20} />
               시간 직접 입력
             </button>
           </div>
@@ -943,7 +943,7 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
             aria-label={`${fromLabel}에서 ${withRo(toLabel)}`}
           >
             <StatusPill status={appointment.status} />
-            <Icon name="arrow-right" size={16} />
+            <Icon name="arrow-right" size={20} />
             <StatusPill status={status} />
           </span>
         </div>
@@ -1186,7 +1186,7 @@ function AppointmentDetail({
               onClick={() => navigate("customers", { customerId: customer.id })}
             >
               손님 정보 보기
-              <Icon name="chevron-right" size={16} />
+              <Icon name="chevron-right" size={20} />
             </button>
           )}
         </div>
@@ -1466,7 +1466,7 @@ function Timetable({ data, date, staff, canCreate, onOpen, onCreate }) {
                   }}
                   aria-hidden="true"
                 >
-                  <Icon name="plus" size={16} />
+                  <Icon name="plus" size={20} />
                   {timeLabel(ghost)}
                 </div>
               )}
@@ -1654,7 +1654,7 @@ function PhoneSchedule({
         {overdueCount > 0 && (
           <button type="button" className="ops-m-overdue" onClick={onPending}>
             지난 미처리 {overdueCount}건
-            <Icon name="chevron-right" size={16} />
+            <Icon name="chevron-right" size={20} />
           </button>
         )}
       </header>
@@ -1680,10 +1680,10 @@ function PhoneSchedule({
               }}
             />
             <span className="ops-m-date-label" aria-hidden="true">
-              <Icon name="calendar" size={16} />
+              <Icon name="calendar" size={20} />
               {prefix}
               {longDateLabel(date)}
-              <Icon name="chevron-down" size={16} />
+              <Icon name="chevron-down" size={20} />
             </span>
           </span>
           <button
@@ -1754,7 +1754,7 @@ function PhoneSchedule({
                     onClick={() => onCreate(item.staffId, item.start)}
                   >
                     <span>{rangeLabel(item.start, item.end)} 비어 있어요</span>
-                    <Icon name="plus" size={16} />
+                    <Icon name="plus" size={20} />
                   </button>
                 )}
                 {item.kind === "leave" && (

@@ -3305,3 +3305,8 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; c
   line-height: 16px;
 }
 .status-pill, .badge { line-height: 24px; }
+
+/* Icons are 20px everywhere (the password-rule check inside its 16px circle is the only exception) */
+.btn .icon, .text-btn .icon, .chip .icon, .header-menu .icon, .toast .icon, .range-picker-trigger .icon { width: 20px; height: 20px; }
+.password-rule-mark .icon { width: 16px; height: 16px; }
+.toast .icon-btn { width: 36px; height: 36px; }

@@ -79,9 +79,9 @@ export function DateRangePicker({ from, to, today, max, maxDays = 367, onChange,
         aria-label={`${label} ${text} 달력 열기`}
         onClick={toggle}
       >
-        <Icon name="calendar" size={16} />
+        <Icon name="calendar" size={20} />
         {text}
-        <Icon name={open ? "chevron-up" : "chevron-down"} size={16} />
+        <Icon name={open ? "chevron-up" : "chevron-down"} size={20} />
       </button>
       {open && (
         <div className="range-picker-panel" role="dialog" aria-label={`${label} 고르기`}>

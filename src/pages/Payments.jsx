@@ -231,7 +231,7 @@ export default function Payments({
             aria-label="+ 수납 기록"
             onClick={() => setDialog({ kind: "create" })}
           >
-            <Icon name="plus" size={16} />
+            <Icon name="plus" size={20} />
             수납 기록
           </Button>
         )}
@@ -327,7 +327,7 @@ export default function Payments({
                     <span className="paym-row-cta" aria-hidden="true">
                       수납
                     </span>
-                    <Icon name="chevron-right" size={16} />
+                    <Icon name="chevron-right" size={20} />
                   </button>
                 </li>
               );
@@ -405,7 +405,7 @@ export default function Payments({
               aria-label={`조회 기간 ${from} ~ ${to}`}
               onClick={() => setPeriodOpen(true)}
             >
-              <Icon name="calendar" size={16} />
+              <Icon name="calendar" size={20} />
               {from === to
                 ? shortDate(from)
                 : `${shortDate(from)} ~ ${shortDate(to)}`}
@@ -492,7 +492,7 @@ export default function Payments({
                         <strong>{money(tx.total)}</strong>
                         {refunded > 0 && <small>환불 {money(refunded)}</small>}
                       </span>
-                      <Icon name="chevron-right" size={16} />
+                      <Icon name="chevron-right" size={20} />
                     </button>
                   </li>
                 );
@@ -1078,7 +1078,7 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                               setEditingPrice(editing ? null : line.key)
                             }
                           >
-                            <Icon name="edit" size={16} />
+                            <Icon name="edit" size={20} />
                           </button>
                           <button
                             type="button"
@@ -1091,7 +1091,7 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
                               )
                             }
                           >
-                            <Icon name="trash" size={16} />
+                            <Icon name="trash" size={20} />
                           </button>
                         </span>
                         {editing && (
@@ -1458,7 +1458,7 @@ function PaymentDetail({
         <>
           <span className="paym-detail-print">
             <Button variant="secondary" onClick={() => printReceipt(tx, data)}>
-              <Icon name="print" size={16} />
+              <Icon name="print" size={20} />
               영수증 인쇄
             </Button>
           </span>
@@ -1551,7 +1551,7 @@ function PaymentDetail({
                 }}
               >
                 손님 정보 보기
-                <Icon name="chevron-right" size={16} />
+                <Icon name="chevron-right" size={20} />
               </button>
             </dd>
           </div>
@@ -1569,7 +1569,7 @@ function PaymentDetail({
                 }}
               >
                 예약 확인
-                <Icon name="chevron-right" size={16} />
+                <Icon name="chevron-right" size={20} />
               </button>
             </dd>
           </div>
@@ -1711,7 +1711,7 @@ function PaymentDetail({
       )}
       {canWrite && !canReprice && tx.status !== "refunded" && (
         <p id="paym-detail-reprice-note" className="paym-detail-note">
-          <Icon name="info" size={16} />
+          <Icon name="info" size={20} />
           환불 기록이 있는 결제는 금액 정정과 재수납을 할 수 없어요
         </p>
       )}
@@ -1873,7 +1873,7 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
                 <span key={label} className="paym-diff-row">
                   {label}
                   <s>{before}</s>
-                  <Icon name="arrow-right" size={16} />
+                  <Icon name="arrow-right" size={20} />
                   <strong>{after}</strong>
                 </span>
               ))

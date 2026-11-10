@@ -927,7 +927,7 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
                             changeLine(i.id, "quantity", String(qty - 1))
                           }
                         >
-                          <Icon name="minus" size={16} />
+                          <Icon name="minus" size={20} />
                         </button>
                         <input
                           required
@@ -954,7 +954,7 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
                               : toggle(i, true)
                           }
                         >
-                          <Icon name="plus" size={16} />
+                          <Icon name="plus" size={20} />
                         </button>
                       </span>
                       <strong className="po-pick-amount num">

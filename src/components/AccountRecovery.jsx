@@ -67,7 +67,7 @@ export function RecoveryAccessPanel() {
           <span className="muted">아이디와 비밀번호를 잊었을 때 쓰는 일회용 코드예요</span>
         </span>
         <Button variant="secondary" onClick={() => setConfirm(true)}>
-          <Icon name="refresh" size={16} />
+          <Icon name="refresh" size={20} />
           {available ? "복구 코드 재발급" : "복구 코드 발급"}
         </Button>
       </div>
@@ -88,7 +88,7 @@ export function RecoveryAccessPanel() {
             />
           </Field>
           <Button variant="primary" onClick={save}>
-            <Icon name="download" size={16} />
+            <Icon name="download" size={20} />
             복구 코드 파일 저장
           </Button>
         </div>

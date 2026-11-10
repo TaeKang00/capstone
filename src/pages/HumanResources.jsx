@@ -493,7 +493,7 @@ function DecisionDialog({ row, data, runAction, notify, navigate, close }) {
               }}
             >
               예약 보기
-              <Icon name="chevron-right" size={16} />
+              <Icon name="chevron-right" size={20} />
             </button>
           )}
         </div>
@@ -645,7 +645,7 @@ function AttendanceRecords({ data, runAction, notify }) {
             })
           }
         >
-          <Icon name="plus" size={16} /> 기록 추가
+          <Icon name="plus" size={20} /> 기록 추가
         </Button>
       </div>
       <div className="wf-row-wrap">
@@ -1520,7 +1520,7 @@ function Certificates({ data, runAction, notify }) {
             </span>
           )}
           <Button type="submit" variant="primary" className="btn-block" busy={busy}>
-            <Icon name="print" size={16} /> 발급하고 인쇄
+            <Icon name="print" size={20} /> 발급하고 인쇄
           </Button>
         </form>
       </section>
@@ -1562,7 +1562,7 @@ function Certificates({ data, runAction, notify }) {
                     <td>{row.issuedBy}</td>
                     <td className="numeric">
                       <Button variant="ghost" onClick={() => print(row)}>
-                        <Icon name="print" size={16} /> 다시 인쇄
+                        <Icon name="print" size={20} /> 다시 인쇄
                       </Button>
                     </td>
                   </tr>

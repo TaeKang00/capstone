@@ -376,7 +376,7 @@ function CustomerDetail({
         </div>
         {customer.warning && (
           <div className={`ops-warning ${compact ? "ops-warning-note" : ""}`}>
-            {compact && <Icon name="alert" size={16} />}
+            {compact && <Icon name="alert" size={20} />}
             시술 전 확인: {customer.warning}
           </div>
         )}
@@ -664,7 +664,7 @@ export default function Customers({
             aria-label="+ 고객 등록"
             onClick={() => setEditor({})}
           >
-            <Icon name="plus" size={16} />
+            <Icon name="plus" size={20} />
             고객 등록
           </button>
         </header>
@@ -748,7 +748,7 @@ export default function Customers({
                       {phone && (
                         <Icon
                           name="chevron-right"
-                          size={16}
+                          size={20}
                           className="ops-row-chevron"
                         />
                       )}

@@ -1,6 +1,6 @@
 /* Native select kept for semantics; styled to the dark tokens (input 44px, radius 8, menu radius 12). */
 select:not([multiple]):not([size]) {
-  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AB' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23A1A1AB' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --select-surface: #0E0E12;
   appearance: none;
   -webkit-appearance: none;
@@ -12,7 +12,7 @@ select:not([multiple]):not([size]) {
   background-color: var(--select-surface);
   background-image: var(--select-chevron);
   background-position: right 12px center;
-  background-size: 16px 16px;
+  background-size: 20px 20px;
   background-repeat: no-repeat;
   color: #F4F4F6;
   font: inherit;
@@ -39,10 +39,10 @@ select:not([multiple]):not([size]):disabled { opacity: 0.35; cursor: not-allowed
   }
   select:not([multiple]):not([size])::picker-icon {
     content: "";
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     margin-inline-start: auto;
-    background: var(--select-chevron) center / 16px 16px no-repeat;
+    background: var(--select-chevron) center / 20px 20px no-repeat;
     color: transparent;
     transition: transform 0.15s;
     position: absolute;

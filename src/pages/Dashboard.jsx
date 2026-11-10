@@ -160,7 +160,7 @@ function OwnerPhoneSummary({ data, date, net, unpaid, open, pending, navigate })
           </span>
           <span className="owner-phone-approval-cta">
             확인
-            <Icon name="chevron-right" size={16} />
+            <Icon name="chevron-right" size={20} />
           </span>
         </button>
       )}
@@ -466,7 +466,7 @@ export default function Dashboard({ data, user, navigate, runAction, notify }) {
                         <strong>{todo.title}</strong>
                         <small>{todo.detail}</small>
                       </span>
-                      <Icon name="chevron-right" size={16} />
+                      <Icon name="chevron-right" size={20} />
                     </button>
                   </li>
                 ))}

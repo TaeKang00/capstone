@@ -337,7 +337,7 @@ export const DateInput = forwardRef(function DateInput(
         disabled={inactive}
         onClick={() => (open ? close(true) : show())}
       >
-        <Icon name="calendar" size={16} />
+        <Icon name="calendar" size={20} />
       </button>
       {open && (
         <div
@@ -369,7 +369,7 @@ export const DateInput = forwardRef(function DateInput(
                 }}
               >
                 {year}년 {month + 1}월
-                <Icon name="chevron-down" size={16} />
+                <Icon name="chevron-down" size={20} />
               </button>
             ) : (
               <strong className="date-picker-period" aria-live="polite">

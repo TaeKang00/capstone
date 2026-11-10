@@ -354,7 +354,7 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
           )
         }
       >
-        <Icon name="trash" size={16} />
+        <Icon name="trash" size={20} />
       </button>
     </div>
   );
@@ -1145,7 +1145,7 @@ function SlipPanel({ record, manager, onOpen, onPrint }) {
           전체 명세서
         </button>
         <Button variant="secondary" onClick={onPrint}>
-          <Icon name="print" size={16} />
+          <Icon name="print" size={20} />
           {draft ? "초안 인쇄" : "인쇄 / PDF 저장"}
         </Button>
       </div>
@@ -1545,7 +1545,7 @@ export default function Payroll({
           footer={
             <>
               <Button variant="secondary" className="pay-foot-print" onClick={print}>
-                <Icon name="print" size={16} />
+                <Icon name="print" size={20} />
                 {selected.status === "draft" ? "초안 인쇄" : "인쇄 / PDF 저장"}
               </Button>
               {manager && selected.status === "draft" && (
@@ -1660,15 +1660,15 @@ export default function Payroll({
             </div>
             <ul className="pay-checks">
               <li>
-                <Icon name="check" size={16} />
+                <Icon name="check" size={20} />
                 명세서를 작성 중으로 되돌려요
               </li>
               <li>
-                <Icon name="check" size={16} />
+                <Icon name="check" size={20} />
                 직원 화면에서는 다시 확정할 때까지 숨겨요
               </li>
               <li>
-                <Icon name="check" size={16} />
+                <Icon name="check" size={20} />
                 기존 확정 기록은 변경 기록에 그대로 남아요
               </li>
             </ul>

@@ -577,7 +577,7 @@ function ServiceSettings({ data, runAction, notify }) {
             })
           }
         >
-          <Icon name="plus" size={16} /> 시술 등록
+          <Icon name="plus" size={20} /> 시술 등록
         </Button>
       </div>
       <div className="st-toolbar">
@@ -914,7 +914,7 @@ function Audit() {
       <div className="panel-head">
         <h2 id="audit-title">{kind === "auth" ? "접속 기록" : "최근 활동 기록"}</h2>
         <button type="button" className="text-btn st-text-btn" onClick={() => load()}>
-          <Icon name="refresh" size={16} /> 새로고침
+          <Icon name="refresh" size={20} /> 새로고침
         </button>
       </div>
       <div className="st-toolbar">
@@ -1137,8 +1137,8 @@ function DataSettings({ data, runAction, notify }) {
                 </span>
                 <span className="st-file-pick" aria-hidden="true">
                   <svg
-                    width="16"
-                    height="16"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1196,7 +1196,7 @@ function DataSettings({ data, runAction, notify }) {
           <span>직원 계정과 매장 운영 데이터를 한 파일로 내려받아요</span>
           <div>
             <Button variant="primary" onClick={downloadBackup} busy={downloading}>
-              <Icon name="download" size={16} /> 데이터베이스 백업 다운로드
+              <Icon name="download" size={20} /> 데이터베이스 백업 다운로드
             </Button>
           </div>
           <span className="small muted">
@@ -1358,7 +1358,7 @@ function Help({ data, user, navigate, onTab }) {
                 className={`st-step-mark ${step.complete ? "is-done" : ""}`}
                 aria-hidden="true"
               >
-                {step.complete && <Icon name="check" size={16} />}
+                {step.complete && <Icon name="check" size={20} />}
               </span>
               <span className="st-step-text">
                 <span className="st-step-title">

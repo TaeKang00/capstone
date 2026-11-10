@@ -175,10 +175,10 @@ function HeaderMenu({ user, refreshing, syncError, lastSynced, onPassword, onOpe
             <small>{roleLabel(user.role)}</small>
           </div>
           <button type="button" role="menuitem" onClick={pick(onPassword)}>
-            <Icon name="lock" size={16} />내 비밀번호 변경
+            <Icon name="lock" size={20} />내 비밀번호 변경
           </button>
           <button type="button" role="menuitem" onClick={pick(onOperator)}>
-            <Icon name="swap" size={16} />작업자 전환
+            <Icon name="swap" size={20} />작업자 전환
           </button>
           <button
             type="button"
@@ -191,7 +191,7 @@ function HeaderMenu({ user, refreshing, syncError, lastSynced, onPassword, onOpe
             }
             onClick={pick(onRefresh)}
           >
-            <Icon name="refresh" size={16} />
+            <Icon name="refresh" size={20} />
             {syncError ? "연결 확인" : "새로고침"}
             {lastSynced && (
               <span className="header-menu-meta">
@@ -200,7 +200,7 @@ function HeaderMenu({ user, refreshing, syncError, lastSynced, onPassword, onOpe
             )}
           </button>
           <button type="button" role="menuitem" onClick={pick(onLogout)}>
-            <Icon name="logout" size={16} />로그아웃
+            <Icon name="logout" size={20} />로그아웃
           </button>
         </div>
       )}
@@ -539,7 +539,7 @@ export default function App() {
         <h1>화면이 잠겼어요</h1>
         <p>{security.lockError || "공용 화면으로 바꾸고 있어요"}</p>
         <Button variant="secondary" onClick={security.lockWork}>
-          <Icon name="refresh" size={16} />
+          <Icon name="refresh" size={20} />
           잠금 상태 다시 확인
         </Button>
         <span className="loading-hint">바뀌지 않으면 다시 확인을 눌러 주세요</span>
@@ -845,7 +845,7 @@ export default function App() {
                 aria-label="＋ 예약 등록"
                 onClick={() => navigate("appointments", { create: true })}
               >
-                <Icon name="plus" size={16} />
+                <Icon name="plus" size={20} />
                 예약 등록
               </Button>
             )}
@@ -855,7 +855,7 @@ export default function App() {
               className="header-lock"
               onClick={security.lockWork}
             >
-              <Icon name="lock" size={16} />
+              <Icon name="lock" size={20} />
               공용 화면 잠금
             </Button>
             <HeaderMenu
