@@ -22,7 +22,7 @@
 }
 .commerce-stats .stat-card strong {
   display: block;
-  font-size: 1.45rem;
+  font-size: 20px;
   letter-spacing: -0.025em;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
@@ -61,7 +61,7 @@
   flex-wrap: wrap;
   gap: 10px;
   margin: -8px 0 18px;
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 .commerce-result-summary {
   display: flex;
@@ -72,7 +72,7 @@
   border: 1px solid var(--line, var(--line-strong));
   border-radius: 6px;
   background: var(--surface-soft, var(--surface-2));
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 .commerce-actions {
   display: flex;
@@ -90,7 +90,7 @@
 }
 .commerce-secondary {
   display: block;
-  font-size: 0.8rem;
+  font-size: 14px;
   color: var(--muted, var(--text-muted));
   margin-top: 4px;
 }
@@ -127,7 +127,7 @@
   grid-column: 1/-1;
 }
 .commerce-section-title {
-  font-size: 0.9375rem;
+  font-size: 14px;
   margin: 22px 0 12px;
   display: flex;
   align-items: center;
@@ -189,7 +189,7 @@
   gap: 18px;
 }
 .commerce-totals .grand-total {
-  font-size: 1.25rem;
+  font-size: 18px;
   font-weight: 700;
   padding-top: 12px;
   border-top: 1px solid var(--line, var(--line-strong));
@@ -205,7 +205,7 @@
   gap: 10px;
   line-height: 1.6;
   padding: 12px 0;
-  font-size: 0.9rem;
+  font-size: 14px;
   cursor: pointer;
 }
 .commerce-check input {
@@ -237,7 +237,7 @@
 }
 .commerce-detail-top h3 {
   margin: 0 0 8px;
-  font-size: 1.35rem;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
 }
 .commerce-timeline {
@@ -283,13 +283,13 @@
   margin: 14px 0;
 }
 .commerce-note {
-  font-size: 0.875rem;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--muted, var(--text-muted));
   margin: 10px 0;
 }
 .commerce-stock-number {
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   display: block;
@@ -312,7 +312,7 @@
   background: var(--surface-2);
   padding: 6px 12px;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 14px;
   min-height: 34px;
   cursor: pointer;
   text-align: left;
@@ -378,14 +378,14 @@
   background: var(--chip);
 }
 .commerce-bar-column small {
-  font-size: 0.65rem;
+  font-size: 14px;
   color: var(--muted, var(--text-muted));
   white-space: nowrap;
 }
 .commerce-legend {
   display: flex;
   gap: 18px;
-  font-size: 0.8rem;
+  font-size: 14px;
   color: var(--muted, var(--text-muted));
 }
 .commerce-legend i {
@@ -446,7 +446,7 @@
   display: block;
 }
 .commerce-pending small {
-  font-size: 0.8rem;
+  font-size: 14px;
   color: var(--muted, var(--text-muted));
   margin-top: 6px;
 }
@@ -489,7 +489,7 @@
     padding: 14px 12px;
   }
   .commerce-stats .stat-card strong {
-    font-size: 1.15rem;
+    font-size: 16px;
   }
   .commerce-filters {
     gap: 10px;
@@ -519,7 +519,7 @@
     font-size: 14px;
   }
   .commerce-line .line-label {
-    font-size: 0.85rem;
+    font-size: 14px;
   }
   .commerce-add-line {
     align-items: stretch;
@@ -528,7 +528,7 @@
   .commerce-definition {
     grid-template-columns: 88px 1fr;
     gap: 10px;
-    font-size: 0.9rem;
+    font-size: 14px;
   }
   .commerce-detail-top {
     flex-direction: column;
@@ -626,7 +626,7 @@
     min-height: 42px;
   }
   .commerce-mobile-cards .commerce-stock-number {
-    font-size: 1rem;
+    font-size: 14px;
   }
 }
 
@@ -655,6 +655,6 @@
 
 .commerce-spec {
   color: var(--muted);
-  font-size: 0.85em;
+  font-size: 14px;
   font-weight: 500;
 }

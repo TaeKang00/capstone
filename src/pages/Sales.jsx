@@ -82,6 +82,18 @@ function useJson(path, deps, enabled = true) {
 function TrendChart({ name, points }) {
   const [hover, setHover] = useState(null);
   const W = 1200, left = 56, right = 1188, top = 16, bottom = 248;
+  // The SVG scales with its box, so tick labels are sized in view units to render at 14px.
+  const plotRef = useRef(null);
+  const [tick, setTick] = useState(14);
+  useEffect(() => {
+    const node = plotRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+    const update = () => node.clientWidth && setTick((14 * W) / node.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const vmax = Math.max(0, ...points.map((p) => p.v));
   const vmin = Math.min(0, ...points.map((p) => p.v));
   const range = vmax - vmin || 1;
@@ -108,19 +120,19 @@ function TrendChart({ name, points }) {
   const hit = Math.max(step, 24);
   const h = hover != null && hover < points.length ? hover : null;
   return (
-    <div className="sales-trend-plot" onMouseLeave={() => setHover(null)}>
+    <div className="sales-trend-plot" ref={plotRef} onMouseLeave={() => setHover(null)}>
       <svg viewBox={`0 0 ${W} 280`} role="img" aria-label={`${name} 순매출 선 그래프`}>
         {grid.map((g) => (
           <g key={g.y}>
             <line x1={left} x2={right} y1={g.y} y2={g.y} stroke="#1D1D24" strokeWidth="1" />
-            <text x={left - 8} y={g.y + 4} textAnchor="end" fill="#8B8B96" fontSize="14">
+            <text x={left - 8} y={g.y + 4} textAnchor="end" fill="#8B8B96" fontSize={tick}>
               {short(g.value)}
             </text>
           </g>
         ))}
         {points.map((p, i) =>
           i % every === 0 ? (
-            <text key={p.key} x={xy[i].x} y="276" textAnchor="middle" fill="#8B8B96" fontSize="14">
+            <text key={p.key} x={xy[i].x} y="276" textAnchor="middle" fill="#8B8B96" fontSize={tick}>
               {p.tick}
             </text>
           ) : null,
