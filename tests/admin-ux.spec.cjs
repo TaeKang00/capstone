@@ -63,8 +63,9 @@ test('이전 급여 조건을 재사용하되 근태와 메모를 비우고 이�
   const dialog = page.getByRole('dialog', { name: '명세서 작성', exact: true });
   await dialog.getByLabel('직원', { exact: true }).selectOption(staff.id);
   await dialog.getByLabel('기본급', { exact: true }).fill('100');
+  await dialog.getByRole('button', { name: /근무 기록과 메모/ }).click();
   await dialog.getByLabel('명세서 메모', { exact: true }).fill('입력 중 메모');
-  await dialog.getByRole('button', { name: '이전 명세서 조건 불러오기', exact: true }).click();
+  await dialog.getByRole('button', { name: '지난 조건 불러오기', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: '이전 급여 조건을 불러올까요?', exact: true });
   await expect(confirm).toContainText('근무일수, 근로시간, 메모는 비워요');
   await confirm.getByRole('button', { name: '조건 불러오기', exact: true }).click();

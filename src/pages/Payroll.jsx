@@ -268,7 +268,12 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
   const earnings = Number(form.basePay || 0) + commission + allowances;
   const net = earnings - deductions;
   const [helperNote, setHelperNote] = useState("");
+  const [moreOpen, setMoreOpen] = useState(
+    helper === "attendance" ||
+      Boolean(initial.workDays || initial.workHours || initial.basis || initial.notes),
+  );
   const loadAttendance = () => {
+    setMoreOpen(true);
     const summary = attendanceSummary(data, form.staffId, form.month);
     if (!summary.days && !summary.overtime) {
       setHelperNote("이 달의 출퇴근 기록과 승인된 연장 근무가 없어요.");
@@ -315,12 +320,9 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
       form[key].map((entry, i) => (i === index ? { ...entry, ...patch } : entry)),
     );
   const itemRow = (key, title, item, index) => (
-    <div
-      className={`pay-item ${key === "deductions" ? "pay-item-deduct" : ""}`}
-      key={index}
-    >
+    <div className="pay-entry" key={index}>
       <input
-        className="pay-item-name"
+        className="pay-entry-name"
         aria-label={`${title} ${index + 1} 항목명`}
         placeholder="항목 이름"
         required
@@ -328,7 +330,7 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
         value={item.name}
         onChange={(event) => updateItem(key, index, { name: event.target.value })}
       />
-      <span className="pay-unit-input">
+      <span className="pay-unit-input pay-wide-input">
         <input
           type="number"
           className="num"
@@ -345,7 +347,7 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
       </span>
       <button
         type="button"
-        className="icon-btn"
+        className="pay-entry-remove"
         aria-label={`${title} ${index + 1} 삭제`}
         onClick={() =>
           set(
@@ -354,10 +356,17 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
           )
         }
       >
-        <Icon name="trash" size={20} />
+        <Icon name="close" size={20} />
       </button>
     </div>
   );
+  const workSummary =
+    [
+      form.workDays !== "" && form.workDays != null ? `근무 ${form.workDays}일` : "",
+      form.workHours !== "" && form.workHours != null ? `${form.workHours}시간` : "",
+    ]
+      .filter(Boolean)
+      .join(", ") || (form.basis || form.notes ? "메모 있음" : "비어 있어요");
   return (
     <Modal
       title={initial.id ? "명세서 수정" : "명세서 작성"}
@@ -367,11 +376,8 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
       footer={
         <div className="pay-form-footer">
           <span className="payroll-preview">
-            <span className="small muted">실지급액</span>
+            <span className="pay-net-label">실지급액</span>
             <strong className="num">{format(net)}원</strong>
-            <span className="small muted">
-              지급 {format(earnings)}원에서 공제 {format(deductions)}원을 뺐어요
-            </span>
           </span>
           <div className="pay-form-buttons">
             <Button
@@ -419,7 +425,7 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
               {error}
             </div>
           )}
-          <div className="pay-grid-3">
+          <div className="pay-grid-3 pay-top">
             <Field label="직원">
               <select
                 className="select"
@@ -481,58 +487,39 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
               기존 명세서를 열거나 다른 직원, 다른 달을 골라 주세요.
             </div>
           )}
-          {previous && (
-            <div className="pay-inset-row">
-              <span className="pay-row-text">
-                <span className="pay-row-title">
-                  {monthTitle(previous.month)} 조건이 있어요
-                </span>
-                <span className="small muted">
-                  기본급, 인센티브 비율, 수당, 공제, 계산 근거를 가져와요
-                </span>
-              </span>
-              <Button variant="secondary" onClick={() => setCopySource(previous)}>
-                이전 명세서 조건 불러오기
-              </Button>
+          {previous && !copiedFrom && (
+            <div className="pay-copy-row">
+              <span>{monthTitle(previous.month)} 조건을 그대로 쓸 수 있어요</span>
+              <button
+                type="button"
+                className="pay-pill"
+                onClick={() => setCopySource(previous)}
+              >
+                지난 조건 불러오기
+              </button>
             </div>
           )}
           {copiedFrom && (
             <p
               className={
                 copiedFrom.staffId === form.staffId
-                  ? "small muted pay-note"
+                  ? "pay-hint pay-note"
                   : "alert alert-warning"
               }
               role="status"
             >
               {copiedFrom.name}님의 {monthTitle(copiedFrom.month)} 조건을
-              불러왔어요. 근무 기록과 메모는 비웠고, 인센티브는 고른 달의 매출로
-              계산해요.
+              불러왔어요.
               {copiedFrom.staffId !== form.staffId &&
                 " 직원이 바뀌었어요. 이 직원의 계약에 맞는 금액인지 확인해 주세요."}
             </p>
           )}
           <section className="pay-section" aria-labelledby={`${ids}-pay`}>
-            <div className="pay-section-head">
-              <h3 id={`${ids}-pay`}>지급</h3>
-              <button
-                type="button"
-                className="text-btn pay-text-btn"
-                onClick={() => addItem("allowances")}
-                disabled={form.allowances.length >= 30}
-              >
-                항목 추가
-              </button>
-            </div>
-            <div className="pay-row">
-              <span className="pay-row-text">
-                <label className="pay-row-title" htmlFor={`${ids}-base`}>
-                  기본급
-                </label>
-                <span className="small muted">
-                  {copiedFrom ? "지난달 조건 불러옴" : "월 정액"}
-                </span>
-              </span>
+            <h3 id={`${ids}-pay`}>지급</h3>
+            <div className="pay-entry">
+              <label className="pay-entry-label" htmlFor={`${ids}-base`}>
+                기본급
+              </label>
               <span className="pay-unit-input pay-wide-input">
                 <input
                   id={`${ids}-base`}
@@ -547,19 +534,14 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
                 <span aria-hidden="true">원</span>
               </span>
             </div>
-            <div className="pay-row">
-              <span className="pay-row-text">
-                <span className="pay-row-title">시술 인센티브</span>
-                <span className="small muted">
-                  순 시술 매출 {format(Math.max(0, revenue.net))}원의{" "}
-                  {Number(form.commissionRate || 0)}%
+            <div className="pay-entry">
+              <span className="pay-entry-label">
+                <span>시술 인센티브</span>
+                <span className="pay-hint">
+                  {revenue.refunded > 0
+                    ? `환불 뺀 시술 매출 ${format(Math.max(0, revenue.net))}원 기준`
+                    : `이달 시술 매출 ${format(Math.max(0, revenue.net))}원 기준`}
                 </span>
-                {revenue.refunded > 0 && (
-                  <span className="small muted">
-                    시술 매출 {format(revenue.gross)}원에서 환불{" "}
-                    {format(revenue.refunded)}원을 뺐어요
-                  </span>
-                )}
               </span>
               <span className="pay-unit-input pay-rate-input">
                 <input
@@ -575,122 +557,137 @@ function PayrollForm({ data, initial, busy, error, helper, onSubmit, onClose }) 
                 />
                 <span aria-hidden="true">%</span>
               </span>
-              <strong className="pay-row-value num">{format(commission)}원</strong>
+              <span className="pay-entry-value num">{format(commission)}원</span>
             </div>
             {form.allowances.map((item, index) =>
               itemRow("allowances", "추가 지급", item, index),
             )}
-            <span className="small muted">
-              인센티브는 결제일 기준 할인 후 시술 매출에서 그 달 환불을 빼고
-              계산해요. 저장하거나 확정할 때 최신 거래로 다시 계산해요.
-            </span>
+            <div className="pay-subtotal">
+              <button
+                type="button"
+                className="pay-add"
+                onClick={() => addItem("allowances")}
+                disabled={form.allowances.length >= 30}
+              >
+                <Icon name="plus" size={20} />
+                지급 항목
+              </button>
+              <span>
+                지급 합계 <strong className="num">{format(earnings)}원</strong>
+              </span>
+            </div>
           </section>
           <section className="pay-section" aria-labelledby={`${ids}-deduct`}>
             <div className="pay-section-head">
               <h3 id={`${ids}-deduct`}>공제</h3>
-              <span className="pay-head-actions">
-                <button
-                  type="button"
-                  className="pay-pill"
-                  onClick={applyInsurance}
-                >
-                  4대보험 계산
-                </button>
-                <button
-                  type="button"
-                  className="text-btn pay-text-btn"
-                  onClick={() => addItem("deductions")}
-                  disabled={form.deductions.length >= 30}
-                >
-                  항목 추가
-                </button>
-              </span>
-            </div>
-            {form.deductions.length > 0 ? (
-              <div className="pay-grid-2">
-                {form.deductions.map((item, index) =>
-                  itemRow("deductions", "공제", item, index),
-                )}
-              </div>
-            ) : (
-              <div className="pay-empty-box">
-                <span>아직 공제 항목이 없어요</span>
-                <span className="muted">4대보험 계산을 누르거나 소득세 같은 항목을 추가해 주세요</span>
-              </div>
-            )}
-            <span className="small muted">
-              요율은 설정에서 바꾸고, 소득세와 지방소득세는 간이세액표를 보고 넣어요
-            </span>
-          </section>
-          <section className="pay-section" aria-labelledby={`${ids}-work`}>
-            <div className="pay-section-head">
-              <h3 id={`${ids}-work`}>근무 기록</h3>
-              <button type="button" className="pay-pill" onClick={loadAttendance}>
-                근태 불러오기
+              <button type="button" className="pay-pill" onClick={applyInsurance}>
+                4대보험 계산
               </button>
             </div>
-            <div className="pay-grid-3">
-              {[
-                ["workDays", "근무일", "일", 31, 1],
-                ["workHours", "근무 시간", "시간", 744, 0.01],
-                ["overtimeHours", "연장", "시간", 744, 0.01],
-              ].map(([key, label, unit, max, step]) => (
-                <div className="pay-tile" key={key}>
-                  <label className="small muted" htmlFor={`${ids}-${key}`}>
-                    {label}
-                  </label>
-                  <span className="pay-unit-input">
-                    <input
-                      id={`${ids}-${key}`}
-                      className="num"
-                      type="number"
-                      min="0"
-                      max={max}
-                      step={step}
-                      value={form[key] ?? ""}
-                      onChange={(event) => set(key, event.target.value)}
-                    />
-                    <span aria-hidden="true">{unit}</span>
-                  </span>
-                </div>
-              ))}
+            {form.deductions.length > 0 ? (
+              form.deductions.map((item, index) =>
+                itemRow("deductions", "공제", item, index),
+              )
+            ) : (
+              <p className="pay-entry pay-entry-empty">아직 공제 항목이 없어요</p>
+            )}
+            <div className="pay-subtotal">
+              <button
+                type="button"
+                className="pay-add"
+                onClick={() => addItem("deductions")}
+                disabled={form.deductions.length >= 30}
+              >
+                <Icon name="plus" size={20} />
+                공제 항목
+              </button>
+              <span>
+                공제 합계{" "}
+                <strong className="num is-deduct">
+                  {deductions ? `−${format(deductions)}` : "0"}원
+                </strong>
+              </span>
             </div>
-            <span className="small muted">근무 시간에는 연장 시간이 들어가요</span>
+            <span className="pay-hint">
+              소득세와 지방소득세는 간이세액표를 보고 공제 항목으로 넣어요
+            </span>
           </section>
           {helperNote && (
             <p className="pay-helper-note" role="status">
               {helperNote}
             </p>
           )}
-          <section className="pay-section" aria-labelledby={`${ids}-memo`}>
-            <div className="pay-section-head">
-              <h3 id={`${ids}-memo`}>메모</h3>
-            </div>
-            <Field
-              label="계산 근거"
-              help="예: 기본급은 월 정액, 연장 수당은 통상시급에 연장 시간과 배율을 곱해요"
+          <section
+            className={`pay-more ${moreOpen ? "is-open" : ""}`}
+            aria-labelledby={`${ids}-more`}
+          >
+            <button
+              type="button"
+              className="pay-more-toggle"
+              aria-expanded={moreOpen}
+              aria-controls={`${ids}-more-body`}
+              onClick={() => setMoreOpen((open) => !open)}
             >
-              <textarea
-                className="textarea"
-                rows="3"
-                maxLength={2000}
-                value={form.basis}
-                onChange={(event) => set("basis", event.target.value)}
-              />
-            </Field>
-            <Field label="명세서 메모" help="직원에게도 보여요">
-              <textarea
-                className="textarea"
-                rows="2"
-                maxLength={1000}
-                value={form.notes}
-                onChange={(event) => set("notes", event.target.value)}
-              />
-            </Field>
-            <span className="small muted">
-              계산 결과는 참고용이에요. 실제 보험료 고지액과 세액을 확인한 뒤
-              확정해 주세요
-            </span>
+              <span id={`${ids}-more`} className="pay-more-title">
+                근무 기록과 메모
+              </span>
+              {!moreOpen && <span className="pay-hint">{workSummary}</span>}
+              <Icon name={moreOpen ? "chevron-up" : "chevron-down"} size={20} />
+            </button>
+            {moreOpen && (
+              <div className="pay-more-body" id={`${ids}-more-body`}>
+                <div className="pay-work-grid">
+                  {[
+                    ["workDays", "근무일", "일", 31, 1],
+                    ["workHours", "근무 시간", "시간", 744, 0.01],
+                    ["overtimeHours", "연장", "시간", 744, 0.01],
+                  ].map(([key, label, unit, max, step]) => (
+                    <div className="field" key={key}>
+                      <label className="field-label" htmlFor={`${ids}-${key}`}>
+                        {label}
+                      </label>
+                      <span className="pay-unit-input">
+                        <input
+                          id={`${ids}-${key}`}
+                          className="input num"
+                          type="number"
+                          min="0"
+                          max={max}
+                          step={step}
+                          value={form[key] ?? ""}
+                          onChange={(event) => set(key, event.target.value)}
+                        />
+                        <span aria-hidden="true">{unit}</span>
+                      </span>
+                    </div>
+                  ))}
+                  <Button variant="secondary" onClick={loadAttendance}>
+                    근태 불러오기
+                  </Button>
+                </div>
+                <span className="pay-hint">근무 시간에는 연장 시간이 들어가요</span>
+                <Field label="계산 근거">
+                  <textarea
+                    className="textarea"
+                    rows="2"
+                    maxLength={2000}
+                    placeholder="예: 월 기본급과 시술 매출 인센티브 10%"
+                    value={form.basis}
+                    onChange={(event) => set("basis", event.target.value)}
+                  />
+                </Field>
+                <Field label="명세서 메모">
+                  <textarea
+                    className="textarea"
+                    rows="2"
+                    maxLength={1000}
+                    placeholder="직원 명세서에도 보여요"
+                    value={form.notes}
+                    onChange={(event) => set("notes", event.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
           </section>
         </fieldset>
       </form>

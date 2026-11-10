@@ -159,6 +159,7 @@ test('급여명세서를 작성·확정·지급 처리하고 출력할 수 있�
   let dialog = page.getByRole('dialog', { name: '명세서 작성', exact: true });
   await dialog.getByLabel('직원', { exact: true }).selectOption(staff.id);
   await dialog.getByLabel('기본급', { exact: true }).fill('2400000');
+  await dialog.getByRole('button', { name: /근무 기록과 메모/ }).click();
   await dialog.getByLabel('계산 근거', { exact: true }).fill('테스트 월 정액 급여');
   await dialog.getByRole('button', { name: '임시 저장', exact: true }).click();
   await expect(dialog).toBeHidden();
