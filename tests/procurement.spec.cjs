@@ -59,7 +59,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
   await expect(
     page.getByText("케어 샴푸", { exact: true }).first(),
   ).toBeVisible();
-  const itemId = (await state(page)).data.items[0].id;
+  const itemName = (await state(page)).data.items[0].name;
   await page
     .getByLabel("품목 분류별 조회", { exact: true })
     .selectOption(categoryId);
@@ -83,14 +83,14 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .getByLabel("시술 이름", { exact: true })
     .fill("두피 케어 시술");
   await dialog(page)
-    .getByLabel("기본 가격 (원)", { exact: true })
+    .getByLabel("가격", { exact: true })
     .fill("30000");
-  await dialog(page).getByLabel("소요시간 (분)", { exact: true }).fill("30");
+  await dialog(page).getByLabel("걸리는 시간", { exact: true }).fill("30");
   await dialog(page)
     .getByRole("button", { name: /재료 추가/ })
     .click();
-  await dialog(page).getByLabel("재료", { exact: true }).selectOption(itemId);
-  await dialog(page).getByLabel("소모 수량", { exact: true }).fill("100");
+  await dialog(page).getByRole("group", { name: "추가할 재료" }).getByRole("button", { name: new RegExp(itemName) }).click();
+  await dialog(page).getByLabel(`${itemName} 사용량`, { exact: true }).fill("100");
   await dialog(page)
     .getByRole("button", { name: "시술 저장", exact: true })
     .click();

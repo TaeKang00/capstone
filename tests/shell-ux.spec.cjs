@@ -37,7 +37,7 @@ test("브라우저 뒤로가기에서도 입력을 보호하고 폐기를 선택
   await setupOwner(page);
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "+ 고객 등록", exact: true }).click();
-  await page.getByLabel("고객 이름 *", { exact: true }).fill("보존할 초안");
+  await page.getByRole("dialog", { name: "고객 등록", exact: true }).getByLabel("이름", { exact: true }).fill("보존할 초안");
   await page.goBack();
   const confirm = page.getByRole("dialog", {
     name: "저장하지 않은 내용이 있습니다",
@@ -46,7 +46,7 @@ test("브라우저 뒤로가기에서도 입력을 보호하고 폐기를 선택
   await expect(confirm).toBeVisible();
   await expect(page).toHaveURL(/#\/customers$/);
   await confirm.getByRole("button", { name: "돌아가기", exact: true }).click();
-  await expect(page.getByLabel("고객 이름 *", { exact: true })).toHaveValue(
+  await expect(page.getByRole("dialog", { name: "고객 등록", exact: true }).getByLabel("이름", { exact: true })).toHaveValue(
     "보존할 초안",
   );
   await page.goBack();
@@ -72,7 +72,7 @@ test("서버 동기화 실패를 알리고 다시 확인하면 기존 업무 화
   await page.route("**/api/state", (route) => route.abort("connectionfailed"));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   const banner = page.locator(".connection-banner");
-  await expect(banner).toContainText("서버의 최신 내용을 확인하지 못했습니다");
+  await expect(banner).toContainText("서버의 최신 내용을 확인하지 못했어요");
   await expect(banner).toContainText("마지막으로 확인한 자료");
   await page.unroute("**/api/state");
   await banner.getByRole("button", { name: "연결 다시 확인" }).click();

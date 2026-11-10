@@ -111,10 +111,11 @@ test("공용 화면은 예약을 가리고 수정은 작업자 인증 후 실제
   await workerLogin(page, employee);
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "+ 고객 등록", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "새 고객 등록", exact: true });
-  await dialog.getByLabel("고객 이름 *", { exact: true }).fill("입력자확인고객");
-  await dialog.getByRole("button", { name: "고객 정보 저장", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "고객 차트", exact: true })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "고객 등록", exact: true });
+  await dialog.getByLabel("이름", { exact: true }).fill("입력자확인고객");
+  await dialog.getByRole("button", { name: "고객 저장", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("heading", { name: "입력자확인고객" })).toBeVisible();
   const log = await page.request.get("/api/audit", { headers: await adminHeaders(page) });
   expect(log.ok(), await log.text()).toBeTruthy();
   expect(await log.text()).toContain("공용 접수 직원");
@@ -239,8 +240,8 @@ test("작업자 유휴시간이 지나면 입력 중인 고객 정보도 지우�
   await setupOwner(page);
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "+ 고객 등록", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "새 고객 등록", exact: true });
-  await dialog.getByLabel("고객 이름 *", { exact: true }).fill("자리를비운뒤남으면안되는이름");
+  const dialog = page.getByRole("dialog", { name: "고객 등록", exact: true });
+  await dialog.getByLabel("이름", { exact: true }).fill("자리를비운뒤남으면안되는이름");
   privacyClock.advance(301000);
   await page.clock.fastForward(301000);
   await expect(page.getByRole("heading", { name: "오늘 예약", level: 1, exact: true })).toBeVisible();

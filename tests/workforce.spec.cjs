@@ -4,18 +4,18 @@ const { test, expect, setupOwner, adminAction, adminState, action, goTo, unlockO
 test("출근 기록, 휴가 신청과 원장 승인이 화면에서 이어진다", async ({ page }) => {
   await setupOwner(page);
   await goTo(page, "근태 · 휴가");
-  await expect(page.getByRole("heading", { name: "근태 · 휴가", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "근태와 휴가", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "출근하기", exact: true }).click();
   await expect(page.getByText("출근을 기록했습니다.")).toBeVisible();
   await expect(page.getByRole("button", { name: "퇴근하기", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "휴가 신청", exact: false }).first().click();
   const dialog = page.getByRole("dialog", { name: "휴가 신청", exact: true });
-  await dialog.getByLabel("종류", { exact: true }).selectOption("sick");
-  await dialog.getByLabel("사유 (선택)", { exact: true }).fill("병원 진료");
+  await dialog.getByRole("radio", { name: "병가", exact: true }).click();
+  await dialog.getByLabel("사유", { exact: true }).fill("병원 진료");
   await dialog.getByRole("button", { name: "신청하기", exact: true }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("cell", { name: "승인 대기" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "내 신청" })).toContainText("승인 대기");
 
   // The owner dashboard lists the pending request and opens the HR area after re-authentication.
   await page.getByRole("navigation", { name: "주 메뉴" }).getByRole("button", { name: "오늘의 매장" }).click();
@@ -66,16 +66,16 @@ test("재직증명서는 입사일이 있어야 발급된다", async ({ page }) 
     window.print = () => {};
   });
   await page.getByRole("button", { name: "발급하고 인쇄", exact: true }).click();
-  await expect(page.getByText(`${today().slice(0, 4)}-0001 · 검증 원장`)).toBeVisible();
+  await expect(page.getByText(`재직증명서 ${today().slice(0, 4)}-0001`)).toBeVisible();
 });
 
 test("작은 화면에서 새 화면들이 가로로 넘치지 않는다", async ({ page }) => {
   await setupOwner(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const name of ["근태 · 휴가"]) {
+  for (const [name, heading] of [["근태 · 휴가", "근태와 휴가"], ["예약 일정", null], ["고객 관리", "고객"]]) {
     await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
     await page.getByRole("dialog", { name: "매장 메뉴" }).getByRole("button", { name, exact: false }).click();
-    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    if (heading) await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }
   await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();

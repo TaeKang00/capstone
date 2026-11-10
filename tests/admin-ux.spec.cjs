@@ -113,14 +113,14 @@ test('매장 설정 충돌은 양쪽 값을 보여주고 최신 설정을 불러
   await page.getByLabel('매장 주소', { exact: true }).fill('내가 수정 중인 주소');
   const snapshot = await state(page);
   await adminAction(page, 'store.save', { ...snapshot.data.store, address: '다른 직원이 저장한 최신 주소' });
-  await page.getByRole('button', { name: '매장 설정 저장', exact: true }).click();
+  await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByText('다른 직원이 매장 설정을 변경했습니다.', { exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '다른 직원이 저장한 최신 주소', exact: true })).toBeVisible();
   await expect(page.getByLabel('매장 주소', { exact: true })).toHaveValue('내가 수정 중인 주소');
   await page.getByRole('button', { name: '최신 설정 불러오기', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '저장된 설정 불러오기', exact: true }).click();
   await expect(page.getByLabel('매장 주소', { exact: true })).toHaveValue('다른 직원이 저장한 최신 주소');
-  await expect(page.getByRole('button', { name: '매장 설정 저장', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '저장', exact: true })).toBeDisabled();
   expect((await state(page)).data.store.address).toBe('다른 직원이 저장한 최신 주소');
 });
 

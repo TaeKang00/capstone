@@ -226,7 +226,7 @@ test("원장이 복구 코드를 발급하고 로그인 화면에서 아이디 �
   await setupOwner(page);
   await goTo(page, "매장 설정");
   await page
-    .getByRole("button", { name: "백업 · 이전 자료", exact: true })
+    .getByRole("button", { name: "백업과 복구", exact: true })
     .click();
   await page
     .getByRole("button", { name: "복구 코드 발급", exact: true })
