@@ -30,6 +30,8 @@ import {
   timeMinutes,
   timestampLabel,
   todaySeoul,
+  useMediaQuery,
+  withRo,
 } from "./operations-utils.js";
 import "./Operations.css";
 import { Icon } from "../components/Icon.jsx";
@@ -832,7 +834,16 @@ function AppointmentEditor({
   );
 }
 
+function StatusPill({ status }) {
+  return (
+    <span className="ops-pill" data-status={status}>
+      {STATUS[status]?.label || status}
+    </span>
+  );
+}
+
 function StatusDialog({ target, data, runAction, onClose, onSaved }) {
+  const ids = useId();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -844,6 +855,29 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
     OPEN.indexOf(status) <= OPEN.indexOf(appointment.status) ||
     ["cancelled", "no_show"].includes(appointment.status);
   const requiresReason = backward || ["cancelled", "no_show"].includes(status);
+  const stopping = ["cancelled", "no_show"].includes(status);
+  const fromLabel = STATUS[appointment.status]?.label || appointment.status;
+  const toLabel = STATUS[status]?.label || status;
+  const range = rangeLabel(
+    appointment.start,
+    appointment.start + appointment.duration,
+  );
+  const designer = staffName(appointment.staffId, data);
+  const notes = [];
+  if (status === "no_show")
+    notes.push(
+      "방문 예정 시간이 지난 뒤 실제로 오지 않았는지 확인하고 처리해 주세요.",
+    );
+  if (stopping) {
+    notes.push(
+      `${status === "cancelled" ? "취소하면" : "미방문으로 바꾸면"} ${designer} 디자이너의 ${range}가 비어요.`,
+    );
+    notes.push("수납 전이라면 예약 상세에서 ‘예약 복구’로 되돌릴 수 있어요.");
+  }
+  if (["booked", "checked_in"].includes(status) && backward)
+    notes.push(
+      "상태를 되돌리면 디자이너의 예약 시간이 다시 잡혀요. 다른 예약과 겹치면 저장할 수 없어요.",
+    );
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
@@ -864,7 +898,8 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
   }
   return (
     <Modal
-      title={`예약을 ‘${STATUS[status].label}’ 상태로 변경`}
+      title={`예약을 ‘${toLabel}’ 상태로 변경`}
+      size="wide"
       onClose={busy ? undefined : onClose}
       dirty={Boolean(reason)}
       footer={
@@ -875,62 +910,61 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
           <Button
             type="submit"
             form="appointment-status"
-            variant={
-              status === "cancelled" || status === "no_show"
-                ? "danger"
-                : "primary"
-            }
+            variant={stopping ? "danger" : "primary"}
             busy={busy}
           >
-            변경하기
+            {withRo(toLabel)} 변경
           </Button>
         </>
       }
     >
-      <form id="appointment-status" className="ops-form" onSubmit={submit}>
+      <form
+        id="appointment-status"
+        className="ops-form ops-status-form"
+        onSubmit={submit}
+      >
         {error && (
           <div className="ops-error" role="alert">
             {error}
           </div>
         )}
-        <div className="inset ops-status-summary">
-          <strong>{customerName(appointment, data)} 님</strong>
-          <span className="muted">
-            {dateLabel(appointment.date)} {timeLabel(appointment.start)}
+        <div className="ops-status-summary">
+          <span className="ops-status-text">
+            <strong>{customerName(appointment, data)} 님</strong>
+            <span className="num">
+              {longDateLabel(appointment.date)} {timeLabel(appointment.start)}
+            </span>
+            <span>{designer}</span>
+            <span>{serviceNames(appointment.serviceIds, data)}</span>
           </span>
-          <span className="muted">{staffName(appointment.staffId, data)}</span>
-          <span className="muted">
-            {serviceNames(appointment.serviceIds, data)}
-          </span>
-          <div className="ops-status-change">
-            <Badge tone={STATUS[appointment.status]?.tone}>
-              {STATUS[appointment.status]?.label}
-            </Badge>
+          <span
+            className="ops-status-change"
+            aria-label={`${fromLabel}에서 ${withRo(toLabel)}`}
+          >
+            <StatusPill status={appointment.status} />
             <Icon name="arrow-right" size={16} />
-            <Badge tone={STATUS[status]?.tone}>{STATUS[status]?.label}</Badge>
-          </div>
+            <StatusPill status={status} />
+          </span>
         </div>
-        {status === "no_show" && (
-          <p className="help">
-            방문 예정 시간이 지난 뒤 실제로 오지 않았는지 확인하고 처리해
-            주세요.
-          </p>
-        )}
-        {["booked", "checked_in"].includes(status) && backward && (
-          <p className="help">
-            상태를 되돌리면 디자이너의 예약 시간이 다시 잡혀요. 다른 예약과
-            겹치면 저장할 수 없어요.
-          </p>
-        )}
-        <Field
-          label={requiresReason ? "변경 사유 *" : "변경 메모 (선택)"}
-          help="변경 시각과 처리한 직원이 기록돼요."
-        >
+        <div className="ops-reason">
+          <span className="ops-reason-head">
+            <label htmlFor={`${ids}-reason`} className="field-label">
+              {requiresReason ? "변경 사유" : "변경 메모"}
+            </label>
+            <span
+              className={`ops-tag ${requiresReason ? "is-required" : ""}`}
+              aria-hidden="true"
+            >
+              {requiresReason ? "필수" : "선택"}
+            </span>
+          </span>
           <textarea
+            id={`${ids}-reason`}
             autoFocus
             className="textarea"
             required={requiresReason}
-            rows={3}
+            aria-describedby={`${ids}-reason-help`}
+            rows={4}
             maxLength={1000}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
@@ -939,10 +973,28 @@ function StatusDialog({ target, data, runAction, onClose, onSaved }) {
                 ? "예: 손님 요청으로 일정 변경"
                 : status === "no_show"
                   ? "예: 예약 시간이 지나 연락했지만 받지 않음"
-                  : "상태를 바꾸는 이유를 남겨 주세요."
+                  : "상태를 바꾸는 이유를 남겨 주세요"
             }
           />
-        </Field>
+          <span id={`${ids}-reason-help`} className="ops-lines">
+            <span className="help">
+              취소나 미방문으로 바꾸거나 상태를 되돌릴 때는 사유가 꼭 필요해요
+            </span>
+            <span className="help">변경 시각과 처리한 직원이 기록돼요</span>
+          </span>
+        </div>
+        {notes.length > 0 && (
+          <div className="ops-info">
+            <Icon name="info" size={20} />
+            <span className="ops-lines">
+              {notes.map((line, index) => (
+                <span key={line} className={index ? "muted" : undefined}>
+                  {line}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
       </form>
     </Modal>
   );
@@ -956,6 +1008,13 @@ function historyText(entry) {
     entry.summary || (entry.action === "created" ? "예약 등록" : "예약 정보 수정")
   );
 }
+
+const STEPS = [
+  ["booked", "예약"],
+  ["checked_in", "방문 확인"],
+  ["in_service", "시술 시작"],
+  ["completed", "수납과 완료"],
+];
 
 function AppointmentDetail({
   appointment,
@@ -972,13 +1031,95 @@ function AppointmentDetail({
   const latest = [...(appointment.changes || [])].reverse();
   const today = todaySeoul();
   const open = OPEN.includes(appointment.status);
+  const started = appointment.date <= today;
   const advance =
-    appointment.status === "booked" && appointment.date <= today
+    appointment.status === "booked" && started
       ? ["checked_in", "방문 확인"]
-      : appointment.status === "checked_in" && appointment.date <= today
+      : appointment.status === "checked_in" && started
         ? ["in_service", "시술 시작"]
         : null;
   const pay = open && canTakePayment(user);
+  const receipt = appointment.transactionId && canTakePayment(user);
+  const restore =
+    ["cancelled", "no_show"].includes(appointment.status) &&
+    !appointment.transactionId;
+  const stepIndex = STEPS.findIndex(([key]) => key === appointment.status);
+  const name = customerName(appointment, data);
+  const services = appointment.serviceIds.map(
+    (id) => data.services.find((item) => item.id === id)?.name || "삭제된 시술",
+  );
+  const designer = staffName(appointment.staffId, data);
+  const sideActions = [
+    appointment.status === "checked_in" && started && (
+      <Button key="undo-in" variant="ghost" onClick={() => onStatus("booked")}>
+        방문 확인 되돌리기
+      </Button>
+    ),
+    appointment.status === "in_service" && (
+      <Button
+        key="undo-service"
+        variant="ghost"
+        onClick={() => onStatus("checked_in")}
+      >
+        시술 시작 되돌리기
+      </Button>
+    ),
+    open && started && appointment.status !== "in_service" && (
+      <Button key="no-show" variant="ghost" onClick={() => onStatus("no_show")}>
+        미방문 처리
+      </Button>
+    ),
+    open && (
+      <Button
+        key="cancel"
+        variant="danger"
+        onClick={() => onStatus("cancelled")}
+      >
+        예약 취소
+      </Button>
+    ),
+  ].filter(Boolean);
+  const mainActions = [
+    open && (
+      <Button key="edit" variant="secondary" onClick={onEdit}>
+        예약 수정
+      </Button>
+    ),
+    receipt && (
+      <Button
+        key="receipt"
+        variant="secondary"
+        onClick={() =>
+          navigate("payments", { transactionId: appointment.transactionId })
+        }
+      >
+        수납 내역 보기
+      </Button>
+    ),
+    restore && (
+      <Button key="restore" variant="secondary" onClick={() => onStatus("booked")}>
+        예약 복구
+      </Button>
+    ),
+    advance && (
+      <Button
+        key="advance"
+        variant={pay ? "secondary" : "primary"}
+        onClick={() => onStatus(advance[0])}
+      >
+        {advance[1]}
+      </Button>
+    ),
+    pay && (
+      <Button
+        key="pay"
+        variant="primary"
+        onClick={() => navigate("payments", { appointmentId: appointment.id })}
+      >
+        수납하기
+      </Button>
+    ),
+  ].filter(Boolean);
   return (
     <Modal
       title="예약 상세"
@@ -986,30 +1127,10 @@ function AppointmentDetail({
       onClose={onClose}
       footer={
         <>
-          {open && (
-            <Button variant="secondary" onClick={onEdit}>
-              예약 수정
-            </Button>
-          )}
-          {advance && (
-            <Button
-              variant={pay ? "secondary" : "primary"}
-              onClick={() => onStatus(advance[0])}
-            >
-              {advance[1]}
-            </Button>
-          )}
-          {pay && (
-            <Button
-              variant="primary"
-              onClick={() =>
-                navigate("payments", { appointmentId: appointment.id })
-              }
-            >
-              수납하기
-            </Button>
-          )}
-          {!open && !advance && !pay && (
+          <span className="ops-footer-side">{sideActions}</span>
+          {mainActions.length ? (
+            mainActions
+          ) : (
             <Button variant="secondary" onClick={onClose}>
               닫기
             </Button>
@@ -1017,100 +1138,97 @@ function AppointmentDetail({
         </>
       }
     >
-      <div className="ops-form">
-        <div className="ops-person-head">
-          <span className="ops-avatar ops-avatar-lg" aria-hidden="true">
-            {customerName(appointment, data).slice(0, 1)}
+      <div className="ops-form ops-detail">
+        <div className="ops-detail-hero">
+          <span className="ops-detail-when">
+            <span className="ops-detail-day">
+              <StatusPill status={appointment.status} />
+              <span className="ops-meta">{longDateLabel(appointment.date)}</span>
+            </span>
+            <strong className="ops-detail-range">
+              {rangeLabel(
+                appointment.start,
+                appointment.start + appointment.duration,
+              )}
+            </strong>
+            <span className="muted">{durationLabel(appointment.duration)}</span>
+          </span>
+          {stepIndex >= 0 && (
+            <ol className="ops-steps" aria-label="진행 단계">
+              {STEPS.map(([key, label], index) => (
+                <li
+                  key={key}
+                  className={index === stepIndex ? "is-now" : undefined}
+                  aria-current={index === stepIndex ? "step" : undefined}
+                >
+                  <span className="ops-step-dot" aria-hidden="true" />
+                  {label}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+        <div className="ops-detail-person">
+          <span className="ops-avatar ops-avatar-md" aria-hidden="true">
+            {name.slice(0, 1)}
           </span>
           <span className="ops-person-text">
-            <strong className="ops-person-name">
-              {customerName(appointment, data)} 님
-            </strong>
-            <span className="muted">
+            <span className="ops-detail-name">{name} 님</span>
+            <span className="muted num">
               {customerPhone(appointment, data) || "전화번호 없음"}
             </span>
           </span>
-          <Badge tone={STATUS[appointment.status]?.tone}>
-            {STATUS[appointment.status]?.label}
-          </Badge>
-        </div>
-        {customer?.warning && (
-          <div className="ops-warning">시술 전 확인: {customer.warning}</div>
-        )}
-        <dl className="kv ops-kv">
-          <dt>날짜</dt>
-          <dd>{longDateLabel(appointment.date)}</dd>
-          <dt>시간</dt>
-          <dd>
-            {rangeLabel(
-              appointment.start,
-              appointment.start + appointment.duration,
-            )}
-          </dd>
-          <dt>소요 시간</dt>
-          <dd>{durationLabel(appointment.duration)}</dd>
-          <dt>디자이너</dt>
-          <dd>{staffName(appointment.staffId, data)}</dd>
-          <dt>시술</dt>
-          <dd>{serviceNames(appointment.serviceIds, data)}</dd>
-        </dl>
-        {appointment.notes && (
-          <div className="ops-section">
-            <span className="ops-meta-label">메모</span>
-            <p className="ops-chart-notes">{appointment.notes}</p>
-          </div>
-        )}
-        <div className="ops-inline-actions">
           {customer && (
-            <Button
-              variant="secondary"
+            <button
+              type="button"
+              className="ops-pill-btn"
               onClick={() => navigate("customers", { customerId: customer.id })}
             >
               손님 정보 보기
-            </Button>
+              <Icon name="chevron-right" size={16} />
+            </button>
           )}
-          {appointment.transactionId && canTakePayment(user) && (
-            <Button
-              variant="secondary"
-              onClick={() =>
-                navigate("payments", {
-                  transactionId: appointment.transactionId,
-                })
-              }
-            >
-              수납 내역 보기
-            </Button>
-          )}
-          {appointment.status === "checked_in" && appointment.date <= today && (
-            <Button variant="ghost" onClick={() => onStatus("booked")}>
-              방문 확인 되돌리기
-            </Button>
-          )}
-          {appointment.status === "in_service" && (
-            <Button variant="ghost" onClick={() => onStatus("checked_in")}>
-              시술 시작 되돌리기
-            </Button>
-          )}
-          {open && appointment.date <= today &&
-            appointment.status !== "in_service" && (
-              <Button variant="ghost" onClick={() => onStatus("no_show")}>
-                미방문 처리
-              </Button>
-            )}
-          {open && (
-            <Button variant="danger" onClick={() => onStatus("cancelled")}>
-              예약 취소
-            </Button>
-          )}
-          {["cancelled", "no_show"].includes(appointment.status) &&
-            !appointment.transactionId && (
-              <Button variant="secondary" onClick={() => onStatus("booked")}>
-                예약 복구
-              </Button>
-            )}
         </div>
-        <div className="ops-section">
-          <h3 className="ops-panel-title">변경 기록</h3>
+        {customer?.warning && (
+          <div className="ops-warning ops-warning-note" role="note">
+            <Icon name="alert" size={20} />
+            <span className="ops-lines">
+              <strong>시술 전 확인</strong>
+              <span>{customer.warning}</span>
+            </span>
+          </div>
+        )}
+        <dl className="ops-facts">
+          <div>
+            <dt>시술</dt>
+            <dd className="ops-lines">
+              {services.length ? (
+                services.map((item, index) => <span key={index}>{item}</span>)
+              ) : (
+                <span>선택한 시술 없음</span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>디자이너</dt>
+            <dd className="ops-facts-staff">
+              <span className="ops-avatar ops-avatar-sm" aria-hidden="true">
+                {designer.slice(0, 1)}
+              </span>
+              {designer}
+            </dd>
+          </div>
+          {appointment.notes && (
+            <div className="ops-facts-wide">
+              <dt>메모</dt>
+              <dd className="ops-chart-notes">{appointment.notes}</dd>
+            </div>
+          )}
+        </dl>
+        <section className="ops-section" aria-labelledby="appointment-history">
+          <h3 id="appointment-history" className="ops-panel-title">
+            변경 기록
+          </h3>
           {latest.length ? (
             <ul className="ops-history">
               {latest.map((entry, index) => (
@@ -1120,16 +1238,12 @@ function AppointmentDetail({
                       {entry.actorName || entry.actor?.name || "직원"}
                     </strong>
                     <span>{historyText(entry)}</span>
-                    {entry.action === "status" && entry.reason && (
-                      <span className="muted">{entry.reason}</span>
-                    )}
-                    {entry.action !== "status" &&
-                      !entry.text &&
-                      entry.reason && (
-                        <span className="muted">{entry.reason}</span>
+                    {entry.reason &&
+                      (entry.action === "status" || !entry.text) && (
+                        <span className="help">{entry.reason}</span>
                       )}
                   </span>
-                  <time className="help">
+                  <time className="help num">
                     {timestampLabel(entry.at || entry.createdAt)}
                   </time>
                 </li>
@@ -1140,7 +1254,7 @@ function AppointmentDetail({
               이전 시스템에서 가져온 예약은 변경 기록이 없을 수 있어요.
             </p>
           )}
-        </div>
+        </section>
       </div>
     </Modal>
   );
@@ -1153,6 +1267,46 @@ const BLOCK_TONE = {
   completed: "done",
 };
 
+// One staff member's day: working window, leave, appointments and a free-slot check.
+function staffDay(data, person, date, dayAppointments, step) {
+  const closed = data.store.closedWeekdays?.includes(weekdayOf(date));
+  const leaves = staffLeaves(data, person.id, date);
+  const wholeLeave = leaves.find((item) => item.start == null);
+  const offDay = closed || !person.workingDays.includes(weekdayOf(date));
+  const open = Math.max(data.store.open, person.startMinutes);
+  const close = Math.min(data.store.close, person.endMinutes);
+  const appointments = dayAppointments
+    .filter((row) => row.staffId === person.id)
+    .sort((a, b) => a.start - b.start);
+  const free = (minute) =>
+    !offDay &&
+    !wholeLeave &&
+    person.status === "active" &&
+    person.role !== "reception" &&
+    minute >= open &&
+    minute + step <= close &&
+    !(
+      person.breakStart != null &&
+      minute < person.breakEnd &&
+      minute + step > person.breakStart
+    ) &&
+    !leaves.some((item) => minute < item.end && minute + step > item.start) &&
+    !appointments.some(
+      (row) =>
+        OPEN.includes(row.status) &&
+        minute < row.start + row.duration &&
+        minute + step > row.start,
+    );
+  return { person, leaves, wholeLeave, offDay, open, close, appointments, free };
+}
+
+const scheduleColumns = (staff, dayAppointments) =>
+  staff.filter(
+    (item) =>
+      (item.status === "active" && item.role !== "reception") ||
+      dayAppointments.some((row) => row.staffId === item.id),
+  );
+
 function Timetable({ data, date, staff, canCreate, onOpen, onCreate }) {
   const [hover, setHover] = useState(null);
   const today = todaySeoul();
@@ -1162,11 +1316,7 @@ function Timetable({ data, date, staff, canCreate, onOpen, onCreate }) {
   const dayAppointments = data.appointments.filter(
     (item) => item.date === date && !["cancelled", "no_show"].includes(item.status),
   );
-  const columns = staff.filter(
-    (item) =>
-      (item.status === "active" && item.role !== "reception") ||
-      dayAppointments.some((row) => row.staffId === item.id),
-  );
+  const columns = scheduleColumns(staff, dayAppointments);
   const starts = [data.store.open, ...dayAppointments.map((row) => row.start)];
   const ends = [
     data.store.close,
@@ -1187,36 +1337,9 @@ function Timetable({ data, date, staff, canCreate, onOpen, onCreate }) {
         />
       </section>
     );
-  const columnInfo = columns.map((person) => {
-    const leaves = staffLeaves(data, person.id, date);
-    const wholeLeave = leaves.find((item) => item.start == null);
-    const offDay = closed || !person.workingDays.includes(weekday);
-    const open = Math.max(data.store.open, person.startMinutes);
-    const close = Math.min(data.store.close, person.endMinutes);
-    const appointments = dayAppointments
-      .filter((row) => row.staffId === person.id)
-      .sort((a, b) => a.start - b.start);
-    const free = (minute) =>
-      !offDay &&
-      !wholeLeave &&
-      person.status === "active" &&
-      person.role !== "reception" &&
-      minute >= open &&
-      minute + step <= close &&
-      !(
-        person.breakStart != null &&
-        minute < person.breakEnd &&
-        minute + step > person.breakStart
-      ) &&
-      !leaves.some((item) => minute < item.end && minute + step > item.start) &&
-      !appointments.some(
-        (row) =>
-          OPEN.includes(row.status) &&
-          minute < row.start + row.duration &&
-          minute + step > row.start,
-      );
-    return { person, leaves, wholeLeave, offDay, open, close, appointments, free };
-  });
+  const columnInfo = columns.map((person) =>
+    staffDay(data, person, date, dayAppointments, step),
+  );
   const minuteAt = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const minutes = ((event.clientY - rect.top) / HOUR_HEIGHT) * 60;

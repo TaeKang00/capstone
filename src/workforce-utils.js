@@ -295,3 +295,25 @@ export function closeDialogFrom(event) {
     ?.querySelector('.modal-header button[aria-label="닫기"]')
     ?.click();
 }
+/** "11월 10일 화" (short weekday, for tables). */
+export function koreanDayShort(value) {
+  if (!value) return "";
+  return `${koreanDay(value)} ${WEEKDAY_NAMES[weekdayOf(value)]}`;
+}
+const DIGIT_BATCHIM = { 0: 21, 1: 8, 3: 16, 6: 1, 7: 8, 8: 8 }; // 영 일 삼 육 칠 팔 (ㅇ ㄹ ㅁ ㄱ ㄹ ㄹ)
+/** Final consonant index of the word's last syllable (0 = none, 8 = ㄹ). */
+function batchim(word) {
+  const last = String(word || "").trim().slice(-1);
+  if (!last) return 0;
+  const code = last.charCodeAt(0) - 0xac00;
+  if (code >= 0 && code <= 11171) return code % 28;
+  if (/\d/.test(last)) return DIGIT_BATCHIM[last] || 0;
+  return 0;
+}
+/** Korean particle for a word: josa("직위", "을/를") → "직위를", josa("10:00", "으로/로") → "10:00으로". */
+export function josa(word, pair) {
+  const [withFinal, withoutFinal] = pair.split("/");
+  const final = batchim(word);
+  if (pair === "으로/로") return `${word}${final && final !== 8 ? "으로" : "로"}`;
+  return `${word}${final ? withFinal : withoutFinal}`;
+}

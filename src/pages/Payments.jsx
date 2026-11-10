@@ -50,6 +50,42 @@ const shortDate = (date) => {
 };
 const initialOf = (name) => String(name || "").trim().charAt(0) || "방";
 const roundQty = (value) => Math.max(0, Math.round(value * 1000) / 1000);
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const weekdayOf = (date) => {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return Number.isNaN(day) ? "" : `${WEEKDAYS[day]}요일`;
+};
+/** "11월 9일 18:05" in Seoul time for a stored ISO timestamp. */
+const seoulMoment = (value) => {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return value ? String(value) : "";
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${Number(parts.month)}월 ${Number(parts.day)}일 ${parts.hour}:${parts.minute}`;
+};
+// Final consonant of the last character decides 로 or 으로 (ㄹ takes 로).
+const DIGIT_FINAL = { 0: 1, 1: 8, 2: 0, 3: 1, 4: 0, 5: 0, 6: 1, 7: 8, 8: 8, 9: 0 };
+const withRo = (word) => {
+  const text = String(word ?? "");
+  const last = text.trim().slice(-1);
+  const code = last.charCodeAt(0) - 0xac00;
+  let final = null;
+  if (code >= 0 && code <= 11171) final = code % 28;
+  else if (/[0-9]/.test(last)) final = DIGIT_FINAL[last];
+  if (final === null) return `${text}(으)로`;
+  return `${text}${final === 0 || final === 8 ? "로" : "으로"}`;
+};
+const receivedBy = (method) => `${withRo(methodNames[method] || method)} 받았어요`;
 
 /** Pill-shaped single-choice chips (role="radio") with arrow-key support. */
 function ChipRadios({ options, value, onChange, labelledBy, label, bordered }) {
@@ -1291,6 +1327,27 @@ function PaymentDetail({
   const refunds = (data.refunds || []).filter((r) => r.transactionId === tx.id);
   const refundTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
   const refunded = refundedLines(data, tx.id);
+  const staffName = (id) =>
+    data.staff.find((s) => s.id === id)?.name || "기존 담당자";
+  const name = tx.customerName || "방문 고객";
+  const canReprice = tx.status === "paid" && !refunds.length;
+  const changeLines = (c) => {
+    if (!c.before || !c.after) return [];
+    const rows = [];
+    if (c.before.staffId !== c.after.staffId)
+      rows.push(
+        `담당자 ${staffName(c.before.staffId)}에서 ${withRo(staffName(c.after.staffId))}`,
+      );
+    if (c.before.method !== c.after.method)
+      rows.push(
+        `결제 수단 ${methodNames[c.before.method] || c.before.method}에서 ${withRo(methodNames[c.after.method] || c.after.method)}`,
+      );
+    if (c.before.reference !== c.after.reference)
+      rows.push(
+        `승인번호 ${c.before.reference || "없음"}에서 ${withRo(c.after.reference || "없음")}`,
+      );
+    return rows;
+  };
   return (
     <Modal
       title="수납 상세"
@@ -1298,209 +1355,264 @@ function PaymentDetail({
       size="wide"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
-            닫기
-          </Button>
-          <Button variant="secondary" onClick={() => printReceipt(tx, data)}>
-            영수증 인쇄
-          </Button>
+          <span className="paym-detail-print">
+            <Button variant="secondary" onClick={() => printReceipt(tx, data)}>
+              <Icon name="print" size={16} />
+              영수증 인쇄
+            </Button>
+          </span>
           {canWrite && (
             <Button variant="secondary" onClick={onCorrect}>
               수납 정보 정정
             </Button>
           )}
-          {canWrite && tx.status === "paid" && !refunds.length && (
-            <Button variant="secondary" onClick={onReprice}>
+          {canWrite && tx.status !== "refunded" && (
+            <Button
+              variant="secondary"
+              onClick={onReprice}
+              disabled={!canReprice}
+              aria-describedby={
+                canReprice ? undefined : "paym-detail-reprice-note"
+              }
+            >
               금액 정정과 재수납
             </Button>
           )}
           {canWrite && tx.status !== "refunded" && (
-            <Button variant="danger" onClick={onRefund}>
+            <Button
+              variant="danger"
+              className="paym-danger-soft"
+              onClick={onRefund}
+            >
               환불 기록
             </Button>
           )}
         </>
       }
     >
-      <div className="commerce-detail-top">
-        <div>
-          <h3>{tx.customerName || "방문 고객"}</h3>
-          <p className="muted">
-            {tx.date} {tx.time}, {methodNames[tx.method]}
-          </p>
-        </div>
-        <Badge tone={paymentTone(tx.status)}>
+      <div className="paym-detail-who">
+        <span className="paym-avatar" aria-hidden="true">
+          {initialOf(name)}
+        </span>
+        <span className="paym-detail-who-text">
+          <strong>{tx.customerName ? `${tx.customerName} 님` : name}</strong>
+          <span className="num">
+            {shortDate(tx.date)} {weekdayOf(tx.date)} {tx.time} 결제
+          </span>
+          <small>{receivedBy(tx.method)}</small>
+        </span>
+        <span className={`paym-pill ${paymentPill(tx.status)}`}>
           {paymentNames[tx.status] || tx.status}
-        </Badge>
+        </span>
       </div>
       {(tx.correctsTransactionId || tx.replacedBy) && (
-        <p className="alert">
-          {tx.correctsTransactionId
-            ? `기존 수납 ${tx.correctsTransactionId}의 금액 정정 기록입니다. 재고는 재차감하지 않았습니다.`
-            : `수납 ${tx.replacedBy}로 금액이 정정되었습니다.`}
+        <p className="paym-info">
+          <Icon name="info" size={20} />
+          <span>
+            {tx.correctsTransactionId ? (
+              <>
+                <strong>기존 수납 {tx.correctsTransactionId}의 금액 정정 기록이에요</strong>
+                <span>재고는 다시 빼지 않았어요.</span>
+              </>
+            ) : (
+              <strong>수납 {tx.replacedBy}로 금액을 정정했어요</strong>
+            )}
+          </span>
         </p>
       )}
-      {tx.materialUsage?.length > 0 && (
-        <p className="help">
-          실제 재료:{" "}
-          {tx.materialUsage
-            .map((m) => `${m.name} ${quantity(m.quantity)}${m.unit}`)
-            .join(" / ")}
-          {tx.materialReason && `, ${tx.materialReason}`}
-        </p>
-      )}
-      <dl className="commerce-definition">
-        <dt>결제 번호</dt>
-        <dd>{tx.id}</dd>
-        <dt>담당 직원</dt>
-        <dd>
-          {data.staff.find((s) => s.id === tx.staffId)?.name || "기존 담당자"}
-        </dd>
-        <dt>시술일</dt>
-        <dd>{tx.serviceDate || tx.date}</dd>
-        <dt>승인번호</dt>
-        <dd>{tx.reference || "미입력"}</dd>
+      <dl className="paym-detail-kv">
+        <div>
+          <dt>결제 번호</dt>
+          <dd className="num">{tx.id}</dd>
+        </div>
+        <div>
+          <dt>담당 직원</dt>
+          <dd>{staffName(tx.staffId)}</dd>
+        </div>
+        <div>
+          <dt>시술일</dt>
+          <dd className="num">{tx.serviceDate || tx.date}</dd>
+        </div>
+        <div>
+          <dt>승인번호</dt>
+          <dd className="num">{tx.reference || "미입력"}</dd>
+        </div>
         {tx.customerId && (
-          <>
+          <div>
             <dt>고객 정보</dt>
             <dd>
               <button
                 type="button"
-                className="text-btn"
+                className="paym-detail-link"
                 onClick={() => {
                   onClose();
                   navigate("customers", { customerId: tx.customerId });
                 }}
               >
                 손님 정보 보기
+                <Icon name="chevron-right" size={16} />
               </button>
             </dd>
-          </>
+          </div>
         )}
         {tx.appointmentId && (
-          <>
+          <div>
             <dt>연결 예약</dt>
             <dd>
               <button
-                className="commerce-tag-button"
+                type="button"
+                className="paym-detail-link"
                 onClick={() => {
                   onClose();
                   navigate("appointments", { appointmentId: tx.appointmentId });
                 }}
               >
                 예약 확인
+                <Icon name="chevron-right" size={16} />
               </button>
             </dd>
-          </>
+          </div>
         )}
         {tx.notes && (
-          <>
+          <div className="paym-detail-kv-wide">
             <dt>수납 메모</dt>
-            <dd className="commerce-prewrap">{tx.notes}</dd>
-          </>
+            <dd className="paym-prewrap">{tx.notes}</dd>
+          </div>
+        )}
+        {tx.materialUsage?.length > 0 && (
+          <div className="paym-detail-kv-wide">
+            <dt>실제 재료 사용량</dt>
+            {tx.materialUsage.map((m, index) => (
+              <dd key={m.itemId || index} className="num">
+                {m.name} {quantity(m.quantity)}
+                {m.unit}
+              </dd>
+            ))}
+            {tx.materialReason && (
+              <dd className="paym-detail-kv-sub">{tx.materialReason}</dd>
+            )}
+          </div>
         )}
       </dl>
-      <h3 className="commerce-section-title">결제 항목</h3>
-      <div className="table-wrap">
-        <table className="table commerce-table">
-          <thead>
-            <tr>
-              <th>항목</th>
-              <th className="numeric">수량</th>
-              <th className="numeric">할인</th>
-              <th className="numeric">결제액</th>
-              <th className="numeric">환불액</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tx.lines.map((line) => (
-              <tr key={line.id}>
-                <td>
+      <section className="paym-detail-lines" aria-labelledby="paym-lines-title">
+        <h3 id="paym-lines-title">결제 항목</h3>
+        <div className="paym-detail-line-head" aria-hidden="true">
+          <span>항목</span>
+          <span>수량</span>
+          <span>할인</span>
+          <span>결제액</span>
+          <span>환불액</span>
+        </div>
+        <ul>
+          {tx.lines.map((line) => (
+            <li key={line.id} className="paym-detail-line">
+              <span className="paym-detail-line-name">
+                <span>
                   <strong>{line.name}</strong>
-                  <span className="commerce-secondary">
-                    {line.type === "service" ? "시술" : "상품"}, 단가{" "}
-                    {money(line.unitPrice)}
+                  <span className="paym-tag">
+                    {line.type === "service" ? "시술" : "상품"}
                   </span>
-                </td>
-                <td className="numeric">{quantity(line.quantity)}</td>
-                <td className="numeric">
-                  <Money value={line.discount || 0} />
-                </td>
-                <td className="numeric">
-                  <Money value={line.total} />
-                </td>
-                <td className="numeric">
-                  {refunded[line.id] ? money(refunded[line.id].amount) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="commerce-totals">
+                </span>
+                <small>단가 {money(line.unitPrice)}</small>
+              </span>
+              <span data-label="수량">{quantity(line.quantity)}</span>
+              <span data-label="할인">{money(line.discount || 0)}</span>
+              <strong data-label="결제액">{money(line.total)}</strong>
+              <strong
+                data-label="환불액"
+                className={refunded[line.id] ? "is-refund" : "is-none"}
+              >
+                {refunded[line.id] ? money(refunded[line.id].amount) : "없음"}
+              </strong>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <div className="paym-detail-totals">
         <div>
           <span>원 결제액</span>
-          <Money value={tx.total} />
+          <strong>{money(tx.total)}</strong>
         </div>
         <div>
           <span>누적 환불액</span>
-          <Money value={refundTotal} />
+          <strong className={refundTotal > 0 ? "is-refund" : undefined}>
+            {money(refundTotal)}
+          </strong>
         </div>
-        <div className="grand-total">
+        <div className="is-grand">
           <span>환불 후 결제액</span>
-          <Money value={tx.total - refundTotal} />
+          <strong>{money(tx.total - refundTotal)}</strong>
         </div>
       </div>
-      {refunds.length > 0 && (
-        <section>
-          <h3 className="commerce-section-title">환불 이력</h3>
-          <ul className="commerce-timeline">
-            {refunds.map((r) => (
-              <li key={r.id}>
-                <strong>
-                  {money(r.amount)}, {methodNames[r.method]}
-                </strong>
-                <span className="commerce-secondary">
-                  {r.date} {r.time}, {r.reference || "거래번호 미입력"}
-                </span>
-                <p>{r.reason}</p>
-                <p className="commerce-note">
-                  {r.lines
-                    .map(
-                      (l) =>
-                        `${tx.lines.find((t) => t.id === l.lineId)?.name || "품목"} ${l.mode === "amount" ? `${money(l.amount)} 금액 환불` : quantity(l.quantity)}${l.restock ? " (재입고)" : ""}`,
-                    )
-                    .join(", ")}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {(refunds.length > 0 || (tx.changes || []).length > 0) && (
+        <div className="paym-detail-history">
+          {refunds.length > 0 && (
+            <section aria-labelledby="paym-refund-history">
+              <h3 id="paym-refund-history">환불 이력</h3>
+              <ul>
+                {refunds.map((r) => (
+                  <li key={r.id}>
+                    <span className="paym-detail-history-top">
+                      <strong className="is-refund">{money(r.amount)}</strong>
+                      <small>
+                        {shortDate(r.date)} {r.time}
+                      </small>
+                    </span>
+                    <span>{refundMethodNames[r.method] || r.method}</span>
+                    <small>
+                      {r.reference
+                        ? `취소 승인번호 ${r.reference}`
+                        : "취소 승인번호 미입력"}
+                    </small>
+                    {r.reason && <span>{r.reason}</span>}
+                    {(r.lines || []).map((l, index) => {
+                      const line = tx.lines.find((t) => t.id === l.lineId);
+                      const unit =
+                        line?.type === "product"
+                          ? data.items.find((i) => i.id === line.refId)?.unit ||
+                            "개"
+                          : "회";
+                      return (
+                        <small key={l.lineId || index}>
+                          {line?.name || "품목"}{" "}
+                          {l.mode === "amount"
+                            ? `${money(l.amount)} 금액 환불`
+                            : `${quantity(l.quantity)}${unit} 환불`}
+                          {l.restock ? " 재입고" : ""}
+                        </small>
+                      );
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {(tx.changes || []).length > 0 && (
+            <section aria-labelledby="paym-change-history">
+              <h3 id="paym-change-history">정보 정정 이력</h3>
+              <ul>
+                {tx.changes.map((c, index) => (
+                  <li key={index}>
+                    <span className="paym-detail-history-top">
+                      <strong>{c.actorName || "직원"}</strong>
+                      <small>{seoulMoment(c.at || c.createdAt)}</small>
+                    </span>
+                    <span>{c.reason || c.kind || "정보 정정"}</span>
+                    {changeLines(c).map((row) => (
+                      <small key={row}>{row}</small>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       )}
-      {(tx.changes || []).length > 0 && (
-        <section>
-          <h3 className="commerce-section-title">정보 정정 이력</h3>
-          <ul className="commerce-timeline">
-            {tx.changes.map((c, index) => (
-              <li key={index}>
-                <strong>
-                  {c.actorName || "직원"}, {displayTime(c.at || c.createdAt)}
-                </strong>
-                <p>{c.reason || "정보 정정"}</p>
-                {c.before && c.after && (
-                  <p className="commerce-note">
-                    {c.before.method !== c.after.method &&
-                      `결제 수단: ${methodNames[c.before.method] || c.before.method} → ${methodNames[c.after.method] || c.after.method}`}{" "}
-                    {c.before.reference !== c.after.reference &&
-                      `거래번호: ${c.before.reference || "없음"} → ${c.after.reference || "없음"}`}{" "}
-                    {c.before.staffId !== c.after.staffId &&
-                      `담당자: ${data.staff.find((s) => s.id === c.before.staffId)?.name || "기존 담당자"} → ${data.staff.find((s) => s.id === c.after.staffId)?.name || "기존 담당자"}`}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+      {canWrite && !canReprice && tx.status !== "refunded" && (
+        <p id="paym-detail-reprice-note" className="paym-detail-note">
+          <Icon name="info" size={16} />
+          환불 기록이 있는 결제는 금액 정정과 재수납을 할 수 없어요
+        </p>
       )}
     </Modal>
   );
