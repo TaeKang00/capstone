@@ -3310,3 +3310,11 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; c
 .btn .icon, .text-btn .icon, .chip .icon, .header-menu .icon, .toast .icon, .range-picker-trigger .icon { width: 20px; height: 20px; }
 .password-rule-mark .icon { width: 16px; height: 16px; }
 .toast .icon-btn { width: 36px; height: 36px; }
+
+/* Home: same 32px rhythm under the setup notice as between the other home sections */
+.home > .setup-notice { margin-bottom: 32px; }
+.home > .home-clock-row { margin-bottom: 32px; }
+/* Footer follows the main column: same max-width and side padding as .main-content */
+@media (min-width: 951px) {
+  .app-footer { max-width: 1440px; margin: 0; padding: 16px 32px 24px 8px; }
+}
