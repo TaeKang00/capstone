@@ -22,14 +22,14 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
   await goTo(page, "발주 · 거래처");
   await page.getByRole("tab", { name: "거래처", exact: true }).click();
   await page
-    .getByRole("button", { name: "+ 거래처 등록", exact: true })
+    .getByRole("button", { name: "거래처 등록", exact: true })
     .click();
   await dialog(page).getByLabel("거래처 이름", { exact: true }).fill("봄 유통");
   await dialog(page).getByLabel("담당자", { exact: true }).fill("김담당");
   await dialog(page).getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByText("봄 유통", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "품목 분류", exact: true }).click();
-  await page.getByRole("button", { name: "+ 분류 등록", exact: true }).click();
+  await page.getByRole("button", { name: "분류 등록", exact: true }).click();
   await dialog(page).getByLabel("분류 이름", { exact: true }).fill("두피 케어");
   await dialog(page).getByRole("button", { name: "저장", exact: true }).click();
   const categoryId = (await state(page)).data.itemCategories.find(
@@ -46,15 +46,15 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .getByLabel("기본 거래처", { exact: true })
     .selectOption(supplierId);
   await dialog(page)
-    .getByLabel("관리 단위", { exact: true })
-    .selectOption("ml");
+    .getByRole("radio", { name: "ml", exact: true })
+    .click();
   await dialog(page).getByLabel("1개당 용량 (ml)", { exact: true }).fill("500");
   await dialog(page)
     .getByLabel("1개 입고 단가 (원)", { exact: true })
     .fill("20000");
   await dialog(page).getByLabel("보충 기준 (ml)", { exact: true }).fill("500");
   await dialog(page)
-    .getByRole("button", { name: "품목 등록", exact: true })
+    .getByRole("button", { name: "품목 저장", exact: true })
     .click();
   await expect(
     page.getByText("케어 샴푸", { exact: true }).first(),
@@ -96,7 +96,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .click();
   await goTo(page, "발주 · 거래처");
   await page.getByRole("tab", { name: "발주 내역", exact: true }).click();
-  await page.getByRole("button", { name: "+ 발주 등록", exact: true }).click();
+  await page.getByRole("button", { name: "발주 등록", exact: true }).click();
   await dialog(page)
     .getByLabel("발주 거래처", { exact: true })
     .selectOption(supplierId);
@@ -108,7 +108,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .fill("3");
   await expect(dialog(page)).toContainText("60,000");
   await dialog(page)
-    .getByRole("button", { name: "발주 등록", exact: true })
+    .getByRole("button", { name: "발주 저장", exact: true })
     .click();
   await page
     .getByRole("button", { name: "봄 유통 케어 샴푸 발주 상세", exact: true })
@@ -208,7 +208,7 @@ test("거래처 미사용 필터와 모바일 간편 발주 입력, 오류 후 �
   });
   await page.reload();
   await goTo(page, "발주 · 거래처");
-  await page.getByRole("button", { name: "+ 발주 등록", exact: true }).click();
+  await page.getByRole("button", { name: "발주 등록", exact: true }).click();
   await dialog(page)
     .getByLabel("발주 거래처", { exact: true })
     .selectOption(supplierId);
@@ -235,14 +235,14 @@ test("거래처 미사용 필터와 모바일 간편 발주 입력, 오류 후 �
     { times: 1 },
   );
   await dialog(page)
-    .getByRole("button", { name: "발주 등록", exact: true })
+    .getByRole("button", { name: "발주 저장", exact: true })
     .click();
   await expect(dialog(page).getByRole("alert")).toContainText("연결을 확인");
   await expect(
     dialog(page).getByLabel("모바일 재료 발주 개수", { exact: true }),
   ).toHaveValue("2");
   await dialog(page)
-    .getByRole("button", { name: "발주 등록", exact: true })
+    .getByRole("button", { name: "발주 저장", exact: true })
     .click();
   await expect(
     page.getByRole("button", {

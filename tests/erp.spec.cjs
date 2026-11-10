@@ -215,18 +215,18 @@ test('디자이너는 첫 비밀번호를 변경하고 본인 업무와 확정 �
 test('수동 입고는 기록자·정정 이력을 남기고 기준 이하에서만 보충 표시를 한다', async ({ page }) => {
   await ensureSetup(page); await login(page); await nav(page, '재고 · 입고');
   await page.getByRole('button', { name: '품목 등록', exact: true }).click();
-  let dialog = page.getByRole('dialog', { name: '새 품목 등록', exact: true });
+  let dialog = page.getByRole('dialog', { name: '품목 등록', exact: true });
   await dialog.getByLabel('품목 이름', { exact: true }).fill('수동 확인 샴푸');
-  await dialog.getByLabel('품목 구분', { exact: true }).selectOption('판매 상품');
+  await dialog.getByRole('radio', { name: '판매 상품', exact: true }).click();
   await dialog.getByLabel('보충 기준 (개)', { exact: true }).fill('2');
   await dialog.getByLabel('판매 단가 (원)', { exact: true }).fill('15000');
-  await dialog.getByRole('button', { name: '품목 등록', exact: true }).click();
+  await dialog.getByRole('button', { name: '품목 저장', exact: true }).click();
   await expect(dialog).toBeHidden();
   let row = page.getByRole('row').filter({ hasText: '수동 확인 샴푸' });
   await expect(row).toContainText('품절');
   await row.getByRole('button', { name: '수동 확인 샴푸 입고', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: '수동 입고', exact: true });
-  await dialog.getByLabel('추가할 수량 (개)', { exact: true }).fill('2');
+  dialog = page.getByRole('dialog', { name: '입고 기록', exact: true });
+  await dialog.getByLabel('받은 개수', { exact: true }).fill('2');
   await dialog.getByLabel('메모 (선택)', { exact: true }).fill('현물 검수 후 입력');
   await dialog.getByRole('button', { name: '입고 저장', exact: true }).click();
   await expect(dialog).toBeHidden(); await expect(row).toContainText('보충 필요');

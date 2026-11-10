@@ -311,6 +311,9 @@
   justify-content: flex-end;
   gap: 8px;
 }
+.po-actions .btn {
+  flex: 1 1 auto;
+}
 .po-more {
   display: flex;
   flex-wrap: wrap;
@@ -602,7 +605,7 @@
 .po-step:disabled {
   cursor: not-allowed;
 }
-.po-form .po-step-input {
+.po-form .po-pick-stepper input.po-step-input {
   width: 48px;
   min-height: 40px;
   height: 40px;
@@ -612,12 +615,12 @@
   -moz-appearance: textfield;
   appearance: textfield;
 }
-.po-form .po-step-input::-webkit-outer-spin-button,
-.po-form .po-step-input::-webkit-inner-spin-button {
+.po-form .po-pick-stepper input.po-step-input::-webkit-outer-spin-button,
+.po-form .po-pick-stepper input.po-step-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.po-form .po-step-input:disabled {
+.po-form .po-pick-stepper input.po-step-input:disabled {
   border-color: transparent;
   background: transparent;
 }
@@ -628,7 +631,7 @@
   gap: 8px;
   min-width: 0;
 }
-.po-form .po-pick-cost input {
+.po-form .po-pick .po-pick-cost input {
   width: 128px;
   flex: none;
   min-height: 40px;
@@ -684,7 +687,7 @@
     column-gap: 12px;
     padding: 12px;
   }
-  .po-form .po-pick-cost input {
+  .po-form .po-pick .po-pick-cost input {
     width: 112px;
   }
   .po-total {

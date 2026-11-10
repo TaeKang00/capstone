@@ -26,7 +26,7 @@ test("뒤로·앞으로 이동은 검색 조건을 유지하고 새로고침은 
   await expect(page).toHaveURL(/#\/inventory$/);
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "재고 · 입고", exact: true }),
+    page.getByRole("heading", { name: "재고", exact: true }),
   ).toBeVisible();
   await expect(page).toHaveURL(/#\/inventory$/);
 });
