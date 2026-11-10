@@ -262,6 +262,8 @@ test("거래처 미사용 필터와 모바일 간편 발주 입력, 오류 후 �
     .getByLabel("사용 상태", { exact: true })
     .selectOption("false");
   await dialog(page).getByRole("button", { name: "저장", exact: true }).click();
+  // Wait for the supplier dialog (which has its own 사용 상태 field) to close.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("사용 상태", { exact: true }).selectOption("inactive");
   await expect(page.locator("tbody")).toContainText("모바일 공급사");
 });

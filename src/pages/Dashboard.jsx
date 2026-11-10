@@ -3,7 +3,9 @@ import { today, timeLabel } from "../api";
 import { Badge, Button, EmptyState, Money } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { useViewState } from "../components/ViewState";
-export default function Dashboard({ data, user, navigate }) {
+import { STATUS } from "./operations-utils";
+import { clockLabel } from "../workforce-utils";
+export default function Dashboard({ data, user, navigate, noticeReads = [] }) {
   const date = today();
   const clock = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Seoul",
@@ -56,14 +58,67 @@ export default function Dashboard({ data, user, navigate }) {
               ({ in_service: 0, checked_in: 1, booked: 2 }[b.status] ?? 3) ||
             a.start - b.start,
         );
-  const status = {
-    booked: ["예약", "muted"],
-    checked_in: ["방문", "warning"],
-    in_service: ["시술 중", "success"],
-    completed: ["완료", "muted"],
-    cancelled: ["취소", "danger"],
-    no_show: ["미방문", "danger"],
-  };
+  const status = Object.fromEntries(
+    Object.entries(STATUS).map(([key, value]) => [key, [value.label, value.tone]]),
+  );
+  const canBook = data.services.some((s) => s.active);
+  const alertsOn = data.store.alerts || {};
+  const myClock = (data.attendance || []).find(
+    (row) => row.staffId === user.staffId && row.date === date,
+  );
+  const unreadNotices =
+    alertsOn.unreadNotices === false
+      ? []
+      : (data.notices || []).filter(
+          (notice) =>
+            !notice.archived &&
+            !noticeReads.some(
+              (row) => row.noticeId === notice.id && row.userId === user.id,
+            ),
+        );
+  const openPurchaseRequests = operational
+    ? (data.purchaseRequests || []).filter((row) => row.status === "requested")
+    : [];
+  const pendingStaffRequests =
+    alertsOn.pendingRequests === false ? 0 : data.pendingRequestCount || 0;
+  const reminders = [
+    !myClock && {
+      key: "clock",
+      tone: "warning",
+      text: "아직 출근을 기록하지 않았습니다.",
+      action: "출근 기록",
+      go: () => navigate("attendance"),
+    },
+    myClock &&
+      myClock.clockOut == null && {
+        key: "clock",
+        tone: "muted",
+        text: `${clockLabel(myClock.clockIn)} 출근 · 근무 중`,
+        action: "퇴근 기록",
+        go: () => navigate("attendance"),
+      },
+    unreadNotices.length > 0 && {
+      key: "notice",
+      tone: "warning",
+      text: `읽지 않은 공지 ${unreadNotices.length}건 · ${unreadNotices[0].title}`,
+      action: "공지 확인",
+      go: () => navigate("notices"),
+    },
+    pendingStaffRequests > 0 && {
+      key: "requests",
+      tone: "warning",
+      text: `휴가·근무 신청 ${pendingStaffRequests}건이 승인을 기다립니다.`,
+      action: "승인하기",
+      go: () => navigate("hr", { tab: "requests" }),
+    },
+    openPurchaseRequests.length > 0 && {
+      key: "purchase",
+      tone: "warning",
+      text: `직원 구매 요청 ${openPurchaseRequests.length}건 · ${openPurchaseRequests.map((row) => row.itemName).slice(0, 3).join(", ")}`,
+      action: "발주 확인",
+      go: () => navigate("purchases"),
+    },
+  ].filter(Boolean);
   return (
     <>
       <div className="page-header">
@@ -86,6 +141,8 @@ export default function Dashboard({ data, user, navigate }) {
           <Button
             variant="primary"
             aria-label="＋ 예약 등록"
+            disabled={!canBook}
+            title={canBook ? undefined : "시술 메뉴를 먼저 등록해 주세요"}
             onClick={() => navigate("appointments", { create: true })}
           >
             <Icon name="plus" size={16} /> 예약 등록
@@ -102,6 +159,19 @@ export default function Dashboard({ data, user, navigate }) {
             시술 메뉴 등록
           </Button>
         </div>
+      )}
+      {reminders.length > 0 && (
+        <ul className="dashboard-reminders" aria-label="확인할 일">
+          {reminders.map((row) => (
+            <li key={row.key}>
+              <Badge tone={row.tone}>{row.tone === "warning" ? "확인" : "근태"}</Badge>
+              <span>{row.text}</span>
+              <Button variant="ghost" onClick={row.go}>
+                {row.action} →
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
       <div className="stat-grid">
         <button
@@ -227,6 +297,11 @@ export default function Dashboard({ data, user, navigate }) {
                 전체 {working.length}건
               </Button>
             </div>
+            {scheduleView === "open" && schedule.length > 1 && (
+              <p className="help dashboard-sort-note">
+                시술 중 → 방문 확인 → 예약 순, 같은 상태는 시간순입니다.
+              </p>
+            )}
             {schedule.length ? (
               schedule.slice(0, 8).map((a) => {
                 const customer = data.customers.find(
@@ -283,11 +358,13 @@ export default function Dashboard({ data, user, navigate }) {
                     : "새 예약을 등록하거나 날짜를 바꿔 다음 일정을 확인하세요."
                 }
                 action={
-                  <Button
-                    onClick={() => navigate("appointments", { create: true })}
-                  >
-                    예약 등록
-                  </Button>
+                  canBook ? (
+                    <Button
+                      onClick={() => navigate("appointments", { create: true })}
+                    >
+                      예약 등록
+                    </Button>
+                  ) : null
                 }
               />
             )}
@@ -314,6 +391,7 @@ export default function Dashboard({ data, user, navigate }) {
             {[
               ["appointments", "calendar", "새 예약 등록", { create: true }],
               ["customers", "users", "고객 찾아보기", {}],
+              ["attendance", "clock", "근태 · 휴가 신청", {}],
               ...(!designer
                 ? [
                     [
@@ -329,6 +407,7 @@ export default function Dashboard({ data, user, navigate }) {
               <button
                 className="quick-action"
                 key={page}
+                disabled={page === "appointments" && context.create && !canBook}
                 onClick={() => navigate(page, context)}
               >
                 <Icon name={icon} size={17} />

@@ -392,3 +392,20 @@
     margin: 1.5mm 0;
   }
 }
+
+.payroll-helpers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.payroll-helpers .help {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .payroll-table .payroll-view-button {
+    width: 100%;
+  }
+}

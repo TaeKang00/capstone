@@ -73,7 +73,7 @@ export const timestampLabel = (at) =>
 // Availability is a preview only. The server rechecks the schedule when saving.
 export function availableAppointmentTimes(
   data,
-  { date, staffId, duration, excludeId },
+  { date, staffId, duration, excludeId, notBefore = 0 },
 ) {
   const staff = data.staff.find((item) => item.id === staffId);
   const length = Number(duration);
@@ -101,6 +101,15 @@ export function availableAppointmentTimes(
       item.staffId === staffId &&
       ["booked", "checked_in", "in_service"].includes(item.status),
   );
+  const leaves = (data.staffRequests || []).filter(
+    (item) =>
+      item.kind === "leave" &&
+      item.status === "approved" &&
+      item.staffId === staffId &&
+      item.from <= date &&
+      item.to >= date,
+  );
+  if (leaves.some((item) => item.start == null)) return [];
   const result = [];
   const first =
     data.store.open + Math.ceil((opening - data.store.open) / step) * step;
@@ -113,9 +122,11 @@ export function availableAppointmentTimes(
     )
       continue;
     if (
+      start < notBefore ||
       occupied.some(
         (item) => start < item.start + item.duration && end > item.start,
-      )
+      ) ||
+      leaves.some((item) => start < item.end && end > item.start)
     )
       continue;
     result.push(start);

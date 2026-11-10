@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, roleLabel, timeLabel } from "../api";
 import { useViewState } from "../components/ViewState";
 import Icon from "../components/Icon";
+import { DateInput } from "../components/DateInput.jsx";
 import {
   Badge,
   Button,
@@ -21,6 +22,13 @@ const blank = {
   endMinutes: 1200,
   breakStart: null,
   breakEnd: null,
+  hireDate: "",
+  resignDate: "",
+  birthDate: "",
+  team: "",
+  title: "",
+  address: "",
+  annualLeave: 15,
 };
 const minutes = (value) =>
   value ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
@@ -236,7 +244,11 @@ export default function Staff({
               <div className="row">
                 <div>
                   <h3>{staff.name}</h3>
-                  <span className="help">{roleLabel(staff.role)}</span>
+                  <span className="help">
+                    {[staff.title, roleLabel(staff.role), staff.team]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </div>
                 <div style={{ marginLeft: "auto" }}>
                   <Badge tone={staff.status === "active" ? "success" : "muted"}>
@@ -248,6 +260,17 @@ export default function Staff({
                 <div>
                   <dt>연락처</dt>
                   <dd>{staff.phone || "미등록"}</dd>
+                </div>
+                <div>
+                  <dt>입사일</dt>
+                  <dd>
+                    {staff.hireDate
+                      ? staff.hireDate.replaceAll("-", ". ")
+                      : "미등록"}
+                    {staff.resignDate
+                      ? ` ~ ${staff.resignDate.replaceAll("-", ". ")}`
+                      : ""}
+                  </dd>
                 </div>
                 <div>
                   <dt>근무</dt>
@@ -281,7 +304,7 @@ export default function Staff({
                 {!accounts && (
                   <>
                     <Button
-                      onClick={() => setEditing({ ...staff })}
+                      onClick={() => setEditing({ ...blank, ...staff })}
                       disabled={locked}
                     >
                       직원 정보
@@ -406,7 +429,13 @@ function StaffForm({ initial, user, linked, save, close, notify }) {
     setBusy(true);
     setError("");
     try {
-      await save(form);
+      await save({
+        ...form,
+        annualLeave:
+          form.annualLeave === "" || form.annualLeave == null
+            ? 15
+            : Number(form.annualLeave),
+      });
       notify("직원 정보를 저장했습니다.");
       close();
     } catch (err) {
@@ -478,6 +507,74 @@ function StaffForm({ initial, user, linked, save, close, notify }) {
               </select>
             </Field>
           </div>
+          <div className="grid grid-2">
+            <Field label="직위 (선택)">
+              <input
+                maxLength={40}
+                placeholder="예: 실장, 디자이너, 인턴"
+                {...field("title")}
+              />
+            </Field>
+            <Field label="소속 팀 (선택)">
+              <input
+                maxLength={40}
+                placeholder="예: 1팀, 컬러팀"
+                {...field("team")}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-2">
+            <Field label="입사일" help="재직·경력증명서 발급에 필요합니다.">
+              <DateInput
+                className="input"
+                type="date"
+                value={form.hireDate || ""}
+                onChange={(e) => setForm({ ...form, hireDate: e.target.value })}
+              />
+            </Field>
+            <Field label="퇴사일 (선택)">
+              <DateInput
+                className="input"
+                type="date"
+                value={form.resignDate || ""}
+                onChange={(e) =>
+                  setForm({ ...form, resignDate: e.target.value })
+                }
+              />
+            </Field>
+          </div>
+          <div className="grid grid-2">
+            <Field label="생년월일 (선택)">
+              <DateInput
+                className="input"
+                type="date"
+                value={form.birthDate || ""}
+                onChange={(e) =>
+                  setForm({ ...form, birthDate: e.target.value })
+                }
+              />
+            </Field>
+            <Field label="연간 연차 일수" help="휴가 신청 시 남은 연차를 계산합니다.">
+              <input
+                type="number"
+                min={0}
+                max={60}
+                step={1}
+                inputMode="numeric"
+                value={form.annualLeave ?? ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    annualLeave:
+                      e.target.value === "" ? "" : Number(e.target.value),
+                  })
+                }
+              />
+            </Field>
+          </div>
+          <Field label="주소 (선택)">
+            <input maxLength={200} {...field("address")} />
+          </Field>
           <div className="field">
             <span className="field-label">근무 요일</span>
             <div className="day-toggle">

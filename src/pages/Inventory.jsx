@@ -89,7 +89,7 @@ export default function Inventory({
             categoryFilter) &&
         (filter !== "low" || Number(item.qty) <= Number(item.min)) &&
         (!query ||
-          `${item.name} ${item.kind} ${item.unit}`
+          `${item.name} ${item.kind} ${item.unit} ${item.spec || ""} ${item.barcode || ""}`
             .toLowerCase()
             .includes(query.toLowerCase())),
     )
@@ -147,6 +147,22 @@ export default function Inventory({
         ),
     [data.logs, items, itemFilter, from, to, query],
   );
+  const requested = new Set(
+    (data.purchaseRequests || [])
+      .filter((entry) => entry.status === "requested")
+      .map((entry) => entry.itemId),
+  );
+  // Barcode scanners type the code and press Enter: jump straight to receiving that item.
+  const scanned = (event) => {
+    if (event.key !== "Enter" || tab !== "stock") return;
+    const code = query.trim();
+    const match = code && items.find((item) => item.barcode === code);
+    if (!match) return;
+    event.preventDefault();
+    if (canWrite && match.active !== false)
+      setDialog({ kind: "receipt", itemId: match.id });
+    else setQuery(match.name);
+  };
   const currentReceipt = dialog?.receiptId
     ? receipts.find((r) => r.id === dialog.receiptId)
     : null;
@@ -310,9 +326,10 @@ export default function Inventory({
                   className="input"
                   placeholder={
                     tab === "stock"
-                      ? "품목 이름, 구분"
+                      ? "품목 이름, 구분, 규격, 바코드 스캔"
                       : "품목 이름, 기록자, 메모"
                   }
+                  onKeyDown={scanned}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -416,6 +433,15 @@ export default function Inventory({
                       <tr key={item.id}>
                         <td>
                           <strong>{item.name}</strong>
+                          {item.spec && (
+                            <span className="commerce-spec"> {item.spec}</span>
+                          )}
+                          {requested.has(item.id) && (
+                            <>
+                              {" "}
+                              <Badge tone="warning">구매 요청됨</Badge>
+                            </>
+                          )}
                           <span className="commerce-secondary">
                             {data.itemCategories?.find(
                               (c) =>
@@ -426,10 +452,12 @@ export default function Inventory({
                                     : "cat-service")),
                             )?.name || item.kind}{" "}
                             · {item.kind}
-                            <span className="commerce-secondary">
-                              1개 입고 = {quantity(item.packSize || 1)}
-                              {item.unit}
-                            </span>
+                            {!((item.packSize || 1) === 1 && item.unit === "개") && (
+                              <span className="commerce-secondary">
+                                1개 입고 = {quantity(item.packSize || 1)}
+                                {item.unit}
+                              </span>
+                            )}
                           </span>
                         </td>
                         <td data-label="상태">
@@ -504,6 +532,21 @@ export default function Inventory({
                                 실사
                               </Button>
                             )}
+                            {item.active !== false &&
+                              !requested.has(item.id) && (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setDialog({
+                                      kind: "request",
+                                      itemId: item.id,
+                                    })
+                                  }
+                                  aria-label={`${item.name} 구매 요청`}
+                                >
+                                  구매 요청
+                                </Button>
+                              )}
                             {canManage && (
                               <Button
                                 variant="ghost"
@@ -730,6 +773,16 @@ export default function Inventory({
           }
         />
       )}
+      {dialog?.kind === "request" && currentItem && (
+        <PurchaseRequestForm
+          item={currentItem}
+          runAction={runAction}
+          onClose={() => setDialog(null)}
+          onSaved={() =>
+            saved("구매 요청을 등록했습니다. 매니저가 발주에 반영합니다.")
+          }
+        />
+      )}
       {dialog?.kind === "receipt" && (
         <ReceiptForm
           items={items}
@@ -804,6 +857,8 @@ function ItemForm({ data, item, runAction, onClose, onSaved }) {
     min: String(item?.min || 0),
     price: String(item?.price || 0),
     active: item?.active !== false,
+    barcode: item?.barcode || "",
+    spec: item?.spec || "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -870,6 +925,28 @@ function ItemForm({ data, item, runAction, onClose, onSaved }) {
             />
           </Field>
           <div className="commerce-form-grid">
+            <Field label="규격 (선택)" help="예: 500ml, 1kg, 대용량">
+              <input
+                className="input"
+                maxLength={100}
+                value={form.spec}
+                onChange={(e) => update("spec", e.target.value)}
+              />
+            </Field>
+            <Field
+              label="바코드 (선택)"
+              help="스캐너로 읽거나 숫자를 입력하세요. 검색창에서 스캔하면 바로 입고합니다."
+            >
+              <input
+                className="input"
+                maxLength={64}
+                inputMode="numeric"
+                autoComplete="off"
+                value={form.barcode}
+                onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                onChange={(e) => update("barcode", e.target.value.trim())}
+              />
+            </Field>
             <Field label="품목 분류">
               <select
                 required
@@ -1015,6 +1092,89 @@ function ItemForm({ data, item, runAction, onClose, onSaved }) {
               ? `현재 재고 ${quantity(item.qty)}${item.unit}. 실제 수량은 입고 또는 실사에서 변경합니다.`
               : "새 품목의 재고는 0으로 시작합니다. 등록 후 실제 수령한 수량을 입고하세요."}
           </p>
+        </fieldset>
+      </form>
+    </Modal>
+  );
+}
+
+function PurchaseRequestForm({ item, runAction, onClose, onSaved }) {
+  const [form, setForm] = useState({ quantity: "1", note: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const dirty = form.quantity !== "1" || !!form.note;
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await runAction("purchase.request", {
+        itemId: item.id,
+        quantity: Number(form.quantity),
+        note: form.note,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      title={`${item.name} 구매 요청`}
+      onClose={busy ? undefined : onClose}
+      dirty={dirty}
+      footer={
+        <Button
+          variant="primary"
+          type="submit"
+          form="purchase-request"
+          busy={busy}
+        >
+          요청 등록
+        </Button>
+      }
+    >
+      <form id="purchase-request" onSubmit={submit} className="stack">
+        <fieldset disabled={busy} className="commerce-fieldset">
+          {error && (
+            <div className="alert alert-danger" role="alert">
+              {error}
+            </div>
+          )}
+          <p className="commerce-note">
+            현재 재고 {quantity(item.qty)}
+            {item.unit} · 보충 기준 {quantity(item.min)}
+            {item.unit}. 발주 담당자가 확인 후 거래처에 주문합니다.
+          </p>
+          <Field
+            label="요청 수량 (포장 개수)"
+            help={`1개 = ${quantity(item.packSize || 1)}${item.unit}`}
+          >
+            <input
+              className="input"
+              type="number"
+              required
+              min="1"
+              max="9999"
+              step="1"
+              inputMode="numeric"
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+            />
+          </Field>
+          <Field label="메모 (선택)">
+            <textarea
+              className="textarea"
+              rows="2"
+              maxLength={300}
+              placeholder="예: 다음 주 염색 예약이 많아요"
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+            />
+          </Field>
         </fieldset>
       </form>
     </Modal>

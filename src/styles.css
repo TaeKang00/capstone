@@ -411,6 +411,13 @@ input[type="radio"] {
   background: #f9fbfc;
   flex-shrink: 0;
 }
+.brand-logo {
+  width: 33px;
+  height: 33px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
 .store-label {
   margin: 28px 8px 14px;
   padding-bottom: 18px;
@@ -672,7 +679,7 @@ input[type="radio"] {
 }
 .stat-note {
   font-size: 12px;
-  color: #79848f;
+  color: var(--muted);
   margin: 5px 0 0;
   line-height: 1.6;
   word-break: keep-all;
@@ -811,13 +818,13 @@ input[type="radio"] {
   flex-wrap: wrap;
   padding: 16px 32px;
   border-top: 1px solid var(--line);
-  font-size: 11px;
-  color: #77828e;
+  font-size: 12px;
+  color: var(--muted);
   background: #fff;
 }
 .app-footer .text-btn {
-  font-size: 11px;
-  color: #667583;
+  font-size: 12px;
+  color: var(--muted);
 }
 .footer-dot {
   margin: 0 6px;
@@ -999,8 +1006,8 @@ input[type="radio"] {
 }
 .auth-footer {
   margin-top: 22px;
-  color: #87919b;
-  font-size: 11px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .auth-page {
   min-height: 100dvh;
@@ -1569,13 +1576,13 @@ input[type="radio"] {
   .app-footer {
     padding: 16px;
     gap: 9px;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.7;
   }
   .app-footer > span:nth-child(2) {
     order: 3;
     width: 100%;
-    font-size: 10px;
+    font-size: 12px;
   }
   .auth-header {
     height: 66px;
@@ -1601,7 +1608,7 @@ input[type="radio"] {
     margin-top: 30px;
   }
   .auth-note {
-    font-size: 11px;
+    font-size: 12px;
   }
   .auth-page .auth-card {
     border: 1px solid var(--line);
@@ -1710,3 +1717,32 @@ input[type="radio"] {
 .work-access-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 32px; border-bottom: 1px solid var(--border, #dde3e8); background: #fff; color: var(--muted, #657180); font-size: 12px; }
 .work-access-bar .row { flex-wrap: wrap; gap: 8px; }
 @media (max-width: 760px) { .work-access-bar { align-items: flex-start; flex-direction: column; padding: 12px 18px; } }
+
+.dashboard-reminders {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.dashboard-reminders li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.dashboard-reminders li span:not(.badge) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.dashboard-sort-note {
+  margin: -4px 0 8px;
+}
+.quick-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

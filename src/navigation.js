@@ -7,6 +7,8 @@ const pages = new Set([
   "payments",
   "inventory",
   "purchases",
+  "attendance",
+  "notices",
 ]);
 const fromLocation = () => {
   const candidate = window.location.hash.slice(2);
@@ -17,7 +19,14 @@ const fromLocation = () => {
 export function canVisit(page, role) {
   if (!pages.has(page)) return false;
   if (role === "designer")
-    return ["dashboard", "appointments", "customers", "payroll"].includes(page);
+    return [
+      "dashboard",
+      "appointments",
+      "customers",
+      "attendance",
+      "notices",
+      "payroll",
+    ].includes(page);
   if (role === "reception") return !["staff", "settings"].includes(page);
   return true;
 }
@@ -49,7 +58,7 @@ export function useWorkspaceNavigation(role, notify) {
     window.scrollTo({ top: 0 });
     requestAnimationFrame(() => {
       if (!document.querySelector('[role="dialog"]'))
-        document.getElementById("main")?.focus();
+        document.getElementById("main")?.focus({ preventScroll: true });
     });
   }, []);
   const move = useCallback(

@@ -147,3 +147,19 @@
     padding: 0;
   }
 }
+
+@media (max-width: 700px) {
+  /* Six owner sections: wrap into a grid instead of a hidden horizontal scroll. */
+  .private-workspace-navigation {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    overflow: visible;
+  }
+  .private-workspace-navigation button {
+    padding: 10px 6px;
+    font-size: 13px;
+    gap: 5px;
+    flex-direction: column;
+  }
+}

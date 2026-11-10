@@ -15,6 +15,8 @@ async function prepare(page) {
 
 test('예약 작성 중 신규 고객을 등록해도 시술·시간·메모를 유지하고 빈 시간으로 예약한다', async ({ page }) => {
   const { staff, service } = await prepare(page);
+  // Today's past slots are hidden, so pin the browser clock before opening hours.
+  await page.clock.setFixedTime(new Date(`${today()}T09:00:00+09:00`));
   await page.getByRole('button', { name: '＋ 예약 등록', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: '새 예약 등록', exact: true });
   await expect(dialog).toBeVisible();

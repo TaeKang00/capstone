@@ -26,6 +26,8 @@ import Customers from "./pages/Customers";
 import Payments from "./pages/Payments";
 import Purchases from "./pages/Purchases";
 import Inventory from "./pages/Inventory";
+import Attendance from "./pages/Attendance";
+import Notices, { useNoticeReads } from "./pages/Notices";
 import PrivateWorkspace from "./components/PrivateWorkspace";
 import { SharedDesk } from "./components/SharedDesk";
 import { AccessGate } from "./components/AccessGate";
@@ -37,12 +39,16 @@ const pages = {
   payments: Payments,
   inventory: Inventory,
   purchases: Purchases,
+  attendance: Attendance,
+  notices: Notices,
 };
 const navigation = [
   ["dashboard", "오늘의 매장", "workspace", "업무"],
   ["appointments", "예약 일정", "calendar"],
   ["customers", "고객 관리", "users"],
   ["payments", "수납 · 환불", "credit-card"],
+  ["attendance", "근태 · 휴가", "clock"],
+  ["notices", "공지사항", "bell"],
   ["sales", "매출 · 정산", "chart", "운영"],
   ["inventory", "재고 · 입고", "inventory"],
   ["purchases", "발주 · 거래처", "inventory"],
@@ -101,12 +107,22 @@ export default function App() {
     cancelNavigation,
     resetNavigation,
   } = useWorkspaceNavigation(session?.user.role, notify);
+  const workReady =
+    !!session &&
+    session.mode === "work" &&
+    !session.user.mustChangePassword &&
+    !!state;
+  const [noticeReads] = useNoticeReads(state?.version, workReady);
   const securityRef = useRef(null);
   const [viewEpoch, setViewEpoch] = useState(0);
   const navigate = useCallback(
     (target, context = {}) => {
       setDrawer(false);
-      if (["staff", "payroll", "sales", "settings"].includes(target)) {
+      if (
+        ["staff", "payroll", "sales", "settings", "hr", "finance"].includes(
+          target,
+        )
+      ) {
         securityRef.current.requestPrivate(
           target === "payroll" && getSession()?.user.role !== "owner"
             ? "personal"
@@ -464,10 +480,24 @@ export default function App() {
     data = state?.data;
   const activePage = allowed(page, user.role) ? page : "dashboard",
     Page = pages[activePage];
+  const alerts = data?.store?.alerts || {};
   const low =
-    data?.items?.filter(
-      (i) => i.active !== false && Number(i.qty) <= Number(i.min),
-    ).length || 0;
+    alerts.lowStock === false
+      ? 0
+      : data?.items?.filter(
+          (i) => i.active !== false && Number(i.qty) <= Number(i.min),
+        ).length || 0;
+  const unreadNotices =
+    alerts.unreadNotices === false
+      ? 0
+      : (data?.notices || []).filter(
+          (notice) =>
+            !notice.archived &&
+            !noticeReads.some(
+              (row) => row.noticeId === notice.id && row.userId === user.id,
+            ),
+        ).length;
+  const counts = { inventory: low, notices: unreadNotices };
   const nav = (
     <>
       <a
@@ -478,9 +508,13 @@ export default function App() {
           navigate("dashboard");
         }}
       >
-        <span className="brand-mark">
-          <Icon name="workspace" size={19} />
-        </span>
+        {data?.store?.logo ? (
+          <img className="brand-logo" src={data.store.logo} alt="" />
+        ) : (
+          <span className="brand-mark">
+            <Icon name="workspace" size={19} />
+          </span>
+        )}
         <span>
           살롱 데스크<small>매장 관리</small>
         </span>
@@ -504,8 +538,10 @@ export default function App() {
                   <Icon name={icon} />
                 </span>
                 {label}
-                {key === "inventory" && low > 0 && (
-                  <span className="nav-count">{low}</span>
+                {counts[key] > 0 && (
+                  <span className="nav-count" aria-label={`${counts[key]}건`}>
+                    {counts[key]}
+                  </span>
                 )}
               </button>
             </React.Fragment>
@@ -702,6 +738,7 @@ export default function App() {
                     data={data}
                     user={user}
                     version={state.version}
+                    noticeReads={noticeReads}
                     runAction={runAction}
                     refresh={refresh}
                     notify={notify}

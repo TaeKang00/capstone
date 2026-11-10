@@ -71,6 +71,9 @@ test("달력에서 선택한 날짜로 조회하고 기간 제한과 직접 입�
 
 test("작성 중 달력의 Escape는 달력만 닫고 월 선택과 선택 지우기를 지원한다", async ({ page }) => {
   await setupOwner(page);
+  // Booking stays disabled until a service exists.
+  await adminAction(page, "service.save", { name: "달력 확인 시술", price: 10000, duration: 30, materials: [], active: true });
+  await page.reload();
   await page.getByRole("button", { name: "＋ 예약 등록", exact: true }).click();
   const appointment = page.getByRole("dialog", { name: "새 예약 등록", exact: true });
   await appointment.getByLabel("예약자 이름 *", { exact: true }).fill("입력 보존 확인");

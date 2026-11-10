@@ -205,6 +205,13 @@ function filterState(envelope, user) {
             status: row.status,
           },
     );
+  // Owners only learn how many requests await their re-authenticated approval.
+  data.pendingRequestCount =
+    user.role === "owner"
+      ? (envelope.data.staffRequests || []).filter(
+          (row) => row.status === "requested",
+        ).length
+      : 0;
   data.notices = (data.notices || []).filter((row) => !row.archived);
   data.expenses = [];
   data.certificates = [];

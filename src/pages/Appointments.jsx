@@ -26,6 +26,18 @@ import {
 } from "./operations-utils.js";
 import "./Operations.css";
 import { Icon } from "../components/Icon.jsx";
+const nowMinutes = () => {
+  const [h, m] = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date())
+    .split(":")
+    .map(Number);
+  return h * 60 + m;
+};
 import { CustomerEditor } from "./Customers.jsx";
 import { useViewState } from "../components/ViewState.jsx";
 
@@ -97,9 +109,14 @@ function AppointmentEditor({
         },
   );
   const [draft, setDraft] = useState(initial.current);
-  const [kind, setKind] = useState(
-    initial.current.customerId ? "customer" : "guest",
+  // Most bookings are returning customers, so new bookings start with customer search.
+  const initialKind = useRef(
+    initial.current.customerId ||
+      (!appointment && data.customers.some((row) => !row.archived))
+      ? "customer"
+      : "guest",
   );
+  const [kind, setKind] = useState(initialKind.current);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -107,7 +124,7 @@ function AppointmentEditor({
   const [customerCreated, setCustomerCreated] = useState(false);
   const bookingDirty =
     JSON.stringify(draft) !== JSON.stringify(initial.current) ||
-    kind !== (initial.current.customerId ? "customer" : "guest");
+    kind !== initialKind.current;
   useEffect(() => {
     if (!customerEditor) return;
     const protectBooking = (event) => {
@@ -164,6 +181,8 @@ function AppointmentEditor({
     staffId: draft.staffId,
     duration: draft.duration,
     excludeId: draft.id,
+    // Past slots are not suggested for today; times can still be typed for walk-ins.
+    notBefore: draft.date === todaySeoul() ? nowMinutes() : 0,
   });
   function openCustomerEditor() {
     const term = search.trim();

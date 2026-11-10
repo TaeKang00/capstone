@@ -650,3 +650,9 @@
     line-height: 1.6;
   }
 }
+
+.commerce-spec {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 500;
+}

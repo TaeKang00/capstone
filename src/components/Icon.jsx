@@ -34,6 +34,13 @@ const paths = {
   lock: ["M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3"],
   check: ["m5 12 4 4L19 6"],
   download: ["M12 3v12m-5-5 5 5 5-5M4 15v6h16v-6"],
+  clock: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7v5l3 2"],
+  bell: [
+    "M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2ZM10 20a2 2 0 0 0 4 0",
+  ],
+  wallet: [
+    "M4 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4zM4 6l11-3v3M16 13h4",
+  ],
 };
 
 export function Icon({ name, size = 18, className = "", ...props }) {

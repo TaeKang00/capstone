@@ -37,3 +37,15 @@ test('휴무일·비활성·접수 직원이나 유효하지 않은 시간에는
     assert.deepEqual(availableAppointmentTimes(fixture(), { ...selection, ...change }), []);
   }
 });
+test('지난 시간과 승인된 휴가 시간은 가능한 시간으로 안내하지 않는다', async () => {
+  const { availableAppointmentTimes } = await utils;
+  assert.deepEqual(availableAppointmentTimes(fixture(), { ...selection, notBefore: 900 }), [900, 930, 960, 990]);
+  const halfDay = fixture();
+  halfDay.staffRequests = [{ kind: 'leave', status: 'approved', staffId: 'designer', from: '2026-10-05', to: '2026-10-05', start: 780, end: 1050 }];
+  assert.deepEqual(availableAppointmentTimes(halfDay, selection), [630, 660]);
+  const fullDay = fixture();
+  fullDay.staffRequests = [{ kind: 'leave', status: 'approved', staffId: 'designer', from: '2026-10-04', to: '2026-10-06', start: null, end: null }];
+  assert.deepEqual(availableAppointmentTimes(fullDay, selection), []);
+  fullDay.staffRequests[0].status = 'requested';
+  assert.deepEqual(availableAppointmentTimes(fullDay, selection), [630, 660, 780, 900, 930, 960, 990]);
+});

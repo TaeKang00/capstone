@@ -11,6 +11,7 @@ import { DateInput } from "../components/DateInput";
 import { useViewState } from "../components/ViewState";
 import { todayInSeoul, quantity } from "./commerce-utils";
 import "../procurement.js";
+import { printDocument, escapeHtml, printMoney, storeBlock, logoTag } from "../print";
 import "./Commerce.css";
 import "./Purchases.css";
 const {
@@ -90,6 +91,9 @@ export default function Purchases({
       match(s.name, s.contact || "", s.phone || ""),
   );
   const current = dialog?.id ? orders.find((o) => o.id === dialog.id) : null;
+  const pendingRequests = (data.purchaseRequests || []).filter(
+    (r) => r.status === "requested",
+  ).length;
   const saved = () => {
     setDialog(null);
     notify("저장했습니다.");
@@ -118,19 +122,19 @@ export default function Purchases({
               onClick={() =>
                 setDialog({
                   kind:
-                    tab === "orders"
-                      ? "new"
-                      : tab === "suppliers"
-                        ? "supplier"
-                        : "category",
+                    tab === "suppliers"
+                      ? "supplier"
+                      : tab === "categories"
+                        ? "category"
+                        : "new",
                 })
               }
             >
-              {tab === "orders"
-                ? "+ 발주 등록"
-                : tab === "suppliers"
-                  ? "+ 거래처 등록"
-                  : "+ 분류 등록"}
+              {tab === "suppliers"
+                ? "+ 거래처 등록"
+                : tab === "categories"
+                  ? "+ 분류 등록"
+                  : "+ 발주 등록"}
             </Button>
           )}
         </div>
@@ -181,6 +185,8 @@ export default function Purchases({
       <div className="tabs" role="tablist" aria-label="발주 관리 메뉴">
         {[
           ["orders", "발주 내역"],
+          ["requests", "구매 요청"],
+          ["summary", "매입 현황"],
           ["suppliers", "거래처"],
           ["categories", "품목 분류"],
         ].map(([id, label]) => (
@@ -192,9 +198,23 @@ export default function Purchases({
             onClick={() => changeTab(id)}
           >
             {label}
+            {id === "requests" && pendingRequests > 0 && (
+              <span className="commerce-tab-count">{pendingRequests}</span>
+            )}
           </button>
         ))}
       </div>
+      {tab === "requests" ? (
+        <RequestList
+          data={data}
+          canManage={canManage}
+          runAction={runAction}
+          notify={notify}
+          onOrder={() => setDialog({ kind: "new" })}
+        />
+      ) : tab === "summary" ? (
+        <PurchaseSummary orders={orders} />
+      ) : (
       <section className="card purchase-card">
         <div className="commerce-filters">
           <Field label="검색">
@@ -307,15 +327,17 @@ export default function Purchases({
                         <td data-label="발주일 / 거래처">
                           <strong>{o.supplierName}</strong>
                           <span className="commerce-secondary">
-                            {o.date} · {o.id.slice(0, 8)}
+                            {o.date} · 발주 #{orders.indexOf(o) + 1}
                           </span>
                         </td>
                         <td data-label="품목">
                           {l.itemName}
-                          <span className="commerce-secondary">
-                            1개 = {quantity(l.packSize)}
-                            {l.unit}
-                          </span>
+                          {!(l.packSize === 1 && l.unit === "개") && (
+                            <span className="commerce-secondary">
+                              1개 = {quantity(l.packSize)}
+                              {l.unit}
+                            </span>
+                          )}
                         </td>
                         <td data-label="수량 / 입고">
                           {l.quantity}개 발주
@@ -482,6 +504,7 @@ export default function Purchases({
           </>
         )}
       </section>
+      )}
       {["supplier", "category"].includes(dialog?.kind) && (
         <MasterForm
           kind={dialog.kind}
@@ -502,6 +525,7 @@ export default function Purchases({
       {dialog?.kind === "detail" && current && (
         <OrderDetail
           order={current}
+          store={data.store}
           receipts={receipts}
           canManage={canManage}
           onClose={() => setDialog(null)}
@@ -911,7 +935,48 @@ function OrderForm({ data, runAction, onClose, onSaved }) {
     </Modal>
   );
 }
-function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
+function printOrder(o, store) {
+  const rows = o.lines
+    .map(
+      (l) => `<tr><td>${escapeHtml(l.itemName)}</td><td class="num">${escapeHtml(
+        `${quantity(l.packSize)}${l.unit}`,
+      )}</td><td class="num">${l.quantity - cancelled(o, l)}개</td><td class="num">${printMoney(
+        l.unitCost,
+      )}</td><td class="num">${printMoney(
+        (l.quantity - cancelled(o, l)) * l.unitCost,
+      )}</td></tr>`,
+    )
+    .join("");
+  const amount = o.lines.reduce(
+    (s, l) => s + (l.quantity - cancelled(o, l)) * l.unitCost,
+    0,
+  );
+  printDocument(
+    `발주서 ${o.date}`,
+    `${logoTag(store)}<h1>발 주 서</h1>
+    <div class="meta"><div><strong>수신: ${escapeHtml(o.supplierName)} 귀하</strong>
+    <dl><dt>발주일</dt><dd>${escapeHtml(o.date)}</dd><dt>납품 요청일</dt><dd>${escapeHtml(
+      o.deliveryDate || "협의",
+    )}</dd><dt>발주 번호</dt><dd>${escapeHtml(o.id.slice(0, 8))}</dd><dt>담당</dt><dd>${escapeHtml(
+      o.actorName,
+    )}</dd></dl></div><div><strong>발신</strong>${storeBlock(store)}</div></div>
+    <p>아래와 같이 발주합니다.</p>
+    <table><thead><tr><th>품목</th><th class="num">포장 용량</th><th class="num">수량</th><th class="num">단가</th><th class="num">금액</th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td colspan="4">합계</td><td class="num">${printMoney(
+      amount,
+    )}</td></tr></tfoot></table>
+    ${o.notes ? `<div class="note"><strong>요청 사항</strong><br>${escapeHtml(o.notes)}</div>` : ""}
+    <div class="footer">${escapeHtml(store?.name || "")} (인)</div>`,
+  );
+}
+function OrderDetail({
+  order: o,
+  store,
+  receipts,
+  canManage,
+  onClose,
+  onAction,
+}) {
   const state = status(o, receipts),
     history = receipts.filter((r) => r.orderId === o.id);
   return (
@@ -921,6 +986,7 @@ function OrderDetail({ order: o, receipts, canManage, onClose, onAction }) {
       onClose={onClose}
       footer={
         <>
+          <Button onClick={() => printOrder(o, store)}>발주서 인쇄</Button>
           {!o.cancelled && o.lines.some((l) => pending(o, l, receipts) > 0) && (
             <Button variant="primary" onClick={() => onAction("receive")}>
               입고 수량 입력
@@ -1380,5 +1446,347 @@ function OrderAction({
         </fieldset>
       </form>
     </Modal>
+  );
+}
+
+function RequestList({ data, canManage, runAction, notify, onOrder }) {
+  const [rejecting, setRejecting] = useState(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const statusLabel = { requested: "대기", ordered: "발주 반영", rejected: "반려" };
+  const statusTone = { requested: "warning", ordered: "success", rejected: "muted" };
+  const requests = (data.purchaseRequests || [])
+    .slice()
+    .sort(
+      (a, b) =>
+        Number(b.status === "requested") - Number(a.status === "requested") ||
+        String(b.createdAt).localeCompare(String(a.createdAt)),
+    );
+  async function decide(request, status, reason = "") {
+    setBusy(request.id);
+    setError("");
+    try {
+      await runAction("purchase.requestDecide", {
+        id: request.id,
+        status,
+        note: reason,
+      });
+      setRejecting(null);
+      setNote("");
+      notify(status === "ordered" ? "발주 반영으로 표시했습니다." : "구매 요청을 반려했습니다.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy("");
+    }
+  }
+  return (
+    <section className="card purchase-card">
+      <p className="help">
+        직원이 재고 화면에서 요청한 품목입니다. 거래처에 발주한 뒤 ‘발주 반영’으로 표시하세요.
+      </p>
+      {error && !rejecting && (
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      )}
+      {requests.length ? (
+        <div className="table-wrap">
+          <table className="table commerce-table commerce-mobile-cards">
+            <thead>
+              <tr>
+                <th>품목</th>
+                <th className="numeric">수량</th>
+                <th>요청자 / 요청일</th>
+                <th>메모</th>
+                <th>상태</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map((r) => {
+                const item = (data.items || []).find((i) => i.id === r.itemId);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <strong>{item?.name || r.itemName}</strong>
+                      {item && (
+                        <span className="commerce-secondary">
+                          현재 {quantity(item.qty)}
+                          {item.unit} · 기준 {quantity(item.min)}
+                          {item.unit}
+                        </span>
+                      )}
+                    </td>
+                    <td data-label="수량" className="numeric">
+                      {r.quantity}개
+                    </td>
+                    <td data-label="요청자 / 요청일">
+                      {r.requestedBy}
+                      <span className="commerce-secondary">
+                        {String(r.createdAt).slice(0, 10)}
+                      </span>
+                    </td>
+                    <td data-label="메모">
+                      {r.note || "—"}
+                      {r.decisionNote && (
+                        <span className="commerce-secondary">
+                          처리: {r.decisionNote}
+                        </span>
+                      )}
+                    </td>
+                    <td data-label="상태">
+                      <Badge tone={statusTone[r.status]}>
+                        {statusLabel[r.status]}
+                      </Badge>
+                      {r.decidedBy && (
+                        <span className="commerce-secondary">{r.decidedBy}</span>
+                      )}
+                    </td>
+                    <td>
+                      {canManage && r.status === "requested" ? (
+                        <div className="commerce-actions">
+                          <Button
+                            variant="secondary"
+                            busy={busy === r.id}
+                            onClick={() => decide(r, "ordered")}
+                            aria-label={`${r.itemName} 발주 반영`}
+                          >
+                            발주 반영
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!!busy}
+                            onClick={() => {
+                              setError("");
+                              setRejecting(r);
+                            }}
+                            aria-label={`${r.itemName} 요청 반려`}
+                          >
+                            반려
+                          </Button>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          title="구매 요청이 없습니다"
+          description="재고 · 입고 화면에서 품목별 ‘구매 요청’을 누르면 이곳에 모입니다."
+        />
+      )}
+      {canManage && requests.some((r) => r.status === "requested") && (
+        <Button variant="primary" onClick={onOrder}>
+          + 발주 등록
+        </Button>
+      )}
+      {rejecting && (
+        <Modal
+          title={`${rejecting.itemName} 요청 반려`}
+          onClose={busy ? undefined : () => setRejecting(null)}
+          dirty={!!note}
+          footer={
+            <Button
+              variant="danger"
+              busy={busy === rejecting.id}
+              disabled={!note.trim()}
+              onClick={() => decide(rejecting, "rejected", note)}
+            >
+              반려
+            </Button>
+          }
+        >
+          <div className="stack">
+            {error && (
+              <div className="alert alert-danger" role="alert">
+                {error}
+              </div>
+            )}
+            <Field label="반려 사유" help="요청한 직원에게 표시됩니다.">
+              <textarea
+                className="textarea"
+                rows="3"
+                maxLength={300}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </Field>
+          </div>
+        </Modal>
+      )}
+    </section>
+  );
+}
+
+function PurchaseSummary({ orders }) {
+  const today = todayInSeoul();
+  const [from, setFrom] = useViewState(
+    "purchases",
+    "summaryFrom",
+    `${today.slice(0, 7)}-01`,
+  );
+  const [to, setTo] = useViewState("purchases", "summaryTo", today);
+  const inRange = orders.filter(
+    (o) => !o.cancelled && (!from || o.date >= from) && (!to || o.date <= to),
+  );
+  const bySupplier = new Map();
+  const byItem = new Map();
+  for (const o of inRange) {
+    const s = bySupplier.get(o.supplierName) || {
+      name: o.supplierName,
+      count: 0,
+      amount: 0,
+      paid: 0,
+      balance: 0,
+    };
+    s.count += 1;
+    s.amount += total(o);
+    s.paid += paidAmount(o);
+    s.balance += balance(o);
+    bySupplier.set(o.supplierName, s);
+    for (const l of o.lines) {
+      const net = l.quantity - cancelled(o, l) - returned(o, l);
+      const key = `${l.itemId}`;
+      const it = byItem.get(key) || {
+        name: l.itemName,
+        unit: l.unit,
+        quantity: 0,
+        volume: 0,
+        amount: 0,
+      };
+      it.quantity += net;
+      it.volume += net * l.packSize;
+      it.amount += net * l.unitCost;
+      byItem.set(key, it);
+    }
+  }
+  const suppliers = [...bySupplier.values()].sort((a, b) => b.amount - a.amount);
+  const items = [...byItem.values()].sort((a, b) => b.amount - a.amount);
+  const sum = (rows, key) => rows.reduce((s, r) => s + r[key], 0);
+  return (
+    <section className="card purchase-card">
+      <div className="commerce-filters">
+        <Field label="발주 시작일">
+          <DateInput
+            value={from}
+            max={to || undefined}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </Field>
+        <Field label="발주 종료일">
+          <DateInput
+            value={to}
+            min={from || undefined}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </Field>
+      </div>
+      <p className="help">
+        발주일 기준, 취소 발주 제외. 금액은 미입고 잔량 취소와 거래처 반품을 뺀 정산 금액입니다.
+      </p>
+      <h2 className="purchase-summary-title">거래처별 매입</h2>
+      {suppliers.length ? (
+        <div className="table-wrap">
+          <table className="table commerce-table commerce-mobile-cards">
+            <thead>
+              <tr>
+                <th>거래처</th>
+                <th className="numeric">발주 건수</th>
+                <th className="numeric">발주액</th>
+                <th className="numeric">지급액</th>
+                <th className="numeric">미지급</th>
+              </tr>
+            </thead>
+            <tbody>
+              {suppliers.map((s) => (
+                <tr key={s.name}>
+                  <td>
+                    <strong>{s.name}</strong>
+                  </td>
+                  <td data-label="발주 건수" className="numeric">
+                    {s.count}건
+                  </td>
+                  <td data-label="발주액" className="numeric">
+                    <Money value={s.amount} />
+                  </td>
+                  <td data-label="지급액" className="numeric">
+                    <Money value={s.paid} />
+                  </td>
+                  <td data-label="미지급" className="numeric">
+                    <strong>
+                      <Money value={s.balance} />
+                    </strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>합계</td>
+                <td className="numeric">{sum(suppliers, "count")}건</td>
+                <td className="numeric">
+                  <Money value={sum(suppliers, "amount")} />
+                </td>
+                <td className="numeric">
+                  <Money value={sum(suppliers, "paid")} />
+                </td>
+                <td className="numeric">
+                  <Money value={sum(suppliers, "balance")} />
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          title="기간 내 발주가 없습니다"
+          description="조회 기간을 변경해 보세요."
+        />
+      )}
+      {items.length > 0 && (
+        <>
+          <h2 className="purchase-summary-title">품목별 매입</h2>
+          <div className="table-wrap">
+            <table className="table commerce-table commerce-mobile-cards">
+              <thead>
+                <tr>
+                  <th>품목</th>
+                  <th className="numeric">수량</th>
+                  <th className="numeric">총 용량</th>
+                  <th className="numeric">금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr key={it.name}>
+                    <td>
+                      <strong>{it.name}</strong>
+                    </td>
+                    <td data-label="수량" className="numeric">
+                      {it.quantity}개
+                    </td>
+                    <td data-label="총 용량" className="numeric">
+                      {quantity(it.volume)}
+                      {it.unit}
+                    </td>
+                    <td data-label="금액" className="numeric">
+                      <Money value={it.amount} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

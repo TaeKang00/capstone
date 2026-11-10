@@ -61,6 +61,61 @@ function getRevenue(data, staffId, month) {
   }
   return { gross, refunded, net: gross - refunded };
 }
+const INSURANCE = ["국민연금", "건강보험", "장기요양보험", "고용보험"];
+const DEFAULT_RATES = {
+  pension: 4.75,
+  health: 3.595,
+  care: 13.14,
+  employment: 0.9,
+};
+const floor10 = (value) => Math.max(0, Math.floor(value / 10) * 10);
+/** Employee-side social insurance estimates from the taxable base. */
+export function insuranceDeductions(base, rates = {}) {
+  const r = { ...DEFAULT_RATES, ...rates };
+  const health = floor10((base * r.health) / 100);
+  return [
+    { name: "국민연금", amount: floor10((base * r.pension) / 100) },
+    { name: "건강보험", amount: health },
+    { name: "장기요양보험", amount: floor10((health * r.care) / 100) },
+    { name: "고용보험", amount: floor10((base * r.employment) / 100) },
+  ];
+}
+/** Work days/hours from clock records and approved overtime requests in the month. */
+export function attendanceSummary(data, staffId, month) {
+  const staff = (data.staff || []).find((entry) => entry.id === staffId);
+  const records = (data.attendance || []).filter(
+    (entry) =>
+      entry.staffId === staffId &&
+      entry.date?.startsWith(month) &&
+      entry.clockIn != null &&
+      entry.clockOut != null,
+  );
+  let minutes = 0;
+  for (const entry of records) {
+    let worked = entry.clockOut - entry.clockIn;
+    if (staff?.breakStart != null && staff?.breakEnd != null)
+      worked -= Math.max(
+        0,
+        Math.min(entry.clockOut, staff.breakEnd) -
+          Math.max(entry.clockIn, staff.breakStart),
+      );
+    minutes += Math.max(0, worked);
+  }
+  const overtime = (data.staffRequests || [])
+    .filter(
+      (entry) =>
+        entry.staffId === staffId &&
+        entry.kind === "overtime" &&
+        entry.status === "approved" &&
+        entry.from?.startsWith(month),
+    )
+    .reduce((sum, entry) => sum + (entry.minutes || 0), 0);
+  return {
+    days: records.length,
+    hours: Math.round((minutes / 60) * 10) / 10,
+    overtime: Math.round((overtime / 60) * 10) / 10,
+  };
+}
 function initialForm(month, staffId) {
   return {
     staffId,
@@ -138,6 +193,43 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
     0,
   );
   const net = Number(form.basePay || 0) + commission + allowances - deductions;
+  const [helperNote, setHelperNote] = useState("");
+  const loadAttendance = () => {
+    const summary = attendanceSummary(data, form.staffId, form.month);
+    if (!summary.days && !summary.overtime) {
+      setHelperNote("이 달의 출퇴근·승인된 연장근무 기록이 없습니다.");
+      return;
+    }
+    setDirty(true);
+    setForm((current) => ({
+      ...current,
+      workDays: String(summary.days),
+      workHours: String(Math.max(summary.hours, summary.overtime)),
+      overtimeHours: String(summary.overtime),
+    }));
+    setHelperNote(
+      `출퇴근 ${summary.days}일 · ${summary.hours}시간, 승인된 연장근무 ${summary.overtime}시간을 불러왔습니다. 휴게시간은 직원 근무 설정 기준으로 제외했습니다.`,
+    );
+  };
+  const applyInsurance = () => {
+    const base = Number(form.basePay || 0) + commission + allowances;
+    if (!base) {
+      setHelperNote("기본급 또는 지급 항목을 먼저 입력해 주세요.");
+      return;
+    }
+    const computed = insuranceDeductions(base, data.store?.payrollRates);
+    setDirty(true);
+    setForm((current) => ({
+      ...current,
+      deductions: [
+        ...current.deductions.filter((item) => !INSURANCE.includes(item.name)),
+        ...computed.map((item) => ({ ...item, amount: String(item.amount) })),
+      ],
+    }));
+    setHelperNote(
+      `과세 기준 ${format(base)}원으로 4대보험 근로자 부담분을 계산했습니다. 비과세 수당이 있으면 금액을 조정해 주세요.`,
+    );
+  };
   const itemFields = (key, title, examples) => (
     <section className="payroll-form-section">
       <div className="row">
@@ -397,9 +489,26 @@ function PayrollForm({ data, initial, busy, error, onSubmit, onClose }) {
             "공제",
             "확인한 소득세, 지방소득세, 보험료 등을 항목별로 입력하세요.",
           )}
+          <div className="payroll-helpers">
+            <Button type="button" onClick={loadAttendance}>
+              근태 기록 불러오기
+            </Button>
+            <Button type="button" onClick={applyInsurance}>
+              4대보험 공제 계산
+            </Button>
+            <p className="help">
+              요율은 매장 설정에서 변경 · 소득세·지방소득세는 간이세액표로 직접
+              입력
+            </p>
+            {helperNote && (
+              <p className="help" role="status">
+                {helperNote}
+              </p>
+            )}
+          </div>
           <div className="alert alert-warning">
-            세금·4대보험·연장근로수당은 자동 산정하지 않습니다. 확인한 금액과
-            계산 근거를 직접 입력하세요.
+            계산 결과는 참고용 추정치입니다. 소득세·지방소득세·연장근로수당과
+            실제 보험료 고지액을 확인한 뒤 계산 근거와 함께 입력하세요.
           </div>
           <section className="payroll-form-section">
             <h3>근무 내역과 계산 근거</h3>
@@ -951,10 +1060,10 @@ export default function Payroll({
       <section className="card">
         {records.length ? (
           <div className="table-wrap">
-            <table className="table">
+            <table className="table commerce-mobile-cards payroll-table">
               <thead>
                 <tr>
-                  <th scope="col">직원</th>
+                  <th scope="col">{manager ? "직원" : "귀속월"}</th>
                   <th scope="col">상태</th>
                   <th scope="col">지급 합계</th>
                   <th scope="col">공제 합계</th>
@@ -967,34 +1076,38 @@ export default function Payroll({
                 {records.map((record) => (
                   <tr key={record.id}>
                     <td>
-                      <strong>{record.staffSnapshot?.name}</strong>
-                      <small className="payroll-subtext">{record.month}</small>
+                      {manager ? (
+                        <>
+                          <strong>{record.staffSnapshot?.name}</strong>
+                          <small className="payroll-subtext">{record.month}</small>
+                        </>
+                      ) : (
+                        <strong>{record.month.replace("-", "년 ")}월</strong>
+                      )}
                     </td>
-                    <td>
+                    <td data-label="상태">
                       <Badge tone={statusTone[record.status]}>
                         {statusText[record.status]}
                       </Badge>
                     </td>
-                    <td>
+                    <td data-label="지급 합계">
                       <Money value={record.earningsTotal} />
                     </td>
-                    <td>
+                    <td data-label="공제 합계">
                       <Money value={record.deductionTotal} />
                     </td>
-                    <td>
+                    <td data-label="실지급액">
                       <strong>
                         <Money value={record.netPay} />
                       </strong>
                     </td>
-                    <td>
+                    <td data-label={record.paidDate ? "실제 지급일" : "지급 예정일"}>
                       {record.paidDate || record.payDate}
-                      <small className="payroll-subtext">
-                        {record.paidDate ? "실제 지급" : "지급 예정"}
-                      </small>
                     </td>
                     <td>
                       <Button
                         variant="secondary"
+                        className="payroll-view-button"
                         onClick={() => open({ kind: "view", id: record.id })}
                         aria-label={`${record.staffSnapshot?.name} ${record.month} 급여명세서 보기`}
                       >
@@ -1025,9 +1138,9 @@ export default function Payroll({
         )}
       </section>
       <p className="help">
-        명세서는 급여 확인과 출력에 사용할 수 있습니다. 실제 이체·세금 신고는
-        별도로 처리하며, 잘못 입력한 지급 완료 금액의 차액은 다음 급여에서
-        항목과 사유를 남겨 조정하세요.
+        {manager
+          ? "명세서는 급여 확인과 출력에 사용할 수 있습니다. 실제 이체·세금 신고는 별도로 처리하며, 잘못 입력한 지급 완료 금액의 차액은 다음 급여에서 항목과 사유를 남겨 조정하세요."
+          : "명세서를 열어 인쇄하거나 PDF로 저장할 수 있습니다. 금액이 다르면 원장에게 문의해 주세요."}
       </p>
       {(dialog?.kind === "new" || (dialog?.kind === "edit" && selected)) && (
         <PayrollForm

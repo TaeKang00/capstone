@@ -8,6 +8,8 @@ import Staff from "../pages/Staff";
 import Payroll from "../pages/Payroll";
 import Settings from "../pages/Settings";
 import Sales from "../pages/Sales";
+import HumanResources from "../pages/HumanResources";
+import Finance from "../pages/Finance";
 import "./PrivateWorkspace.css";
 
 const pages = {
@@ -15,11 +17,15 @@ const pages = {
   payroll: Payroll,
   settings: Settings,
   sales: Sales,
+  hr: HumanResources,
+  finance: Finance,
 };
 const navigation = [
   ["staff", "직원 · 계정", "staff"],
+  ["hr", "인사 · 근태", "clock"],
   ["payroll", "급여명세", "payroll"],
   ["sales", "매출 · 정산", "chart"],
+  ["finance", "경비 · 손익", "wallet"],
   ["settings", "설정 · 백업", "settings"],
 ];
 
@@ -61,7 +67,7 @@ export default function PrivateWorkspace({
   }, [access, scopePath, acceptState]);
   useEffect(() => {
     live.current = true;
-    mainRef.current?.focus();
+    mainRef.current?.focus({ preventScroll: true });
     return () => {
       live.current = false;
       stateRef.current = null;
@@ -140,7 +146,7 @@ export default function PrivateWorkspace({
     setPage(target);
     setContext(nextContext);
     window.scrollTo({ top: 0 });
-    requestAnimationFrame(() => mainRef.current?.focus());
+    requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   };
   const navigate = (target, nextContext = {}) => {
     if (document.querySelector('[data-busy="true"]')) {
@@ -164,6 +170,12 @@ export default function PrivateWorkspace({
     }
   };
   const Page = owner ? pages[page] : Payroll;
+  const pendingRequests =
+    state?.data?.store?.alerts?.pendingRequests === false
+      ? 0
+      : (state?.data?.staffRequests || []).filter(
+          (row) => row.status === "requested",
+        ).length;
   return (
     <PrivateWorkspaceContext.Provider value={onLock}>
       <ViewStateProvider>
@@ -202,6 +214,11 @@ export default function PrivateWorkspace({
                   onClick={() => navigate(id)}
                 >
                   <Icon name={icon} size={17} /> {label}
+                  {id === "hr" && pendingRequests > 0 && (
+                    <span className="nav-count" aria-label={`승인 대기 ${pendingRequests}건`}>
+                      {pendingRequests}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>

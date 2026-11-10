@@ -13,6 +13,7 @@ import {
   Money,
   ConfirmDialog,
 } from "../components/ui";
+import "./Settings.css";
 const weekday = ["일", "월", "화", "수", "목", "금", "토"];
 const asMinutes = (value) =>
   value ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;
@@ -96,6 +97,30 @@ export default function Settings(props) {
     </>
   );
 }
+const ALERT_DEFAULTS = {
+  lowStock: true,
+  pendingRequests: true,
+  unreadNotices: true,
+  unpaid: true,
+};
+const ALERT_LABELS = {
+  lowStock: "부족 재고 알림",
+  pendingRequests: "근태 신청 승인 대기 알림",
+  unreadNotices: "읽지 않은 공지 알림",
+  unpaid: "미수납 예약 알림",
+};
+const RATE_DEFAULTS = {
+  pension: 4.75,
+  health: 3.595,
+  care: 13.14,
+  employment: 0.9,
+};
+const RATE_LABELS = {
+  pension: "국민연금 (근로자, %)",
+  health: "건강보험 (근로자, %)",
+  care: "장기요양 (건강보험료 대비, %)",
+  employment: "고용보험 (근로자, %)",
+};
 function StoreSettings({ data, version, runAction, notify }) {
   const [form, setForm] = useState({ ...data.store }),
     [initial, setInitial] = useState(data.store),
@@ -116,6 +141,27 @@ function StoreSettings({ data, version, runAction, notify }) {
     close: "영업 종료",
     slotMinutes: "예약 시간 간격",
     closedWeekdays: "정기 휴무일",
+    businessNumber: "사업자등록번호",
+    representative: "대표자",
+  };
+  const alerts = { ...ALERT_DEFAULTS, ...(form.alerts || {}) };
+  const rates = { ...RATE_DEFAULTS, ...(form.payrollRates || {}) };
+  const [logoError, setLogoError] = useState("");
+  const chooseLogo = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    setLogoError("");
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type))
+      return setLogoError("PNG·JPG·WEBP 이미지만 사용할 수 있습니다.");
+    if (file.size > 100 * 1024)
+      return setLogoError(
+        "100KB 이하 이미지를 선택해 주세요. 가로 400px 이하로 줄이면 대부분 맞습니다.",
+      );
+    const reader = new FileReader();
+    reader.onload = () => setForm((f) => ({ ...f, logo: String(reader.result) }));
+    reader.onerror = () => setLogoError("이미지를 읽지 못했습니다.");
+    reader.readAsDataURL(file);
   };
   const settingValue = (key, value) =>
     key === "closedWeekdays"
@@ -243,6 +289,52 @@ function StoreSettings({ data, version, runAction, notify }) {
             <Field label="매장 주소">
               <input maxLength={500} {...field("address")} />
             </Field>
+            <div className="grid grid-2">
+              <Field
+                label="사업자등록번호 (선택)"
+                help="증명서·영수증·발주서에 표시됩니다."
+              >
+                <input
+                  maxLength={12}
+                  inputMode="numeric"
+                  placeholder="000-00-00000"
+                  {...field("businessNumber")}
+                />
+              </Field>
+              <Field label="대표자 (선택)">
+                <input maxLength={60} {...field("representative")} />
+              </Field>
+            </div>
+            <div className="field">
+              <span className="field-label">매장 로고 (선택)</span>
+              <div className="settings-logo">
+                {form.logo ? (
+                  <img src={form.logo} alt="현재 매장 로고" />
+                ) : (
+                  <span className="help">등록된 로고가 없습니다.</span>
+                )}
+                <label className="btn btn-secondary settings-logo-pick">
+                  이미지 선택
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={chooseLogo}
+                  />
+                </label>
+                {form.logo && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setForm({ ...form, logo: "" })}
+                  >
+                    로고 삭제
+                  </Button>
+                )}
+              </div>
+              <span className={logoError ? "error" : "help"} role={logoError ? "alert" : undefined}>
+                {logoError ||
+                  "PNG·JPG·WEBP, 100KB 이하. 메뉴와 인쇄 문서에 표시됩니다."}
+              </span>
+            </div>
             <div className="grid grid-3">
               <Field label="영업 시작">
                 <input
@@ -334,6 +426,60 @@ function StoreSettings({ data, version, runAction, notify }) {
                 영향을 주는 변경은 먼저 예약을 조정해 주세요.
               </span>
             </div>
+            <fieldset className="settings-group">
+              <legend className="field-label">화면 알림</legend>
+              {Object.entries(ALERT_LABELS).map(([key, label]) => (
+                <label className="check" key={key}>
+                  <input
+                    type="checkbox"
+                    checked={alerts[key] !== false}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        alerts: { ...alerts, [key]: e.target.checked },
+                      })
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+              <span className="help">
+                끈 알림은 메뉴 배지와 오늘의 매장 안내에 표시하지 않습니다.
+              </span>
+            </fieldset>
+            <fieldset className="settings-group">
+              <legend className="field-label">4대보험 요율 (급여 공제 계산용)</legend>
+              <div className="grid grid-2">
+                {Object.entries(RATE_LABELS).map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      step="0.001"
+                      required
+                      value={rates[key]}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          payrollRates: {
+                            ...rates,
+                            [key]:
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+              </div>
+              <span className="help">
+                매년 고시되는 요율을 확인해 수정하세요. 급여명세서의 ‘4대보험
+                공제 계산’ 버튼이 이 값을 사용합니다.
+              </span>
+            </fieldset>
             <div className="alert">
               직원별 근무시간과 휴게시간은 직원 관리에서 따로 설정합니다. 매장
               영업시간과 직원 근무시간에 모두 맞아야 예약할 수 있습니다.
@@ -694,23 +840,48 @@ function ServiceForm({ initial, data, runAction, notify, close }) {
 }
 function Audit() {
   const [entries, setEntries] = useState(null),
-    [error, setError] = useState("");
-  const load = () =>
-    api("/audit?limit=200")
+    [error, setError] = useState(""),
+    [kind, setKind] = useState("changes");
+  const load = (target = kind) =>
+    api(`/audit?limit=200${target === "auth" ? "&kind=auth" : ""}`)
       .then((r) => {
         setEntries(r.entries);
         setError("");
       })
       .catch((e) => setError(e.message));
   useEffect(() => {
-    load();
-  }, []);
+    setEntries(null);
+    load(kind);
+  }, [kind]);
   return (
     <section className="card">
       <div className="card-header">
-        <h2>최근 활동 기록</h2>
-        <Button onClick={load}>새로고침</Button>
+        <h2>{kind === "auth" ? "접속 기록" : "최근 활동 기록"}</h2>
+        <Button onClick={() => load()}>새로고침</Button>
       </div>
+      <div className="tabs" role="tablist" aria-label="기록 종류">
+        {[
+          ["changes", "데이터 변경 이력"],
+          ["auth", "접속 기록"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={kind === id}
+            className={`tab ${kind === id ? "active" : ""}`}
+            onClick={() => setKind(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {kind === "auth" && (
+        <p className="help card-body">
+          로그인 성공·실패, 공용 화면 전환, 보호 영역 재인증을 최근 순으로
+          표시합니다. 모르는 실패 기록이 반복되면 비밀번호를 변경하세요.
+        </p>
+      )}
       {error && (
         <div className="alert alert-warning" role="alert">
           {error}
@@ -739,7 +910,14 @@ function Audit() {
                     }).format(new Date(e.at))}
                   </td>
                   <td>{e.actorName}</td>
-                  <td>{e.summary}</td>
+                  <td>
+                    {e.action === "auth.failed" && (
+                      <>
+                        <Badge tone="danger">실패</Badge>{" "}
+                      </>
+                    )}
+                    {e.summary}
+                  </td>
                 </tr>
               ))}
             </tbody>

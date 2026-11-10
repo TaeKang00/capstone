@@ -558,6 +558,116 @@ export default function Sales({
                 </p>
               </div>
             </section>
+            <section className="card">
+              <div className="card-header">
+                <h2>시술별 매출</h2>
+              </div>
+              <div className="card-body">
+                {(report.byService || []).length ? (
+                  <div className="table-wrap">
+                    <table className="table commerce-table commerce-mobile-cards">
+                      <thead>
+                        <tr>
+                          <th>항목</th>
+                          <th className="numeric">수량</th>
+                          <th className="numeric">매출</th>
+                          <th className="numeric">환불</th>
+                          <th className="numeric">순매출</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(report.byService || []).map((entry) => (
+                          <tr key={entry.refId}>
+                            <td>{entry.name}</td>
+                            <td data-label="수량" className="numeric">
+                              {entry.quantity.toLocaleString("ko-KR")}
+                              {entry.refundedQuantity
+                                ? ` (환불 ${entry.refundedQuantity})`
+                                : ""}
+                            </td>
+                            <td data-label="매출" className="numeric">
+                              <Money value={entry.gross} />
+                            </td>
+                            <td data-label="환불" className="numeric">
+                              {entry.refunds ? (
+                                <Money value={-entry.refunds} />
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td data-label="순매출" className="numeric">
+                              <strong>
+                                <Money value={entry.net} />
+                              </strong>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="commerce-note">기간 내 시술 매출이 없습니다.</p>
+                )}
+                <p className="commerce-note">
+                  할인 배분 후 금액 기준입니다. 매출은 결제일, 환불은 환불일에 반영합니다.
+                </p>
+              </div>
+            </section>
+            <section className="card">
+              <div className="card-header">
+                <h2>상품별 매출</h2>
+              </div>
+              <div className="card-body">
+                {(report.byProduct || []).length ? (
+                  <div className="table-wrap">
+                    <table className="table commerce-table commerce-mobile-cards">
+                      <thead>
+                        <tr>
+                          <th>항목</th>
+                          <th className="numeric">수량</th>
+                          <th className="numeric">매출</th>
+                          <th className="numeric">환불</th>
+                          <th className="numeric">순매출</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(report.byProduct || []).map((entry) => (
+                          <tr key={entry.refId}>
+                            <td>{entry.name}</td>
+                            <td data-label="수량" className="numeric">
+                              {entry.quantity.toLocaleString("ko-KR")}
+                              {entry.refundedQuantity
+                                ? ` (환불 ${entry.refundedQuantity})`
+                                : ""}
+                            </td>
+                            <td data-label="매출" className="numeric">
+                              <Money value={entry.gross} />
+                            </td>
+                            <td data-label="환불" className="numeric">
+                              {entry.refunds ? (
+                                <Money value={-entry.refunds} />
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td data-label="순매출" className="numeric">
+                              <strong>
+                                <Money value={entry.net} />
+                              </strong>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="commerce-note">기간 내 상품 판매가 없습니다.</p>
+                )}
+                <p className="commerce-note">
+                  판매 수량은 결제 기준이며 반품 재입고 여부와 관계없이 환불 수량을 함께 표시합니다.
+                </p>
+              </div>
+            </section>
           </div>
           <section className="card">
             <div className="card-header">

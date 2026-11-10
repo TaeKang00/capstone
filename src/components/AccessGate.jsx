@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { api } from "../api";
 import { Button, Field, Modal } from "./ui";
 import { Icon } from "./Icon";
@@ -15,7 +15,7 @@ const COPY = {
   owner: {
     title: "원장 관리 잠금 해제",
     description:
-      "급여와 계정 권한을 관리하려면 원장 계정으로 다시 인증해 주세요.",
+      "직원·급여·매출 정산·경비·설정은 원장 비밀번호로 다시 인증해야 열립니다.",
     submit: "원장 인증",
     note: "관리 화면을 나가거나 사용하지 않으면 자동으로 잠깁니다.",
   },
@@ -43,8 +43,18 @@ export function AccessGate({
   const formId = useId();
   const passwordRef = useRef(null);
   const pending = useRef(false);
-  const [loginId, setLoginId] = useState("");
+  // A signed-in owner only re-enters the password; shared PCs still type the ID.
+  const [loginId, setLoginId] = useState(
+    kind === "owner" &&
+      session?.mode === "work" &&
+      session?.user?.role === "owner"
+      ? session.user.loginId || session.user.email || ""
+      : "",
+  );
   const [password, setPassword] = useState("");
+  useEffect(() => {
+    if (loginId) passwordRef.current?.focus();
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 

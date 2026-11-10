@@ -22,6 +22,13 @@ import {
 import "./Commerce.css";
 import { useViewState } from "../components/ViewState";
 import { matchesSearch } from "./commerce-utils";
+import {
+  printDocument,
+  escapeHtml,
+  printMoney,
+  storeBlock,
+  logoTag,
+} from "../print";
 
 const paymentTone = (status) =>
   status === "paid" ? "success" : status === "refunded" ? "muted" : "warning";
@@ -1036,6 +1043,59 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
   );
 }
 
+function printReceipt(tx, data) {
+  const refunds = (data.refunds || []).filter((r) => r.transactionId === tx.id);
+  const staff =
+    data.staff.find((s) => s.id === tx.staffId)?.name || "기존 담당자";
+  const lines = (tx.lines || [])
+    .map(
+      (line) => `<tr><td>${line.type === "service" ? "시술" : "상품"}</td><td>${escapeHtml(
+        line.name,
+      )}</td><td class="num">${escapeHtml(quantity(line.quantity))}</td><td class="num">${printMoney(
+        line.unitPrice,
+      )}</td><td class="num">${line.discount ? `-${printMoney(line.discount)}` : "—"}</td><td class="num">${printMoney(
+        line.total,
+      )}</td></tr>`,
+    )
+    .join("");
+  const refundRows = refunds
+    .map(
+      (r) =>
+        `<tr><td>${escapeHtml(r.date)} ${escapeHtml(r.time || "")}</td><td>${escapeHtml(
+          methodNames[r.method] || r.method,
+        )}</td><td>${escapeHtml(r.reason || "")}</td><td class="num">-${printMoney(r.amount)}</td></tr>`,
+    )
+    .join("");
+  const refundTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
+  printDocument(
+    `영수증 ${tx.date}`,
+    `${logoTag(data.store)}<h1>영 수 증</h1>
+    <div class="meta"><dl>
+      <dt>결제일시</dt><dd>${escapeHtml(`${tx.date} ${tx.time || ""}`)}</dd>
+      <dt>고객</dt><dd>${escapeHtml(tx.customerName || "방문 고객")}</dd>
+      <dt>담당</dt><dd>${escapeHtml(staff)}</dd>
+      <dt>결제 번호</dt><dd>${escapeHtml(tx.id)}</dd>
+    </dl>${storeBlock(data.store)}</div>
+    <table><thead><tr><th>구분</th><th>항목</th><th class="num">수량</th><th class="num">단가</th><th class="num">할인</th><th class="num">금액</th></tr></thead>
+    <tbody>${lines}</tbody>
+    <tfoot>
+      <tr><td colspan="5">공급 합계</td><td class="num">${printMoney(tx.subtotal)}</td></tr>
+      ${tx.discount ? `<tr><td colspan="5">할인</td><td class="num">-${printMoney(tx.discount)}</td></tr>` : ""}
+      <tr><td colspan="5">결제 금액 (${escapeHtml(methodNames[tx.method] || tx.method)}${
+        tx.reference ? ` · 승인 ${escapeHtml(tx.reference)}` : ""
+      })</td><td class="num">${printMoney(tx.total)}</td></tr>
+    </tfoot></table>
+    ${
+      refunds.length
+        ? `<h2 style="font-size:14px;margin-top:18px">환불 내역</h2><table><thead><tr><th>일시</th><th>수단</th><th>사유</th><th class="num">금액</th></tr></thead><tbody>${refundRows}</tbody><tfoot><tr><td colspan="3">환불 후 결제액</td><td class="num">${printMoney(
+            tx.total - refundTotal,
+          )}</td></tr></tfoot></table>`
+        : ""
+    }
+    <p class="muted" style="margin-top:18px">카드 결제는 카드 단말기 매출전표가 정식 증빙입니다. 이 영수증은 매장 거래 확인용입니다.</p>
+    <div class="footer">${escapeHtml(data.store?.name || "")}</div>`,
+  );
+}
 function PaymentDetail({
   tx,
   data,
@@ -1058,6 +1118,9 @@ function PaymentDetail({
         <>
           <Button variant="secondary" onClick={onClose}>
             닫기
+          </Button>
+          <Button variant="secondary" onClick={() => printReceipt(tx, data)}>
+            영수증 인쇄
           </Button>
           {canWrite && (
             <Button variant="secondary" onClick={onCorrect}>

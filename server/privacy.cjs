@@ -66,6 +66,8 @@ function publicStore(store) {
     closedWeekdays,
     logo,
     alerts,
+    businessNumber,
+    representative,
   } = store;
   return {
     name,
@@ -78,6 +80,8 @@ function publicStore(store) {
     closedWeekdays,
     logo: logo || "",
     alerts: alerts || {},
+    businessNumber: businessNumber || "",
+    representative: representative || "",
   };
 }
 function safeEmptyState(envelope) {
