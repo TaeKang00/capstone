@@ -3363,3 +3363,21 @@ select:not([multiple]):not([size]), textarea, .textarea { font-size: 16px; }
   .home-section-head { flex-wrap: wrap; }
   .home-section-head .chip-row { width: 100%; }
 }
+
+/* Text hierarchy: main text 16 / supporting text 14 / markers 12.
+   Main text (names, list titles, amounts, body copy) follows this default; anything set to 14px
+   (labels, help, meta, descriptions) stays the supporting size. Controls are pinned to 14px. */
+body { font-size: 16px; line-height: 24px; }
+.btn, .text-btn, .chip, .seg button, .tab, .tabs button, .nav-item, .bottom-tabs button,
+.header-menu button, .header-popover, .time-chip, .sidebar, .sidebar-section, .team-list li,
+.app-search input, .page-eyebrow, .home-stat-label, .field-label, .help, .muted, .small, small,
+.table th, .modal-footer, .range-picker-trigger, .date-picker-panel, .people-choice, .people-day,
+.st-day, .ops-text-btn, .status-pill, .badge {
+  font-size: 14px;
+  line-height: 20px;
+}
+.table th { font-size: 12px !important; line-height: 16px !important; }
+.status-pill, .badge, .pill, .nav-count, .bottom-tab-count { font-size: 12px; line-height: 16px; }
+.status-pill, .badge { line-height: 24px; }
+.bottom-tabs button { font-size: 12px; line-height: 16px; }
+.wf-empty, .paym-detail-who-text .num, .paym-detail-line .is-none, .empty-state p { font-size: 14px; line-height: 20px; }
