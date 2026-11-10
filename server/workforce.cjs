@@ -183,7 +183,11 @@ function overlappingAppointments(data, request) {
 }
 
 function clock(data, payload, ctx) {
-  const staffId = ctx.actor.staffId;
+  // Owners and managers can clock a colleague in or out from the shared front-desk login,
+  // so staff don't have to log in on every arrival. The record keeps who pressed it.
+  const proxy = payload.staffId && payload.staffId !== ctx.actor.staffId;
+  if (proxy) requireRole(ctx, ["owner", "manager"]);
+  const staffId = proxy ? payload.staffId : ctx.actor.staffId;
   const staff = find(data.staff, staffId, "직원");
   if (staff.status !== "active") fail("재직 직원만 출퇴근을 기록할 수 있습니다.");
   const now = seoulMinutes(ctx.now);
@@ -205,9 +209,9 @@ function clock(data, payload, ctx) {
       date: ctx.today,
       clockIn: now,
       clockOut: null,
-      source: "self",
+      source: proxy ? "lead" : "self",
       note: text(payload.note, "메모", 200),
-      changes: [{ ...actorStamp(ctx), kind: "clock_in" }],
+      changes: [{ ...actorStamp(ctx), kind: proxy ? "clock_in_by_lead" : "clock_in" }],
     });
   } else if (payload.kind === "out") {
     if (!record || record.clockIn == null)
@@ -217,7 +221,7 @@ function clock(data, payload, ctx) {
       fail("퇴근 시각이 출근 시각보다 빠릅니다. 원장에게 정정을 요청해 주세요.");
     record.clockOut = now;
     if (payload.note) record.note = text(payload.note, "메모", 200);
-    record.changes.push({ ...actorStamp(ctx), kind: "clock_out" });
+    record.changes.push({ ...actorStamp(ctx), kind: proxy ? "clock_out_by_lead" : "clock_out" });
   } else fail("출근 또는 퇴근을 선택해 주세요.");
 }
 function attendanceSave(data, payload, ctx) {

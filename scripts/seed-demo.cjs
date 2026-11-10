@@ -235,7 +235,7 @@ function main() {
           discount: rand() < 0.15 ? 5000 : 0, method: pick(methods),
           reference: `A-${date.replaceAll("-", "").slice(2)}-${n + 1}`, notes: "",
         }, date, start + duration);
-        if (paid && !refunded && offset === -9) {
+        if (paid && !refunded && offset >= -10) {
           const tx = last(data.transactions);
           refunded = run("payment.refund", {
             transactionId: tx.id, lines: [{ lineId: tx.lines[0].id, amount: Math.min(10000, tx.lines[0].total) }],

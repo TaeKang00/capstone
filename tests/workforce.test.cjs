@@ -579,3 +579,19 @@ test("HTTP: projections hide private HR/finance data, notice reads do not bump t
   const personal = await request("/personal/state", { ...designerSession, ...personalUnlock.data });
   assert.deepEqual(personal.data.data.certificates.map((row) => row.id), ["c"]);
 });
+
+test("an owner or manager can clock a colleague in and out; a designer cannot clock someone else", () => {
+  let d = fixture();
+  const ownerStaff = d.staff[0].id;
+  d = work(d, "attendance.clock", { kind: "in", staffId: "s2" });
+  const record = d.attendance.find((row) => row.staffId === "s2");
+  assert.equal(record.source, "lead");
+  assert.equal(record.changes[0].kind, "clock_in_by_lead");
+  assert.equal(d.attendance.some((row) => row.staffId === ownerStaff), false, "the owner's own day is untouched");
+  d = work(d, "attendance.clock", { kind: "out", staffId: "s2" }, owner, "2026-11-10T10:30:00.000Z");
+  assert.ok(d.attendance.find((row) => row.staffId === "s2").clockOut != null);
+  assert.throws(
+    () => work(d, "attendance.clock", { kind: "in", staffId: ownerStaff }, designer),
+    { status: 403 },
+  );
+});

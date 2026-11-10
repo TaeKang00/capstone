@@ -90,3 +90,21 @@ test("작은 화면에서 새 화면들이 가로로 넘치지 않는다", async
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   }
 });
+
+test("원장 화면에서 로그인을 바꾸지 않고 직원 출퇴근을 대신 찍는다", async ({ page }) => {
+  await setupOwner(page);
+  const saved = await adminAction(page, "staff.save", {
+    name: "대신 출근 디자이너", phone: "", role: "designer", status: "active",
+    workingDays: [0, 1, 2, 3, 4, 5, 6], startMinutes: 0, endMinutes: 1440, breakStart: null, breakEnd: null,
+  });
+  const staff = saved.data.staff.find((row) => row.name === "대신 출근 디자이너");
+  await page.reload();
+  await goTo(page, "근태 · 휴가");
+  await page.getByRole("button", { name: "대신 출근 디자이너 출근 기록", exact: true }).click();
+  await expect(page.getByText("대신 출근 디자이너 님 출근을 기록했어요")).toBeVisible();
+  await page.getByRole("button", { name: "대신 출근 디자이너 퇴근 기록", exact: true }).click();
+  await expect(page.getByText("대신 출근 디자이너 님 퇴근을 기록했어요")).toBeVisible();
+  const record = (await adminState(page)).data.attendance.find((row) => row.staffId === staff.id);
+  expect(record.source).toBe("lead");
+  expect(record.clockOut).not.toBeNull();
+});

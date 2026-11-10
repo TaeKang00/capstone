@@ -177,6 +177,7 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
     open: "영업 시작",
     close: "영업 종료",
     slotMinutes: "예약 시간 간격",
+    autoLockMinutes: "자리 비움 잠금",
     closedWeekdays: "정기 휴무일",
     businessNumber: "사업자등록번호",
     representative: "대표자",
@@ -446,6 +447,27 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
                   checked={form.close === 1440}
                   onChange={(on) => setForm({ ...form, close: on ? 1440 : 1200 })}
                 />
+              </div>
+              <div className="st-group">
+                <h2>화면 잠금</h2>
+                <Field
+                  label="자리 비움 잠금"
+                  help={
+                    Number(form.autoLockMinutes ?? 0)
+                      ? "아무도 쓰지 않으면 공용 화면으로 돌아가요. 함께 쓰는 PC라면 켜 두세요"
+                      : "오래 두어도 로그인한 화면이 그대로 남아요. 원장 관리는 3분 뒤 따로 잠겨요"
+                  }
+                >
+                  <select
+                    value={form.autoLockMinutes ?? 0}
+                    onChange={(e) => setForm({ ...form, autoLockMinutes: Number(e.target.value) })}
+                  >
+                    <option value={0}>끄기</option>
+                    <option value={5}>5분</option>
+                    <option value={10}>10분</option>
+                    <option value={30}>30분</option>
+                  </select>
+                </Field>
               </div>
               <div className="st-group">
                 <h2 id="days-title">영업 요일</h2>

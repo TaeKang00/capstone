@@ -68,6 +68,7 @@ function publicStore(store) {
     alerts,
     businessNumber,
     representative,
+    autoLockMinutes,
   } = store;
   return {
     name,
@@ -82,6 +83,7 @@ function publicStore(store) {
     alerts: alerts || {},
     businessNumber: businessNumber || "",
     representative: representative || "",
+    autoLockMinutes: Number(autoLockMinutes) || 0,
   };
 }
 function safeEmptyState(envelope) {
@@ -174,7 +176,14 @@ function createPrivacy(
     privateAbsoluteMs = 600000,
   } = {},
 ) {
+  // An explicit workIdleMs (tests) wins; otherwise the store setting decides, and 0 means off.
+  const forcedIdle = arguments[1]?.workIdleMs != null;
   workIdleMs = Math.min(300000, workIdleMs);
+  const workIdle = () => {
+    if (forcedIdle) return workIdleMs;
+    const minutes = Number(readState(db)?.data?.store?.autoLockMinutes ?? 0);
+    return minutes > 0 ? Math.min(30, minutes) * 60000 : 0;
+  };
   privateIdleMs = Math.min(180000, privateIdleMs);
   privateAbsoluteMs = Math.min(600000, privateAbsoluteMs);
   const grants = new Map();
@@ -182,7 +191,8 @@ function createPrivacy(
     user: session.mode === "shared" ? SHARED_USER : publicUser(session),
     csrfToken: session.csrf_token,
     mode: session.mode,
-    idleExpiresAt: session.mode === "shared" ? null : session.idle_expires_at,
+    idleExpiresAt:
+      session.mode === "shared" || !workIdle() ? null : session.idle_expires_at,
   });
   function revokeSession(tokenHash) {
     for (const [token, grant] of grants)
@@ -202,7 +212,11 @@ function createPrivacy(
     return sessionShape(session);
   }
   function refreshMode(session) {
-    if (session.mode !== "shared" && session.idle_expires_at <= now())
+    // A session without an idle deadline (migrated or never touched) always starts locked.
+    if (
+      session.mode !== "shared" &&
+      (!session.idle_expires_at || (workIdle() && session.idle_expires_at <= now()))
+    )
       lock(session);
     return session;
   }
@@ -326,6 +340,7 @@ function createPrivacy(
   return {
     now,
     workIdleMs,
+    workIdle,
     sessionShape,
     refreshMode,
     liveBase,
@@ -338,7 +353,7 @@ function createPrivacy(
     issue,
     activity(req) {
       const session = requireWork(req);
-      session.idle_expires_at = now() + workIdleMs;
+      session.idle_expires_at = now() + (workIdle() || workIdleMs);
       db.prepare(
         "UPDATE sessions SET idle_expires_at=? WHERE token_hash=?",
       ).run(session.idle_expires_at, session.token_hash);

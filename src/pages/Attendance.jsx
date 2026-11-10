@@ -102,6 +102,22 @@ export default function Attendance({ data, user, runAction, notify }) {
       setBusy(false);
     }
   };
+  const [teamBusy, setTeamBusy] = useState(null);
+  const clockFor = async (row, kind) => {
+    setTeamBusy(row.id);
+    setError("");
+    try {
+      await runAction(
+        "attendance.clock",
+        row.id === user.staffId ? { kind } : { kind, staffId: row.id },
+      );
+      notify(`${row.name} 님 ${kind === "in" ? "출근" : "퇴근"}을 기록했어요`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setTeamBusy(null);
+    }
+  };
   const working = todayRecord && todayRecord.clockOut == null;
   const status = !todayRecord
     ? myLeave
@@ -320,6 +336,7 @@ export default function Attendance({ data, user, runAction, notify }) {
         <section aria-labelledby="team-title" className="panel wf-list">
           <div className="panel-head">
             <h2 id="team-title">오늘 팀 출근</h2>
+            <span className="small muted">로그인을 바꾸지 않고 여기서 대신 찍을 수 있어요</span>
           </div>
           <div className="wf-team">
             {data.staff
@@ -346,6 +363,18 @@ export default function Attendance({ data, user, runAction, notify }) {
                       <span className="small muted">{state.note}</span>
                     </span>
                     <Badge tone={state.tone}>{state.label}</Badge>
+                    {!leave && (!record || record.clockOut == null) && (
+                      <Button
+                        variant={record ? "secondary" : "primary"}
+                        className="wf-team-clock"
+                        busy={teamBusy === row.id}
+                        disabled={!!teamBusy && teamBusy !== row.id}
+                        aria-label={`${row.name} ${record ? "퇴근" : "출근"} 기록`}
+                        onClick={() => clockFor(row, record ? "out" : "in")}
+                      >
+                        {record ? "퇴근" : "출근"}
+                      </Button>
+                    )}
                   </div>
                 );
               })}

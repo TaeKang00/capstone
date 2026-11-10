@@ -447,7 +447,7 @@ function createApp(options = {}) {
   const newSession = (userId) =>
     createSession(db, userId, sessionHours, {
       now: privacy.now(),
-      idleMs: privacy.workIdleMs,
+      idleMs: privacy.workIdle() || privacy.workIdleMs,
     });
   const app = express();
   app.disable("x-powered-by");

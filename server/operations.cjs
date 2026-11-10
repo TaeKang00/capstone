@@ -611,6 +611,12 @@ function storeSave(data, payload, ctx) {
       "예약 시간 간격",
     ),
     closedWeekdays: days(payload.closedWeekdays, "정기 휴무일"),
+    // 0 = never lock the work screen to the shared desk on inactivity.
+    autoLockMinutes: oneOf(
+      payload.autoLockMinutes ?? data.store.autoLockMinutes ?? 0,
+      [0, 5, 10, 30],
+      "자리 비움 잠금",
+    ),
     businessNumber: str(payload.businessNumber, "사업자등록번호", 20),
     representative: str(payload.representative, "대표자", 60),
     logo: logo(payload.logo ?? data.store.logo ?? ""),

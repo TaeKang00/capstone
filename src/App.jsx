@@ -790,7 +790,11 @@ export default function App() {
           원장 관리
         </button>
       </section>
-      <p className="sidebar-note">5분 동안 쓰지 않으면 공용 화면으로 잠겨요</p>
+      {Number(data?.store?.autoLockMinutes) > 0 && (
+        <p className="sidebar-note">
+          {data.store.autoLockMinutes}분 동안 쓰지 않으면 공용 화면으로 잠겨요
+        </p>
+      )}
     </>
   );
   const searchCustomers = (event) => {

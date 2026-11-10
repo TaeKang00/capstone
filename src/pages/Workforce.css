@@ -870,3 +870,5 @@
     flex-basis: 100%;
   }
 }
+.wf-team .wf-item { gap: 12px; }
+.wf-team .wf-team-clock { flex: none; height: 36px; min-height: 36px; padding: 0 16px; }

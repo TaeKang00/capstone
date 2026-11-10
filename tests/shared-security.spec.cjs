@@ -238,6 +238,10 @@ test("매니저도 원장 비밀번호 인증 없이 계정 권한이나 전체 
 test("작업자 유휴시간이 지나면 입력 중인 고객 정보도 지우고 공용 화면으로 돌아간다", async ({ page, privacyClock }) => {
   await page.clock.install();
   await setupOwner(page);
+  // Auto-lock is off by default; this store turns it on.
+  const current = await state(page);
+  await adminAction(page, "store.save", { ...current.data.store, autoLockMinutes: 5 });
+  await page.reload();
   await goTo(page, "고객 관리");
   await page.getByRole("button", { name: "+ 고객 등록", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "고객 등록", exact: true });
