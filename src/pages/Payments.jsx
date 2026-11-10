@@ -28,12 +28,9 @@ import {
   printDocument,
   escapeHtml,
   printMoney,
-  storeBlock,
   logoTag,
 } from "../print";
 
-const paymentTone = (status) =>
-  status === "paid" ? "success" : status === "refunded" ? "muted" : "warning";
 const paymentPill = (status) =>
   status === "paid"
     ? "status-ok"
@@ -151,6 +148,7 @@ export default function Payments({
   const [status, setStatus] = useViewState("payments", "status", "all");
   const [limit, setLimit] = useState(50);
   const [dialog, setDialog] = useState(null);
+  const [periodOpen, setPeriodOpen] = useState(false);
   const usedContext = useRef(null);
   const pendingHeading = useRef(null);
   const transactions = data.transactions || [];
@@ -239,7 +237,7 @@ export default function Payments({
         )}
       </header>
       <div className="home-stats paym-stats">
-        <div className="home-stat">
+        <div className="home-stat paym-stat-extra">
           <span className="home-stat-label">기간 결제액</span>
           <strong className="home-stat-value">
             <Money value={gross} />
@@ -248,7 +246,7 @@ export default function Payments({
             {from} ~ {to}
           </span>
         </div>
-        <div className="home-stat">
+        <div className="home-stat paym-stat-extra">
           <span className="home-stat-label">기간 환불액</span>
           <strong className="home-stat-value">
             <Money value={refundTotal} />
@@ -262,7 +260,9 @@ export default function Payments({
           </strong>
           <span className="paym-stat-note">결제액에서 환불액을 뺀 금액</span>
         </div>
-        <div className="home-stat">
+        <div
+          className={`home-stat paym-stat-pending${pending.length ? " is-waiting" : ""}`}
+        >
           <span className="home-stat-label">수납 대기</span>
           <strong className="home-stat-value">
             {pending.length}
@@ -285,6 +285,8 @@ export default function Payments({
                 data.customers.find((c) => c.id === a.customerId)?.name ||
                 a.guestName ||
                 "방문 고객";
+              const staffLabel =
+                staff.find((s) => s.id === a.staffId)?.name || "담당자 미지정";
               return (
                 <li key={a.id}>
                   <button
@@ -297,12 +299,19 @@ export default function Payments({
                     <span className="paym-avatar" aria-hidden="true">
                       {initialOf(name)}
                     </span>
+                    <span className="paym-row-time" aria-hidden="true">
+                      {clock(a.start)}
+                    </span>
                     <span className="paym-row-main">
                       <strong>{name}</strong>
-                      <small>
+                      <small
+                        className={
+                          a.date === today ? "paym-row-when is-today" : "paym-row-when"
+                        }
+                      >
                         {shortDate(a.date)} {clock(a.start)}
                       </small>
-                      <small>
+                      <small className="paym-row-services">
                         {a.serviceIds
                           .map(
                             (id) => data.services.find((s) => s.id === id)?.name,
@@ -310,10 +319,13 @@ export default function Payments({
                           .filter(Boolean)
                           .join(", ") || "시술 선택 필요"}
                       </small>
+                      <small className="paym-row-staff">
+                        {staffLabel}
+                      </small>
                     </span>
-                    <span className="paym-row-side">
-                      {staff.find((s) => s.id === a.staffId)?.name ||
-                        "담당자 미지정"}
+                    <span className="paym-row-side">{staffLabel}</span>
+                    <span className="paym-row-cta" aria-hidden="true">
+                      수납
                     </span>
                     <Icon name="chevron-right" size={16} />
                   </button>
@@ -331,7 +343,7 @@ export default function Payments({
           </span>
         </div>
         <div className="paym-filters">
-          <Field label="결제 시작일">
+          <Field label="결제 시작일" className="paym-date-field">
             <DateInput
               className="input"
               type="date"
@@ -340,7 +352,7 @@ export default function Payments({
               onChange={(e) => setFrom(e.target.value)}
             />
           </Field>
-          <Field label="결제 종료일">
+          <Field label="결제 종료일" className="paym-date-field">
             <DateInput
               className="input"
               type="date"
@@ -385,6 +397,18 @@ export default function Payments({
               }}
             >
               이번 달
+            </button>
+            <button
+              type="button"
+              className="paym-period-btn"
+              aria-haspopup="dialog"
+              aria-label={`조회 기간 ${from} ~ ${to}`}
+              onClick={() => setPeriodOpen(true)}
+            >
+              <Icon name="calendar" size={16} />
+              {from === to
+                ? shortDate(from)
+                : `${shortDate(from)} ~ ${shortDate(to)}`}
             </button>
           </div>
           <div className="chip-row" role="group" aria-label="처리 상태">
@@ -511,6 +535,44 @@ export default function Payments({
           에서 확인해 주세요.
         </p>
       </section>
+      {periodOpen && (
+        <Modal
+          title="조회 기간"
+          onClose={() => setPeriodOpen(false)}
+          footer={
+            <Button variant="primary" onClick={() => setPeriodOpen(false)}>
+              확인
+            </Button>
+          }
+        >
+          <div className="paym-grid-2">
+            <Field label="결제 시작일">
+              <DateInput
+                className="input"
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </Field>
+            <Field label="결제 종료일">
+              <DateInput
+                className="input"
+                type="date"
+                value={to}
+                min={from}
+                max={today}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </Field>
+          </div>
+          {from > to && (
+            <p className="error" role="alert">
+              시작일이 종료일보다 늦어요. 조회 기간을 확인해 주세요.
+            </p>
+          )}
+        </Modal>
+      )}
       {dialog?.kind === "create" && (
         <PaymentForm
           key={`${dialog.appointmentId || ""}-${dialog.customerId || ""}`}
@@ -1262,56 +1324,93 @@ function PaymentForm({ data, initial, runAction, onClose, onSaved }) {
 }
 
 function printReceipt(tx, data) {
+  const store = data.store || {};
   const refunds = (data.refunds || []).filter((r) => r.transactionId === tx.id);
   const staff =
     data.staff.find((s) => s.id === tx.staffId)?.name || "기존 담당자";
+  const grid =
+    "display:grid;grid-template-columns:minmax(0,1fr) 40px 96px 88px 104px;gap:8px";
+  const row = (label, value) =>
+    `<div style="display:flex;justify-content:space-between;gap:16px"><span style="color:#555">${label}</span><span>${value}</span></div>`;
   const lines = (tx.lines || [])
     .map(
-      (line) => `<tr><td>${line.type === "service" ? "시술" : "상품"}</td><td>${escapeHtml(
-        line.name,
-      )}</td><td class="num">${escapeHtml(quantity(line.quantity))}</td><td class="num">${printMoney(
-        line.unitPrice,
-      )}</td><td class="num">${line.discount ? `-${printMoney(line.discount)}` : "—"}</td><td class="num">${printMoney(
-        line.total,
-      )}</td></tr>`,
+      (line) => `<div style="${grid};align-items:start">
+        <span style="display:flex;flex-direction:column;gap:4px"><span style="font-weight:600">${escapeHtml(
+          line.name,
+        )}</span><span class="small">${line.type === "service" ? "시술" : "상품"}</span></span>
+        <span class="num">${escapeHtml(quantity(line.quantity))}</span>
+        <span class="num">${printMoney(line.unitPrice)}</span>
+        <span class="num">${line.discount ? `-${printMoney(line.discount)}` : "없음"}</span>
+        <span class="num" style="font-weight:600">${printMoney(line.total)}</span>
+      </div>`,
     )
     .join("");
   const refundRows = refunds
     .map(
-      (r) =>
-        `<tr><td>${escapeHtml(r.date)} ${escapeHtml(r.time || "")}</td><td>${escapeHtml(
-          methodNames[r.method] || r.method,
-        )}</td><td>${escapeHtml(r.reason || "")}</td><td class="num">-${printMoney(r.amount)}</td></tr>`,
+      (r) => `<div style="display:flex;justify-content:space-between;gap:16px;align-items:start">
+        <span style="display:flex;flex-direction:column;gap:4px">
+          <span>${escapeHtml(`${r.date} ${r.time || ""}`.trim())}</span>
+          <span class="small">${escapeHtml(methodNames[r.method] || r.method)}</span>
+          ${r.reason ? `<span class="small">${escapeHtml(r.reason)}</span>` : ""}
+        </span>
+        <span class="num">-${printMoney(r.amount)}</span>
+      </div>`,
     )
     .join("");
   const refundTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
+  const storeRows = [
+    ["상호", store.name],
+    ["대표자", store.representative],
+    ["사업자번호", store.businessNumber],
+    ["주소", store.address],
+    ["연락처", store.phone],
+  ].filter(([, value]) => value);
+  const kv = (rows) =>
+    `<dl class="kv">${rows
+      .map(([label, value]) => `<dt>${label}</dt><dd>${escapeHtml(value)}</dd>`)
+      .join("")}</dl>`;
+  const brand = logoTag(store) ||
+    (store.name
+      ? `<span class="brand"><span class="brand-dot"></span>${escapeHtml(store.name)}</span>`
+      : "");
   printDocument(
     `영수증 ${tx.date}`,
-    `${logoTag(data.store)}<h1>영 수 증</h1>
-    <div class="meta"><dl>
-      <dt>결제일시</dt><dd>${escapeHtml(`${tx.date} ${tx.time || ""}`)}</dd>
-      <dt>고객</dt><dd>${escapeHtml(tx.customerName || "방문 고객")}</dd>
-      <dt>담당</dt><dd>${escapeHtml(staff)}</dd>
-      <dt>결제 번호</dt><dd>${escapeHtml(tx.id)}</dd>
-    </dl>${storeBlock(data.store)}</div>
-    <table><thead><tr><th>구분</th><th>항목</th><th class="num">수량</th><th class="num">단가</th><th class="num">할인</th><th class="num">금액</th></tr></thead>
-    <tbody>${lines}</tbody>
-    <tfoot>
-      <tr><td colspan="5">공급 합계</td><td class="num">${printMoney(tx.subtotal)}</td></tr>
-      ${tx.discount ? `<tr><td colspan="5">할인</td><td class="num">-${printMoney(tx.discount)}</td></tr>` : ""}
-      <tr><td colspan="5">결제 금액 (${escapeHtml(methodNames[tx.method] || tx.method)}${
-        tx.reference ? `, 승인 ${escapeHtml(tx.reference)}` : ""
-      })</td><td class="num">${printMoney(tx.total)}</td></tr>
-    </tfoot></table>
+    `<div class="doc-head">
+      <div style="display:flex;flex-direction:column;gap:8px">${brand}<h1>영수증</h1></div>
+      <span class="small" style="color:#555">결제 번호 ${escapeHtml(tx.id)}</span>
+    </div>
+    <div class="grid-2" style="margin-bottom:24px">
+      ${kv([
+        ["결제일시", `${tx.date} ${tx.time || ""}`.trim()],
+        ["고객", tx.customerName ? `${tx.customerName} 님` : "방문 고객"],
+        ["담당", staff],
+      ])}
+      ${storeRows.length ? kv(storeRows) : "<div></div>"}
+    </div>
+    <section class="box" aria-label="결제 항목" style="display:flex;flex-direction:column;gap:12px">
+      <div style="${grid}" class="label"><span>항목</span><span class="num">수량</span><span class="num">단가</span><span class="num">할인</span><span class="num">금액</span></div>
+      ${lines}
+    </section>
+    <section aria-label="결제 금액" style="margin-top:24px;display:flex;flex-direction:column;gap:8px">
+      ${row("공급 합계", printMoney(tx.subtotal))}
+      ${tx.discount ? row("할인", `-${printMoney(tx.discount)}`) : ""}
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px"><strong style="font-size:16px;line-height:24px">결제 금액</strong><strong style="font-size:18px;line-height:24px">${printMoney(tx.total)}</strong></div>
+      ${row("결제 수단", escapeHtml(methodNames[tx.method] || tx.method))}
+      ${tx.reference ? row("승인번호", escapeHtml(tx.reference)) : ""}
+    </section>
     ${
       refunds.length
-        ? `<h2 style="font-size:14px;margin-top:18px">환불 내역</h2><table><thead><tr><th>일시</th><th>수단</th><th>사유</th><th class="num">금액</th></tr></thead><tbody>${refundRows}</tbody><tfoot><tr><td colspan="3">환불 후 결제액</td><td class="num">${printMoney(
-            tx.total - refundTotal,
-          )}</td></tr></tfoot></table>`
+        ? `<section class="box" style="margin-top:24px;display:flex;flex-direction:column;gap:8px">
+        <h2 style="margin:0">환불 내역</h2>
+        ${refundRows}
+        <div style="margin-top:4px;display:flex;justify-content:space-between;gap:16px"><strong style="font-weight:600">환불 후 결제액</strong><strong style="font-weight:600">${printMoney(
+          tx.total - refundTotal,
+        )}</strong></div>
+      </section>`
         : ""
     }
-    <p class="muted" style="margin-top:18px">카드 결제는 카드 단말기 매출전표가 정식 증빙입니다. 이 영수증은 매장 거래 확인용입니다.</p>
-    <div class="footer">${escapeHtml(data.store?.name || "")}</div>`,
+    <p class="small" style="margin-top:24px">카드 결제는 카드 단말기 매출전표가 정식 증빙이에요. 이 영수증은 매장 거래 확인용이에요.</p>
+    ${store.name ? `<div class="footer" style="font-weight:600">${escapeHtml(store.name)}</div>` : ""}`,
   );
 }
 function PaymentDetail({
@@ -1619,6 +1718,7 @@ function PaymentDetail({
 }
 
 function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
+  const methodLabelId = `${useId()}-method`;
   const [form, setForm] = useState({
     staffId: tx.staffId,
     method: tx.method,
@@ -1646,13 +1746,41 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
       setBusy(false);
     }
   }
+  const staffName = (id) =>
+    data.staff.find((s) => s.id === id)?.name || "기존 담당자";
+  const methodName = (key) => methodNames[key] || key;
+  const changes = [
+    form.staffId !== tx.staffId && [
+      "담당 직원",
+      staffName(tx.staffId),
+      staffName(form.staffId),
+    ],
+    form.method !== tx.method && [
+      "결제 수단",
+      methodName(tx.method),
+      methodName(form.method),
+    ],
+    form.reference !== (tx.reference || "") && [
+      "승인번호",
+      tx.reference || "없음",
+      form.reference || "없음",
+    ],
+  ].filter(Boolean);
   return (
     <Modal
       title="수납 정보 정정"
+      subtitle={`${tx.customerName ? `${tx.customerName} 님` : "방문 고객"} ${shortDate(tx.date)} 결제`}
       onClose={busy ? undefined : onClose}
       dirty={dirty}
       footer={
         <>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={requestModalClose}
+          >
+            취소
+          </Button>
           <Button
             variant="primary"
             type="submit"
@@ -1664,19 +1792,24 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
         </>
       }
     >
-      <form id="payment-correct" onSubmit={submit} className="stack">
-        <fieldset disabled={busy} className="commerce-fieldset">
-          <div className="alert">
-            담당자, 결제 수단, 거래번호의 오입력을 바로잡습니다. 결제액과 재고
-            사용량은 유지됩니다. 금액 변경은 수납 상세의 ‘금액 정정과 재수납’을
-            이용하세요.
+      <form id="payment-correct" onSubmit={submit} className="paym-form">
+        <fieldset disabled={busy} className="paym-fieldset">
+          <div className="paym-info">
+            <Icon name="info" size={20} />
+            <span>
+              <strong>잘못 넣은 담당자, 결제 수단, 승인번호를 바로잡아요</strong>
+              <span>결제액과 재고 사용량은 그대로 남아요.</span>
+              <span>
+                금액을 바꾸려면 수납 상세의 ‘금액 정정과 재수납’을 써 주세요.
+              </span>
+            </span>
           </div>
           {error && (
             <div className="alert alert-danger" role="alert">
               {error}
             </div>
           )}
-          <Field label="담당 직원">
+          <Field label="담당 직원" className="paym-half">
             <select
               className="select"
               value={form.staffId}
@@ -1692,30 +1825,37 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
                 ))}
             </select>
           </Field>
-          <Field label="결제 수단">
-            <select
-              className="select"
+          <div className="paym-group">
+            <span id={methodLabelId} className="field-label">
+              결제 수단
+            </span>
+            <ChipRadios
+              bordered
+              labelledBy={methodLabelId}
+              options={Object.entries(methodNames)}
               value={form.method}
-              onChange={(e) => update("method", e.target.value)}
-            >
-              {Object.entries(methodNames).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="승인번호">
+              onChange={(value) => update("method", value)}
+            />
+          </div>
+          <Field
+            label="승인번호"
+            help="단말기 영수증에 찍힌 번호예요"
+            className="paym-half"
+          >
             <input
-              className="input"
+              className="input num"
               maxLength={100}
               value={form.reference}
               onChange={(e) => update("reference", e.target.value)}
             />
           </Field>
-          <Field label="정정 사유 (필수)">
+          <Field
+            label="정정 사유 (필수)"
+            help="정정한 직원과 시각이 함께 기록돼요"
+          >
             <textarea
               className="textarea"
+              rows={3}
               required
               maxLength={1000}
               value={form.reason}
@@ -1723,6 +1863,21 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
               placeholder="예: 단말기 거래내역 확인 후 승인번호 정정"
             />
           </Field>
+          <div className="paym-diff" aria-live="polite">
+            <span className="field-label">바뀌는 내용</span>
+            {changes.length ? (
+              changes.map(([label, before, after]) => (
+                <span key={label} className="paym-diff-row">
+                  {label}
+                  <s>{before}</s>
+                  <Icon name="arrow-right" size={16} />
+                  <strong>{after}</strong>
+                </span>
+              ))
+            ) : (
+              <span className="muted">아직 바꾼 내용이 없어요</span>
+            )}
+          </div>
         </fieldset>
       </form>
     </Modal>
@@ -2097,6 +2252,7 @@ function RefundForm({ tx, data, runAction, onClose, onSaved }) {
 }
 
 function RepriceForm({ tx, runAction, onClose, onSaved }) {
+  const methodLabelId = `${useId()}-method`;
   const [prices, setPrices] = useState(
     tx.lines.map((l) => String(l.unitPrice)),
   );
@@ -2114,6 +2270,7 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
       (s, l, i) => s + Math.round(l.quantity * Number(prices[i] || 0)),
       0,
     ) - Number(discount || 0);
+  const delta = total - tx.total;
   async function submit(e) {
     e.preventDefault();
     if (busy || !confirmed) return;
@@ -2142,112 +2299,175 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
   return (
     <Modal
       title="금액 정정과 재수납"
+      subtitle={`${tx.customerName ? `${tx.customerName} 님` : "방문 고객"} ${shortDate(tx.date)} 결제`}
       size="wide"
       dirty={dirty}
       onClose={busy ? undefined : onClose}
       footer={
-        <Button
-          type="submit"
-          form="payment-reprice"
-          busy={busy}
-          disabled={!confirmed}
-          variant="primary"
-        >
-          정정 기록 저장
-        </Button>
+        <>
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={requestModalClose}
+          >
+            취소
+          </Button>
+          <Button
+            type="submit"
+            form="payment-reprice"
+            busy={busy}
+            disabled={!confirmed}
+            variant="primary"
+          >
+            정정 기록 저장
+          </Button>
+        </>
       }
     >
       <form
         id="payment-reprice"
+        className="paym-form"
         onSubmit={submit}
         onChange={() => {
           setDirty(true);
           setConfirmed(false);
         }}
       >
-        <fieldset className="stack commerce-fieldset" disabled={busy}>
-          <p className="alert">
-            같은 시술과 상품의 단가와 할인액을 정정합니다. 기존 결제{" "}
-            {money(tx.total)}의 취소와 새 결제를 단말기에서 처리한 뒤
-            기록하세요. 재료와 상품 재고는 추가 차감하지 않습니다.
-          </p>
+        <fieldset className="paym-fieldset" disabled={busy}>
+          <div className="paym-info">
+            <Icon name="info" size={20} />
+            <span>
+              <strong>같은 시술과 상품의 단가와 할인액만 바꿔요</strong>
+              <span>
+                단말기에서 기존 결제 {money(tx.total)}을 취소하고 새 금액으로
+                결제한 뒤 기록해 주세요.
+              </span>
+              <span>재료와 상품 재고는 다시 빼지 않아요.</span>
+            </span>
+          </div>
           {error && (
             <p role="alert" className="alert alert-danger">
               {error}
             </p>
           )}
-          {tx.lines.map((l, i) => (
-            <Field
-              key={l.id}
-              label={`${l.name} 정정 단가 (원)`}
-              help={`기존 ${money(l.unitPrice)}, 수량 ${quantity(l.quantity)}`}
-            >
+          <section
+            className="paym-reprice-lines"
+            aria-labelledby="paym-reprice-title"
+          >
+            <h3 id="paym-reprice-title">항목별 정정 단가</h3>
+            {tx.lines.map((l, i) => (
+              <div key={l.id} className="paym-reprice-line">
+                <span className="paym-reprice-name">
+                  <strong>{l.name}</strong>
+                  <small>기존 단가 {money(l.unitPrice)}</small>
+                  <small>수량 {quantity(l.quantity)}</small>
+                </span>
+                <span className="paym-suffix">
+                  <input
+                    aria-label={`${l.name} 정정 단가 (원)`}
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    step="1"
+                    required
+                    value={prices[i]}
+                    onChange={(e) =>
+                      setPrices((p) =>
+                        p.map((v, j) => (i === j ? e.target.value : v)),
+                      )
+                    }
+                  />
+                  <span aria-hidden="true">원</span>
+                </span>
+              </div>
+            ))}
+          </section>
+          <div className="paym-grid-2">
+            <Field label="정정 할인액" help={`기존 할인 ${money(tx.discount)}`}>
+              <span className="paym-suffix">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  step="1"
+                  required
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                />
+                <span aria-hidden="true">원</span>
+              </span>
+            </Field>
+            <div className="paym-group paym-group-tight">
+              <span id={methodLabelId} className="field-label">
+                새 결제 수단
+              </span>
+              <ChipRadios
+                bordered
+                labelledBy={methodLabelId}
+                options={Object.entries(methodNames)}
+                value={method}
+                onChange={(value) => {
+                  setMethod(value);
+                  setDirty(true);
+                  setConfirmed(false);
+                }}
+              />
+            </div>
+          </div>
+          <div className="paym-grid-2">
+            <Field label="기존 결제 취소 번호">
               <input
-                className="input"
-                type="number"
-                min="0"
-                step="1"
-                required
-                value={prices[i]}
-                onChange={(e) =>
-                  setPrices((p) =>
-                    p.map((v, j) => (i === j ? e.target.value : v)),
-                  )
-                }
+                className="input num"
+                maxLength={120}
+                value={refundReference}
+                onChange={(e) => setRefundReference(e.target.value)}
               />
             </Field>
-          ))}
-          <Field label="정정 할인액 (원)">
-            <input
-              className="input"
-              type="number"
-              min="0"
-              step="1"
-              required
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-            />
-          </Field>
-          <Field label="새 결제 수단">
-            <select
-              className="select"
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-            >
-              {Object.entries(methodNames).map(([v, n]) => (
-                <option key={v} value={v}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="기존 결제 취소 번호">
-            <input
-              className="input"
-              maxLength={120}
-              value={refundReference}
-              onChange={(e) => setRefundReference(e.target.value)}
-            />
-          </Field>
-          <Field label="새 결제 승인번호">
-            <input
-              className="input"
-              maxLength={120}
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-            />
-          </Field>
-          <Field label="금액 정정 사유">
+            <Field label="새 결제 승인번호">
+              <input
+                className="input num"
+                maxLength={120}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="금액 정정 사유 (필수)">
             <textarea
               className="textarea"
+              rows={2}
               required
               maxLength={1000}
               value={reason}
+              placeholder="예: 학생 요금을 적용하지 않고 결제함"
               onChange={(e) => setReason(e.target.value)}
             />
           </Field>
-          <strong>새 결제액 {money(total)}</strong>
-          <label className="commerce-check">
+          <div className="paym-compare" aria-live="polite">
+            <span className="paym-compare-side">
+              <span className="field-label">기존 결제액</span>
+              <span className="paym-compare-before">{money(tx.total)}</span>
+            </span>
+            <Icon name="arrow-right" size={20} />
+            <span className="paym-compare-side is-after">
+              <span className="field-label">새 결제액</span>
+              <strong className={total < 0 ? "is-refund" : undefined}>
+                {money(total)}
+              </strong>
+              <small
+                className={
+                  delta < 0 ? "is-down" : delta > 0 ? "is-up" : undefined
+                }
+              >
+                {delta < 0
+                  ? `${money(-delta)} 줄어요`
+                  : delta > 0
+                    ? `${money(delta)} 늘어요`
+                    : "금액이 같아요"}
+              </small>
+            </span>
+          </div>
+          <label className="paym-confirm">
             <input
               type="checkbox"
               checked={confirmed}
@@ -2256,7 +2476,7 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
                 setConfirmed(e.target.checked);
               }}
             />
-            <span>기존 결제 취소와 새 금액 결제를 실제로 완료했습니다.</span>
+            <span>기존 결제 취소와 새 금액 결제를 단말기에서 마쳤어요</span>
           </label>
         </fieldset>
       </form>

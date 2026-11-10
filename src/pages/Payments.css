@@ -889,3 +889,779 @@
     justify-content: space-between;
   }
 }
+
+/* ===== Payment detail, correction and reprice dialogs (PaymentDetail, PaymentCorrect, PaymentReprice boards) ===== */
+.paym-info {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  gap: 12px;
+}
+.paym-info > .icon {
+  flex: none;
+  color: var(--text-muted);
+}
+.paym-info > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-muted);
+}
+.paym-info strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.paym-prewrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Detail */
+.paym-detail-who {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.paym-detail-who-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-muted);
+}
+.paym-detail-who-text strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-detail-who-text small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-detail-who > .paym-pill {
+  flex: none;
+}
+.paym-detail-kv {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.paym-detail-kv > div {
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-detail-kv dt {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-detail-kv dd {
+  margin: 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-detail-kv > .paym-detail-kv-wide {
+  grid-column: 1 / -1;
+}
+.paym-detail-kv-wide dd {
+  color: var(--text);
+}
+.paym-detail-kv dd.paym-detail-kv-sub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-detail-link {
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.paym-detail-link:hover {
+  color: var(--text-strong);
+}
+.paym-detail-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.paym-detail-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-detail-lines > h3 {
+  margin-bottom: 4px;
+}
+.paym-detail-lines > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-detail-line-head,
+.paym-detail-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 104px 112px 112px;
+  gap: 12px;
+}
+.paym-detail-line-head {
+  padding: 0 16px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-detail-line-head > span + span,
+.paym-detail-line > [data-label] {
+  text-align: right;
+}
+.paym-detail-line {
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.paym-detail-line > strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.paym-detail-line > strong.is-none {
+  color: var(--text-faint, #6b6b76);
+}
+.paym-detail-line .is-refund,
+.paym-detail-totals .is-refund,
+.paym-detail-history .is-refund,
+.paym-compare .is-refund {
+  color: var(--danger);
+}
+.paym-detail-line-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-detail-line-name > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.paym-detail-line-name strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-detail-line-name small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-tag {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 24px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.paym-detail-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.paym-detail-totals > div {
+  min-width: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-detail-totals span {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.paym-detail-totals strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text);
+}
+.paym-detail-totals > .is-grand {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+.paym-detail-totals > .is-grand span {
+  color: var(--text-muted);
+}
+.paym-detail-totals > .is-grand strong {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.paym-detail-history {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.paym-detail-history > section {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.paym-detail-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paym-detail-history li {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.paym-detail-history li small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.paym-detail-history-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.paym-detail-history-top strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.paym-detail-history-top strong.is-refund {
+  color: var(--danger);
+}
+.paym-detail-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-detail-note > .icon {
+  flex: none;
+}
+.modal-footer .paym-detail-print .btn {
+  gap: 8px;
+}
+.modal-footer .btn.paym-danger-soft {
+  padding: 0 24px;
+}
+
+/* Correction and reprice forms */
+.paym-form .field {
+  margin: 0;
+  gap: 8px;
+}
+.paym-form .paym-half {
+  max-width: 368px;
+}
+.paym-form h3 {
+  margin: 0;
+}
+.paym-diff {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.paym-diff-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+.paym-diff-row s {
+  color: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+.paym-diff-row > .icon {
+  flex: none;
+  color: var(--text-meta);
+}
+.paym-diff-row strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-reprice-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.paym-reprice-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: center;
+  gap: 16px;
+}
+.paym-reprice-name {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.paym-reprice-name strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.paym-reprice-name small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-suffix {
+  min-width: 0;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--inset);
+  color: var(--text-meta);
+}
+.paym-suffix:focus-within {
+  border-color: var(--accent);
+}
+.paym-suffix > input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 42px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0;
+  color: var(--text-strong);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.paym-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.paym-group.paym-group-tight {
+  gap: 8px;
+}
+.paym-compare {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.paym-compare > .icon {
+  color: var(--text-meta);
+}
+.paym-compare-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.paym-compare-side.is-after {
+  align-items: flex-end;
+  text-align: right;
+}
+.paym-compare-before {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.paym-compare-side strong {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.paym-compare-side small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.paym-compare-side small.is-down {
+  color: var(--ok, #6ee7b7);
+}
+.paym-compare-side small.is-up {
+  color: var(--warn);
+}
+.paym-form .paym-confirm {
+  align-items: center;
+  padding: 0;
+}
+
+/* Mobile-only bits on the page (PaymentsMobile board) */
+.paym-period-btn,
+.paym-row-time,
+.paym-row-staff,
+.paym-row-cta {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* Dialogs */
+  .paym-detail-kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .paym-detail-line-head {
+    display: none;
+  }
+  .paym-detail-line {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .paym-detail-line-name {
+    margin-bottom: 4px;
+  }
+  .paym-detail-line > [data-label] {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .paym-detail-line > [data-label]:before {
+    content: attr(data-label);
+    font-size: 12px;
+    line-height: 20px;
+    font-weight: 500;
+    color: var(--text-meta);
+  }
+  .paym-detail-totals,
+  .paym-detail-history,
+  .paym-grid-2,
+  .paym-reprice-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .paym-reprice-line {
+    gap: 8px;
+  }
+  .paym-form .paym-half {
+    max-width: none;
+  }
+  .modal-footer .paym-detail-print {
+    flex: 1 1 100%;
+    display: flex;
+  }
+  .modal-footer .paym-detail-print .btn {
+    flex: 1;
+  }
+
+  /* Page */
+  .paym-page {
+    gap: 24px;
+  }
+  .paym-page > .page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0;
+  }
+  .paym-page > .page-header .page-eyebrow {
+    display: none;
+  }
+  .paym-page > .page-header .page-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .paym-page > .page-header .page-title:before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+  .paym-page > .page-header .btn-primary {
+    flex: none;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 16px;
+  }
+  .paym-stats.home-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .paym-stats .paym-stat-extra {
+    display: none;
+  }
+  .paym-stats .home-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 12px 16px;
+  }
+  .paym-stats .home-stat-label {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-meta);
+  }
+  .paym-stats .home-stat-value,
+  .paym-stats .home-stat-value small {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+  }
+  .paym-stats .home-stat-value small {
+    margin-left: 0;
+  }
+  .paym-stats .paym-stat-pending.is-waiting .home-stat-value {
+    color: var(--warn);
+  }
+
+  /* Sections lose their panel frame; rows become cards */
+  .paym-page .panel.paym-pending,
+  .paym-page .panel.paym-history {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    gap: 12px;
+  }
+  .paym-pending .panel-head,
+  .paym-history .panel-head {
+    min-height: 0;
+    padding: 0 8px;
+  }
+  .paym-pending .panel-head {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .paym-history .panel-head [role="status"] {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .paym-page .paym-pending-list .list-row,
+  .paym-page .paym-tx-list .list-row {
+    padding: 12px;
+    border-radius: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    gap: 12px;
+  }
+  .paym-page .paym-pending-list .list-row:hover,
+  .paym-page .paym-tx-list .list-row:hover {
+    background: var(--surface-2);
+  }
+  .paym-pending-list .paym-avatar,
+  .paym-pending-list .paym-row-side,
+  .paym-pending-list .list-row > .icon,
+  .paym-pending-list .paym-row-when.is-today {
+    display: none;
+  }
+  .paym-pending-list .paym-row-time {
+    width: 64px;
+    height: 64px;
+    flex: none;
+    border-radius: 12px;
+    background: var(--inset);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .paym-pending-list .paym-row-main .paym-row-services {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--text);
+  }
+  .paym-pending-list .paym-row-staff {
+    display: block;
+  }
+  .paym-pending-list .paym-row-cta {
+    flex: none;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--chip);
+    color: var(--text-strong);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* History filters: search, period chips with a date button, scrolling status chips */
+  .paym-filters > .paym-date-field {
+    display: none;
+  }
+  .paym-filters > .paym-search {
+    flex: 1 1 100%;
+  }
+  .paym-search > .field-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .paym-search .input-icon input {
+    height: 42px !important;
+  }
+  .paym-filter-chips {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .paym-filter-chips > .chip-row {
+    flex-wrap: nowrap;
+  }
+  .paym-filter-chips > .chip-row .chip {
+    flex: none;
+  }
+  .paym-filter-chips > .chip-row[aria-label="처리 상태"] {
+    margin: 0 -16px;
+    padding: 0 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .paym-period-btn {
+    margin-left: auto;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .paym-period-btn > .icon {
+    color: var(--text-muted);
+  }
+  .paym-filter-chips .text-btn {
+    align-self: flex-start;
+    min-height: 40px;
+  }
+
+  /* Record cards */
+  .paym-tx-list {
+    gap: 8px;
+  }
+  .paym-page .paym-tx {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "avatar main amount"
+      "avatar main method"
+      "avatar staff status";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 4px;
+  }
+  .paym-tx > .paym-tx-staff {
+    grid-area: staff;
+    display: block;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-meta);
+  }
+  .paym-tx > .paym-tx-method {
+    grid-area: method;
+    display: block;
+    text-align: right;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-meta);
+  }
+  .paym-tx > .paym-tx-status {
+    justify-self: end;
+  }
+  .paym-tx > .paym-row-main {
+    align-self: end;
+  }
+  .paym-tx > .icon {
+    display: none;
+  }
+}

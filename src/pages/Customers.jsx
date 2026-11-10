@@ -16,6 +16,7 @@ import {
   staffName,
   timeLabel,
   todaySeoul,
+  useMediaQuery,
 } from "./operations-utils.js";
 import "./Operations.css";
 import { Icon } from "../components/Icon.jsx";
@@ -216,6 +217,7 @@ function CustomerDetail({
   onEdit,
   onArchive,
   navigate,
+  compact = false,
 }) {
   const [showAll, setShowAll] = useState(false);
   useEffect(() => setShowAll(false), [customer.id]);
@@ -279,6 +281,67 @@ function CustomerDetail({
   const shown = showAll ? records : records.slice(0, 8);
   const canArchive = user.role !== "designer";
   const created = customer.createdAt ? String(customer.createdAt).slice(0, 10) : "";
+  const actions = [
+    !customer.archived && user.role !== "designer" && (
+      <Button
+        key="pay"
+        variant="secondary"
+        onClick={() => navigate("payments", { customerId: customer.id })}
+      >
+        예약 없이 수납
+      </Button>
+    ),
+    !customer.archived && (
+      <Button
+        key="book"
+        variant="primary"
+        onClick={() => navigate("appointments", { customerId: customer.id })}
+      >
+        예약 등록
+      </Button>
+    ),
+  ].filter(Boolean);
+  const info = (
+    <>
+      <div className="ops-stat-row">
+        <div className="inset ops-stat">
+          <span className="muted">방문</span>
+          <strong className="num">{summary.visits}회</strong>
+        </div>
+        <div className="inset ops-stat">
+          <span className="muted">누적 결제</span>
+          <strong className="num">
+            <Money value={total} />
+          </strong>
+        </div>
+        <div className="inset ops-stat">
+          <span className="muted">다음 예약</span>
+          <strong>{summary.next ? dayWithYear(summary.next, today) : "없음"}</strong>
+        </div>
+      </div>
+      {user.role === "designer" && (
+        <p className="help">방문과 결제 기록은 내가 담당한 것만 보여요</p>
+      )}
+      <div className="ops-section">
+        <span className="ops-meta-label">메모</span>
+        <p className="ops-chart-notes">
+          {customer.memo || "남긴 메모가 없어요. 정보 수정에서 적을 수 있어요."}
+        </p>
+      </div>
+    </>
+  );
+  const archive = canArchive && (
+      <div className="ops-archive-row">
+        <span className="help">
+          {customer.archived
+            ? "보관한 손님은 예약할 때 검색되지 않아요. 기록은 그대로 남아 있어요."
+            : "더 이상 오지 않는 손님은 보관할 수 있어요. 기록은 그대로 남아요."}
+        </span>
+        <Button variant="ghost" onClick={onArchive}>
+          {customer.archived ? "고객 다시 활성화" : "고객 보관"}
+        </Button>
+      </div>
+  );
   return (
     <>
       <div className="panel ops-detail-card">
@@ -291,85 +354,72 @@ function CustomerDetail({
               {customer.name} 님
               {customer.archived && <Badge tone="muted">보관됨</Badge>}
             </h2>
-            <span className="muted">{customer.phone || "전화번호 없음"}</span>
+            {compact && customer.phone ? (
+              <a className="muted num ops-tel" href={`tel:${digits(customer.phone)}`}>
+                {customer.phone}
+              </a>
+            ) : (
+              <span className="muted">{customer.phone || "전화번호 없음"}</span>
+            )}
             {created && (
               <span className="help">{dayWithYear(created, today)} 등록</span>
             )}
           </span>
-          <span className="ops-inline-actions">
-            <Button variant="secondary" onClick={onEdit}>
-              정보 수정
-            </Button>
-            {!customer.archived && user.role !== "designer" && (
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  navigate("payments", { customerId: customer.id })
-                }
-              >
-                예약 없이 수납
+          {!compact && (
+            <span className="ops-inline-actions">
+              <Button variant="secondary" onClick={onEdit}>
+                정보 수정
               </Button>
-            )}
-            {!customer.archived && (
-              <Button
-                variant="primary"
-                onClick={() =>
-                  navigate("appointments", { customerId: customer.id })
-                }
-              >
-                예약 등록
-              </Button>
-            )}
-          </span>
+              {actions}
+            </span>
+          )}
         </div>
         {customer.warning && (
           <div className="ops-warning">시술 전 확인: {customer.warning}</div>
         )}
-        <div className="ops-stat-row">
-          <div className="inset ops-stat">
-            <span className="muted">방문</span>
-            <strong className="num">{summary.visits}회</strong>
-          </div>
-          <div className="inset ops-stat">
-            <span className="muted">누적 결제</span>
-            <strong className="num">
-              <Money value={total} />
-            </strong>
-          </div>
-          <div className="inset ops-stat">
-            <span className="muted">다음 예약</span>
-            <strong>{summary.next ? dayWithYear(summary.next, today) : "없음"}</strong>
-          </div>
-        </div>
-        {user.role === "designer" && (
-          <p className="help">방문과 결제 기록은 내가 담당한 것만 보여요</p>
+        {compact && actions.length > 0 && (
+          <div className="ops-m-actions">{actions}</div>
         )}
-        <div className="ops-section">
-          <span className="ops-meta-label">메모</span>
-          <p className="ops-chart-notes">
-            {customer.memo || "남긴 메모가 없어요. 정보 수정에서 적을 수 있어요."}
-          </p>
-        </div>
-        {canArchive && (
-          <div className="ops-archive-row">
-            <span className="help">
-              {customer.archived
-                ? "보관한 손님은 예약할 때 검색되지 않아요. 기록은 그대로 남아 있어요."
-                : "더 이상 오지 않는 손님은 보관할 수 있어요. 기록은 그대로 남아요."}
-            </span>
-            <Button variant="ghost" onClick={onArchive}>
-              {customer.archived ? "고객 다시 활성화" : "고객 보관"}
-            </Button>
-          </div>
-        )}
+        {!compact && info}
+        {!compact && archive}
       </div>
+      {compact && info}
       <div className="panel ops-records">
         <h3 className="ops-panel-title">방문 기록</h3>
         {records.length ? (
           <ul className="ops-record-list">
             {shown.map((row) => {
               const refunded = row.tx ? refundedFor(row.tx.id) : 0;
-              const content = (
+              const end =
+                row.tx && (!row.status || row.status === "completed") ? (
+                  <>
+                    <strong className="num">
+                      <Money value={row.tx.total - refunded} />
+                    </strong>
+                    {refunded > 0 && (
+                      <span className="help tone-warn-text">
+                        환불 <Money value={refunded} />
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <Badge tone={STATUS[row.status]?.tone}>
+                    {STATUS[row.status]?.label || row.status}
+                  </Badge>
+                );
+              const content = compact ? (
+                <>
+                  <span className="ops-record-main">
+                    <strong>{row.title || "기록된 항목 없음"}</strong>
+                    <span className="help num">
+                      {dayWithYear(row.date, today)}
+                      {row.time ? ` ${row.time}` : ""}
+                    </span>
+                    <span className="help">{row.staff}</span>
+                  </span>
+                  <span className="ops-record-end">{end}</span>
+                </>
+              ) : (
                 <>
                   <span className="ops-record-date">
                     <span>{dayWithYear(row.date, today)}</span>
@@ -379,24 +429,7 @@ function CustomerDetail({
                     <strong>{row.title || "기록된 항목 없음"}</strong>
                     <span className="help">{row.staff}</span>
                   </span>
-                  <span className="ops-record-end">
-                    {row.tx && (!row.status || row.status === "completed") ? (
-                      <>
-                        <strong className="num">
-                          <Money value={row.tx.total - refunded} />
-                        </strong>
-                        {refunded > 0 && (
-                          <span className="help tone-warn-text">
-                            환불 <Money value={refunded} />
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <Badge tone={STATUS[row.status]?.tone}>
-                        {STATUS[row.status]?.label || row.status}
-                      </Badge>
-                    )}
-                  </span>
+                  <span className="ops-record-end">{end}</span>
                 </>
               );
               const target = row.appointmentId
@@ -412,13 +445,15 @@ function CustomerDetail({
                   {target ? (
                     <button
                       type="button"
-                      className="ops-record"
+                      className={`ops-record ${compact ? "is-compact" : ""}`}
                       onClick={target}
                     >
                       {content}
                     </button>
                   ) : (
-                    <div className="ops-record">{content}</div>
+                    <div className={`ops-record ${compact ? "is-compact" : ""}`}>
+                      {content}
+                    </div>
                   )}
                 </li>
               );
@@ -440,6 +475,7 @@ function CustomerDetail({
           </button>
         )}
       </div>
+      {compact && archive && <div className="ops-m-archive">{archive}</div>}
     </>
   );
 }
@@ -465,8 +501,12 @@ export default function Customers({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const detailRef = useRef(null);
+  const phone = useMediaQuery();
   const revealDetail = () => {
-    if (window.matchMedia?.("(max-width: 900px)").matches)
+    // On a phone the detail replaces the list, so it starts at the top.
+    if (window.matchMedia?.("(max-width: 640px)").matches)
+      requestAnimationFrame(() => window.scrollTo?.(0, 0));
+    else if (window.matchMedia?.("(max-width: 900px)").matches)
       requestAnimationFrame(() =>
         detailRef.current?.scrollIntoView?.({ block: "start" }),
       );
@@ -554,8 +594,10 @@ export default function Customers({
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   );
-  const current =
-    data.customers.find((item) => item.id === selectedId) || pageRows[0];
+  const chosen = data.customers.find((item) => item.id === selectedId);
+  // Phones show the list first and open a customer as its own screen.
+  const current = phone ? chosen : chosen || pageRows[0];
+  const phoneDetail = phone && Boolean(chosen);
   const activeCount = data.customers.filter((item) => !item.archived).length;
   const archivedCount = data.customers.length - activeCount;
   async function archiveCustomer() {
@@ -582,25 +624,68 @@ export default function Customers({
     }
   }
   return (
-    <section className="ops-page">
-      <header className="page-header ops-page-header">
-        <div>
-          <p className="page-eyebrow">
-            {listMode === "archived"
-              ? `보관 ${archivedCount}명`
-              : `전체 ${activeCount}명`}
-          </p>
-          <h1 className="page-title">고객</h1>
-        </div>
-        <Button
-          variant="primary"
-          onClick={() => setEditor({})}
-          aria-label="+ 고객 등록"
-        >
-          고객 등록
-        </Button>
-      </header>
+    <section className={`ops-page ${phone ? "ops-page-phone" : ""}`}>
+      {phoneDetail ? (
+        <header className="ops-m-head ops-m-head-back">
+          <button
+            type="button"
+            className="ops-m-back"
+            aria-label="고객 목록으로"
+            onClick={() => setSelectedId(null)}
+          >
+            <Icon name="chevron-left" size={20} />
+          </button>
+          <h1>고객 정보</h1>
+          <button
+            type="button"
+            className="ops-m-chipbtn"
+            onClick={() => setEditor(current)}
+          >
+            정보 수정
+          </button>
+        </header>
+      ) : phone ? (
+        <header className="ops-m-head">
+          <span className="ops-m-title">
+            <span className="ops-m-dot" aria-hidden="true" />
+            <h1>고객</h1>
+            <span className="ops-meta">
+              {listMode === "archived"
+                ? `보관 ${archivedCount}명`
+                : `전체 ${activeCount}명`}
+            </span>
+          </span>
+          <button
+            type="button"
+            className="ops-m-cta"
+            aria-label="+ 고객 등록"
+            onClick={() => setEditor({})}
+          >
+            <Icon name="plus" size={16} />
+            고객 등록
+          </button>
+        </header>
+      ) : (
+        <header className="page-header ops-page-header">
+          <div>
+            <p className="page-eyebrow">
+              {listMode === "archived"
+                ? `보관 ${archivedCount}명`
+                : `전체 ${activeCount}명`}
+            </p>
+            <h1 className="page-title">고객</h1>
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => setEditor({})}
+            aria-label="+ 고객 등록"
+          >
+            고객 등록
+          </Button>
+        </header>
+      )}
       <div className="ops-split">
+        {!phoneDetail && (
         <section className="panel ops-customer-pane" aria-label="고객 목록">
           <div className="input-icon">
             <Icon name="search" size={20} />
@@ -657,6 +742,13 @@ export default function Customers({
                       >
                         {customer.warning ? "주의" : `${summary.visits}회`}
                       </span>
+                      {phone && (
+                        <Icon
+                          name="chevron-right"
+                          size={16}
+                          className="ops-row-chevron"
+                        />
+                      )}
                     </button>
                   </li>
                 );
@@ -709,10 +801,11 @@ export default function Customers({
             </nav>
           )}
         </section>
-        {current && (
+        )}
+        {current && (!phone || phoneDetail) && (
           <section
             ref={detailRef}
-            className="ops-customer-detail"
+            className={`ops-customer-detail ${phone ? "ops-m-detail" : ""}`}
             aria-labelledby="customer-detail-title"
           >
             <CustomerDetail
@@ -720,6 +813,7 @@ export default function Customers({
               data={data}
               user={user}
               summary={stats.get(current.id)}
+              compact={phone}
               onEdit={() => setEditor(current)}
               onArchive={() => {
                 setError("");

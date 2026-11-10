@@ -24,6 +24,7 @@ import {
   relativeDayLabel,
   serviceNames,
   shiftDate,
+  shortDateLabel,
   staffLeaves,
   staffName,
   timeLabel,
@@ -1516,6 +1517,324 @@ function Timetable({ data, date, staff, canCreate, onOpen, onCreate }) {
   );
 }
 
+const PHONE_TONE = {
+  booked: "booked",
+  checked_in: "arrived",
+  in_service: "service",
+  completed: "done",
+};
+
+// Phone layout of the day view: date nav, designer chips and a vertical list
+// (leave, bookings and open gaps in time order) instead of the staff grid.
+function PhoneSchedule({
+  data,
+  date,
+  today,
+  staff,
+  staffFilter,
+  canCreate,
+  overdueCount,
+  hiddenCount,
+  onDate,
+  onStaff,
+  onPending,
+  onOpen,
+  onCreate,
+  onNew,
+  onShowList,
+  notice,
+}) {
+  const step = Number(data.store.slotMinutes) || 30;
+  const closed = data.store.closedWeekdays?.includes(weekdayOf(date));
+  const dayAppointments = data.appointments.filter(
+    (item) =>
+      item.date === date && !["cancelled", "no_show"].includes(item.status),
+  );
+  const columns = scheduleColumns(staff, dayAppointments);
+  const active = columns.some((item) => item.id === staffFilter)
+    ? staffFilter
+    : "all";
+  const shown =
+    active === "all" ? columns : columns.filter((item) => item.id === active);
+  const infos = shown.map((person) =>
+    staffDay(data, person, date, dayAppointments, step),
+  );
+  const count = (id) =>
+    dayAppointments.filter(
+      (row) =>
+        columns.some((item) => item.id === row.staffId) &&
+        (id === "all" || row.staffId === id),
+    ).length;
+  const rows = [];
+  for (const info of infos) {
+    const name = info.person.name;
+    if (!closed && info.wholeLeave)
+      rows.push({
+        kind: "leave",
+        key: `l-${info.person.id}`,
+        start: info.open,
+        title: leaveName(info.wholeLeave),
+        staff: name,
+        range: "하루 종일",
+      });
+    else if (!closed && info.offDay)
+      rows.push({
+        kind: "leave",
+        key: `o-${info.person.id}`,
+        start: info.open,
+        title: "쉬는 날",
+        pill: "휴무",
+        staff: name,
+        range: "하루 종일",
+      });
+    else if (!closed)
+      for (const leave of info.leaves)
+        rows.push({
+          kind: "leave",
+          key: `l-${leave.id}`,
+          start: leave.start,
+          title: leaveName(leave),
+          staff: name,
+          range: rangeLabel(leave.start, leave.end),
+        });
+    for (const row of info.appointments)
+      rows.push({ kind: "booking", key: row.id, start: row.start, row });
+  }
+  if (canCreate && !closed && date >= today) {
+    const notBefore = date === today ? nowMinutes() : 0;
+    const booked = infos.flatMap((info) => info.appointments);
+    const openAt = (minute) =>
+      minute >= notBefore &&
+      !booked.some(
+        (row) => minute < row.start + row.duration && minute + step > row.start,
+      ) &&
+      infos.find((info) => info.free(minute));
+    let gap = null;
+    for (
+      let minute = data.store.open;
+      minute + step <= data.store.close;
+      minute += step
+    ) {
+      const who = openAt(minute);
+      if (who && gap) gap.end = minute + step;
+      else if (who)
+        gap = {
+          kind: "gap",
+          key: `g-${minute}`,
+          start: minute,
+          end: minute + step,
+          staffId: who.person.id,
+        };
+      else if (gap) {
+        rows.push(gap);
+        gap = null;
+      }
+    }
+    if (gap) rows.push(gap);
+  }
+  const order = { leave: 0, booking: 1, gap: 2 };
+  rows.sort((a, b) => a.start - b.start || order[a.kind] - order[b.kind]);
+  const now = date === today ? nowMinutes() : null;
+  const prefix =
+    date === today
+      ? "오늘 "
+      : date === shiftDate(today, 1)
+        ? "내일 "
+        : date === shiftDate(today, -1)
+          ? "어제 "
+          : "";
+  const total = count("all");
+  return (
+    <>
+      <header className="ops-m-head">
+        <span className="ops-m-title">
+          <span className="ops-m-dot" aria-hidden="true" />
+          <h1>예약</h1>
+        </span>
+        {overdueCount > 0 && (
+          <button type="button" className="ops-m-overdue" onClick={onPending}>
+            지난 미처리 {overdueCount}건
+            <Icon name="chevron-right" size={16} />
+          </button>
+        )}
+      </header>
+      <div className="ops-m-controls">
+        <div className="ops-m-datenav">
+          <button
+            type="button"
+            className="ops-m-square"
+            aria-label="이전 날"
+            onClick={() => onDate(shiftDate(date, -1))}
+          >
+            <Icon name="chevron-left" size={20} />
+          </button>
+          <span className="ops-m-date">
+            <DateInput
+              className="input"
+              aria-label="조회 날짜"
+              type="date"
+              required
+              value={date}
+              onChange={(event) => {
+                if (event.target.value) onDate(event.target.value);
+              }}
+            />
+            <span className="ops-m-date-label" aria-hidden="true">
+              <Icon name="calendar" size={16} />
+              {prefix}
+              {longDateLabel(date)}
+              <Icon name="chevron-down" size={16} />
+            </span>
+          </span>
+          <button
+            type="button"
+            className="ops-m-square"
+            aria-label="다음 날"
+            onClick={() => onDate(shiftDate(date, 1))}
+          >
+            <Icon name="chevron-right" size={20} />
+          </button>
+        </div>
+        {columns.length > 1 && (
+          <div className="ops-m-chips" role="group" aria-label="디자이너">
+            {[{ id: "all", name: "전체" }, ...columns].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="chip ops-chip-outline"
+                aria-pressed={active === item.id}
+                onClick={() => onStaff(item.id)}
+              >
+                {item.name}
+                <span className="ops-m-chip-count">{count(item.id)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {notice}
+      {closed && (
+        <div className="alert alert-warning">
+          {WEEKDAYS[weekdayOf(date)]}요일은 매장 정기 휴무일이에요. 잡혀 있는
+          예약이 있다면 일정 변경을 확인해 주세요.
+        </div>
+      )}
+      <section
+        className="ops-m-timeline"
+        aria-label={`${shortDateLabel(date)} 예약 ${total}건`}
+      >
+        {!columns.length ? (
+          <p className="ops-m-empty">
+            예약을 받을 직원을 등록하면 시간표가 만들어져요
+          </p>
+        ) : !rows.length ? (
+          <p className="ops-m-empty">이날은 잡힌 예약이 없어요</p>
+        ) : (
+          rows.map((item) => {
+            const end =
+              item.kind === "booking"
+                ? item.row.start + item.row.duration
+                : item.end;
+            const current =
+              item.kind === "booking" &&
+              now != null &&
+              item.start <= now &&
+              now < end;
+            return (
+              <div className="ops-m-row" key={item.key}>
+                <span
+                  className={`ops-m-time ${current ? "is-now" : ""} ${item.kind === "gap" ? "is-gap" : ""}`}
+                >
+                  {timeLabel(item.start)}
+                </span>
+                {item.kind === "gap" && (
+                  <button
+                    type="button"
+                    className="ops-m-gap"
+                    onClick={() => onCreate(item.staffId, item.start)}
+                  >
+                    <span>{rangeLabel(item.start, item.end)} 비어 있어요</span>
+                    <Icon name="plus" size={16} />
+                  </button>
+                )}
+                {item.kind === "leave" && (
+                  <div className="ops-m-card tone-leave">
+                    <span className="ops-m-card-text">
+                      <span className="ops-m-name">{item.title}</span>
+                      <span>{item.staff}</span>
+                      <span className="ops-meta num">{item.range}</span>
+                    </span>
+                    <span className="ops-pill" data-status="leave">
+                      {item.pill || "휴가"}
+                    </span>
+                  </div>
+                )}
+                {item.kind === "booking" &&
+                  (() => {
+                    const row = item.row;
+                    const warning = data.customers.find(
+                      (person) => person.id === row.customerId,
+                    )?.warning;
+                    return (
+                      <button
+                        type="button"
+                        className={`ops-m-card tone-${PHONE_TONE[row.status] || "booked"}`}
+                        onClick={() => onOpen(row.id)}
+                      >
+                        <span className="ops-m-card-text">
+                          <span className="ops-m-name">
+                            {customerName(row, data)} 님
+                            {warning && (
+                              <span
+                                className="ops-warn-dot"
+                                role="img"
+                                aria-label="시술 전 확인"
+                              />
+                            )}
+                          </span>
+                          <span>{serviceNames(row.serviceIds, data)}</span>
+                          <span className="ops-meta num">
+                            {rangeLabel(row.start, end)}
+                          </span>
+                          {active === "all" && (
+                            <span className="ops-meta">
+                              {staffName(row.staffId, data)}
+                            </span>
+                          )}
+                        </span>
+                        <StatusPill status={row.status} />
+                      </button>
+                    );
+                  })()}
+              </div>
+            );
+          })
+        )}
+        <div className="ops-inline-actions ops-m-more">
+          {hiddenCount > 0 && (
+            <span className="help">
+              취소나 미방문 {hiddenCount}건은 목록에서 볼 수 있어요
+            </span>
+          )}
+          <button
+            type="button"
+            className="text-btn ops-text-btn"
+            onClick={onShowList}
+          >
+            목록에서 보기
+          </button>
+        </div>
+      </section>
+      {canCreate && (
+        <button type="button" className="ops-m-fab" onClick={onNew}>
+          <Icon name="plus" size={20} />
+          예약 등록
+        </button>
+      )}
+    </>
+  );
+}
+
 export default function Appointments({
   data,
   user,
@@ -1544,6 +1863,7 @@ export default function Appointments({
   const [selectedId, setSelectedId] = useState(null);
   const [statusTarget, setStatusTarget] = useState(null);
   const [page, setPage] = useViewState("appointments", "page", 1);
+  const phone = useMediaQuery();
   // Each navigation creates a new context object, so repeated requests
   // (for example the header booking button) are handled every time.
   const routeHandled = useRef(null);
@@ -1669,103 +1989,137 @@ export default function Appointments({
       : mode === "pending"
         ? "지난 미처리 예약"
         : "예약 목록";
-  return (
-    <section className="ops-page">
-      <header className="page-header ops-page-header">
-        <div>
-          <p className="page-eyebrow">{eyebrow}</p>
-          <h1 className="page-title">{title}</h1>
-        </div>
-        {mode === "day" && (
-          <div className="ops-date-controls">
-            <Button
-              variant="secondary"
-              className="ops-square"
-              aria-label="이전 날"
-              onClick={() => setDate(shiftDate(date, -1))}
-            >
-              <Icon name="chevron-left" size={20} />
-            </Button>
-            <Button variant="secondary" onClick={() => setDate(today)}>
-              오늘
-            </Button>
-            <Button
-              variant="secondary"
-              className="ops-square"
-              aria-label="다음 날"
-              onClick={() => setDate(shiftDate(date, 1))}
-            >
-              <Icon name="chevron-right" size={20} />
-            </Button>
-            <DateInput
-              className="input ops-date-input"
-              aria-label="조회 날짜"
-              type="date"
-              required
-              value={date}
-              onChange={(event) => {
-                if (event.target.value) setDate(event.target.value);
-              }}
-            />
-          </div>
-        )}
-      </header>
-      {!ready && (
-        <div className="alert alert-warning ops-setup">
-          <strong>예약을 받으려면 기본 설정이 필요해요</strong>
-          <span>일하는 직원과 시술을 등록하면 예약을 시작할 수 있어요.</span>
-          {["owner", "manager"].includes(user.role) && (
-            <div className="ops-inline-actions">
-              <Button variant="secondary" onClick={() => navigate("staff")}>
-                직원 등록
-              </Button>
-              <Button variant="secondary" onClick={() => navigate("settings")}>
-                시술 설정
-              </Button>
-            </div>
-          )}
+  const phoneDay = phone && mode === "day";
+  const setupAlert = !ready && (
+    <div className="alert alert-warning ops-setup">
+      <strong>예약을 받으려면 기본 설정이 필요해요</strong>
+      <span>일하는 직원과 시술을 등록하면 예약을 시작할 수 있어요.</span>
+      {["owner", "manager"].includes(user.role) && (
+        <div className="ops-inline-actions">
+          <Button variant="secondary" onClick={() => navigate("staff")}>
+            직원 등록
+          </Button>
+          <Button variant="secondary" onClick={() => navigate("settings")}>
+            시술 설정
+          </Button>
         </div>
       )}
-      <div className="ops-toolbar">
-        <div className="chip-row" role="group" aria-label="보기">
-          <button
-            type="button"
-            className="chip"
-            aria-pressed={mode === "day"}
-            onClick={() => switchMode("day")}
-          >
-            시간표
-          </button>
-          <button
-            type="button"
-            className="chip"
-            aria-pressed={mode === "range"}
-            onClick={() => switchMode("range")}
-          >
-            목록
-          </button>
-          <button
-            type="button"
-            className="chip"
-            aria-pressed={mode === "pending"}
-            onClick={() => switchMode("pending")}
-          >
-            지난 미처리
-            {overdue.length > 0 && (
-              <span className="ops-chip-count"> {overdue.length}</span>
+    </div>
+  );
+  return (
+    <section className={`ops-page ${phoneDay ? "ops-page-phone" : ""}`}>
+      {phoneDay ? (
+        <PhoneSchedule
+          data={data}
+          date={date}
+          today={today}
+          staff={visibleStaff}
+          staffFilter={staffFilter}
+          canCreate={ready}
+          overdueCount={overdue.length}
+          hiddenCount={dayHidden}
+          onDate={setDate}
+          onStaff={setStaffFilter}
+          onPending={() => switchMode("pending")}
+          onOpen={setSelectedId}
+          onCreate={(staffId, start) =>
+            setEditor({ preset: { staffId, start } })
+          }
+          onNew={() => setEditor({})}
+          notice={setupAlert}
+          onShowList={() => {
+            setFrom(date);
+            setTo(date);
+            setQuery("");
+            switchMode("range");
+          }}
+        />
+      ) : (
+        <header className="page-header ops-page-header">
+          <div>
+            <p className="page-eyebrow">{eyebrow}</p>
+            <h1 className="page-title">{title}</h1>
+          </div>
+          {mode === "day" && (
+            <div className="ops-date-controls">
+              <Button
+                variant="secondary"
+                className="ops-square"
+                aria-label="이전 날"
+                onClick={() => setDate(shiftDate(date, -1))}
+              >
+                <Icon name="chevron-left" size={20} />
+              </Button>
+              <Button variant="secondary" onClick={() => setDate(today)}>
+                오늘
+              </Button>
+              <Button
+                variant="secondary"
+                className="ops-square"
+                aria-label="다음 날"
+                onClick={() => setDate(shiftDate(date, 1))}
+              >
+                <Icon name="chevron-right" size={20} />
+              </Button>
+              <DateInput
+                className="input ops-date-input"
+                aria-label="조회 날짜"
+                type="date"
+                required
+                value={date}
+                onChange={(event) => {
+                  if (event.target.value) setDate(event.target.value);
+                }}
+              />
+            </div>
+          )}
+        </header>
+      )}
+      {!phoneDay && setupAlert}
+      {!phoneDay && (
+        <>
+          <div className="ops-toolbar">
+            <div className="chip-row" role="group" aria-label="보기">
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={mode === "day"}
+                onClick={() => switchMode("day")}
+              >
+                시간표
+              </button>
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={mode === "range"}
+                onClick={() => switchMode("range")}
+              >
+                목록
+              </button>
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={mode === "pending"}
+                onClick={() => switchMode("pending")}
+              >
+                지난 미처리
+                {overdue.length > 0 && (
+                  <span className="ops-chip-count"> {overdue.length}</span>
+                )}
+              </button>
+            </div>
+            {mode === "day" && ready && (
+              <span className="muted">빈 칸을 누르면 그 시간으로 예약해요</span>
             )}
-          </button>
-        </div>
-        {mode === "day" && ready && (
-          <span className="muted">빈 칸을 누르면 그 시간으로 예약해요</span>
-        )}
-        {mode === "pending" && (
-          <span className="muted">
-            실제 방문 여부와 수납 여부를 확인해 주세요
-          </span>
-        )}
-      </div>
-      {mode === "day" && (
+            {mode === "pending" && (
+              <span className="muted">
+                실제 방문 여부와 수납 여부를 확인해 주세요
+              </span>
+            )}
+          </div>
+        </>
+      )}
+      {mode === "day" && !phoneDay && (
         <>
           {closed && (
             <div className="alert alert-warning">
@@ -2080,7 +2434,7 @@ export default function Appointments({
           customerId={editor.customerId}
           preset={editor.preset}
           preferredStaffId={
-            mode === "day" || staffFilter === "all"
+            (mode === "day" && !phone) || staffFilter === "all"
               ? undefined
               : visibleStaff.find(
                   (item) =>

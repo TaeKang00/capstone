@@ -19,7 +19,23 @@ import {
 import { useViewState } from "../components/ViewState";
 import "./Commerce.css";
 import "./Inventory.css";
+import "./InventoryBoards.css";
 
+// Signed amount with a real minus sign, e.g. "−50ml", "+800g".
+const signed = (value, unit = "") =>
+  `${value > 0 ? "+" : value < 0 ? "−" : ""}${quantity(Math.abs(value))}${unit}`;
+// Korean particles after a quantity with a unit ("400ml가", "500g이", "3개를").
+const hasFinal = (text) => {
+  const last = String(text).slice(-1);
+  if (/[gm]/i.test(last)) return true;
+  if (/[a-z]/i.test(last)) return false;
+  if (/\d/.test(last)) return "013678".includes(last);
+  const code = last.charCodeAt(0) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0;
+};
+const subject = (text) => `${text}${hasFinal(text) ? "이" : "가"}`;
+const object = (text) => `${text}${hasFinal(text) ? "을" : "를"}`;
+const copula = (text) => `${text}${hasFinal(text) ? "이에요" : "예요"}`;
 const isLow = (item) => Number(item.qty) <= Number(item.min);
 const stockStatus = (item) =>
   Number(item.qty) <= 0 ? "품절" : isLow(item) ? "보충 필요" : "정상";
@@ -96,6 +112,7 @@ export default function Inventory({
   const [to, setTo] = useViewState("inventory", "to", todayInSeoul());
   const [limit, setLimit] = useState(50);
   const [dialog, setDialog] = useState(null);
+  const searchRef = useRef(null);
   const usedContext = useRef(null);
   useEffect(() => {
     if (!routeContext || routeContext === usedContext.current) return;
@@ -241,6 +258,7 @@ export default function Inventory({
           {canManage && (
             <Button
               variant="ghost"
+              className="inv-wide-only"
               onClick={() => navigate("settings", { tab: "services" })}
             >
               시술과 재료 설정
@@ -249,6 +267,7 @@ export default function Inventory({
           {canManage && (
             <Button
               variant="secondary"
+              className="inv-wide-only"
               onClick={() => setDialog({ kind: "item" })}
             >
               품목 등록
@@ -257,9 +276,11 @@ export default function Inventory({
           {canWrite && (
             <Button
               variant="primary"
+              className="inv-receipt-action"
               onClick={() => setDialog({ kind: "receipt" })}
               disabled={!active.length}
             >
+              <Icon name="plus" />
               입고 기록
             </Button>
           )}
@@ -294,7 +315,7 @@ export default function Inventory({
         </button>
         <button
           type="button"
-          className="home-stat"
+          className="home-stat inv-wide-only"
           onClick={() => switchTab("receipts")}
         >
           <span className="home-stat-label">이번 주 입고</span>
@@ -326,6 +347,7 @@ export default function Inventory({
             <Icon name="search" />
             <span className="sr-only">검색</span>
             <input
+              ref={searchRef}
               type="search"
               placeholder={
                 tab === "stock"
@@ -342,6 +364,17 @@ export default function Inventory({
           </label>
           {tab === "stock" ? (
             <>
+              <button
+                type="button"
+                className="icon-btn inv-scan inv-narrow-only"
+                aria-label="바코드 찍기"
+                onClick={() => searchRef.current?.focus()}
+              >
+                <Icon name="barcode" />
+              </button>
+              <span className="inv-scan-help inv-narrow-only">
+                바코드를 찍으면 바로 그 품목의 입고 창이 열려요
+              </span>
               <select
                 className="inv-filter-select"
                 aria-label="품목 분류별 조회"
@@ -366,6 +399,11 @@ export default function Inventory({
                     onClick={() => setFilter(id)}
                   >
                     {label}
+                    {id === "low" && low.length > 0 && (
+                      <span className="inv-chip-count inv-narrow-only">
+                        {low.length}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -525,10 +563,16 @@ export default function Inventory({
                         )}
                         {(canRequest || canManage) && (
                           <span className="inv-card-more">
+                            {!canRequest && (
+                              <span
+                                className="inv-card-spacer"
+                                aria-hidden="true"
+                              />
+                            )}
                             {canRequest && (
                               <button
                                 type="button"
-                                className="text-btn"
+                                className="text-btn inv-request-btn"
                                 onClick={() =>
                                   setDialog({
                                     kind: "request",
@@ -543,13 +587,14 @@ export default function Inventory({
                             {canManage && (
                               <button
                                 type="button"
-                                className="text-btn"
+                                className="text-btn inv-edit-btn"
                                 onClick={() =>
                                   setDialog({ kind: "item", itemId: item.id })
                                 }
                                 aria-label={`${item.name} 품목 수정`}
                               >
-                                수정
+                                <Icon name="edit" />
+                                <span className="inv-edit-text">수정</span>
                               </button>
                             )}
                           </span>
@@ -750,6 +795,24 @@ export default function Inventory({
             />
           ))}
       </section>
+      {canManage && (
+        <div className="inv-narrow-links inv-narrow-only">
+          <button
+            type="button"
+            className="text-btn"
+            onClick={() => setDialog({ kind: "item" })}
+          >
+            품목 등록
+          </button>
+          <button
+            type="button"
+            className="text-btn"
+            onClick={() => navigate("settings", { tab: "services" })}
+          >
+            시술과 재료 설정
+          </button>
+        </div>
+      )}
       {dialog?.kind === "item" && (
         <ItemForm
           data={data}
@@ -1172,9 +1235,22 @@ function PurchaseRequestForm({ item, runAction, onClose, onSaved }) {
       setBusy(false);
     }
   }
+  const qtyLabelId = useId();
+  const pack = Number(item.packSize) || 1;
+  const count = Number(form.quantity) || 0;
+  const tone = stockTone(item);
+  const bump = (direction) =>
+    setForm((f) => ({
+      ...f,
+      quantity: String(
+        Math.min(9999, Math.max(1, (Number(f.quantity) || 0) + direction)),
+      ),
+    }));
   return (
     <Modal
       title={`${item.name} 구매 요청`}
+      subtitle={item.kind}
+      size="wide"
       onClose={busy ? undefined : onClose}
       dirty={dirty}
       footer={
@@ -1200,39 +1276,89 @@ function PurchaseRequestForm({ item, runAction, onClose, onSaved }) {
               {error}
             </div>
           )}
-          <div className="inset inv-summary">
-            <strong>
-              지금 {quantity(item.qty)}
-              {item.unit} 남았어요
-            </strong>
-            <span className="muted">
-              보충 기준 {quantity(item.min)}
-              {item.unit}
+          <div className={`invb-stock-card invb-tone-${tone}`}>
+            <span className="invb-stat">
+              <span className="invb-label">지금 남은 양</span>
+              <strong className="invb-big invb-now num">
+                {quantity(item.qty)}
+                {item.unit}
+              </strong>
             </span>
-            <span className="small muted">
-              발주 담당자가 확인한 뒤 거래처에 주문해요
+            <span className="invb-stat">
+              <span className="invb-label">보충 기준</span>
+              <strong className="invb-big num">
+                {quantity(item.min)}
+                {item.unit}
+              </strong>
+            </span>
+            <span className="invb-stock-foot">
+              <span className="inv-bar" aria-hidden="true">
+                <span style={{ width: `${stockPercent(item)}%` }} />
+              </span>
+              <span className="invb-label">
+                발주 담당자가 확인한 뒤 거래처에 주문해요
+              </span>
             </span>
           </div>
-          <Field
-            label="요청 수량 (포장 개수)"
-            help={`1개 = ${quantity(item.packSize || 1)}${item.unit}`}
+          <div
+            className="invb-qty-box"
+            role="group"
+            aria-labelledby={qtyLabelId}
           >
-            <input
-              className="input"
-              type="number"
-              required
-              min="1"
-              max="9999"
-              step="1"
-              inputMode="numeric"
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-            />
-          </Field>
+            <span id={qtyLabelId} className="field-label">
+              요청 수량 (포장 개수)
+            </span>
+            <div className="invb-qty-row">
+              <div className="stepper">
+                <button
+                  type="button"
+                  aria-label="하나 줄이기"
+                  disabled={count <= 1}
+                  onClick={() => bump(-1)}
+                >
+                  <Icon name="minus" />
+                </button>
+                <input
+                  className="inv-qty-input num"
+                  type="number"
+                  required
+                  min="1"
+                  max="9999"
+                  step="1"
+                  inputMode="numeric"
+                  aria-labelledby={qtyLabelId}
+                  value={form.quantity}
+                  onChange={(e) =>
+                    setForm({ ...form, quantity: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  aria-label="하나 늘리기"
+                  disabled={count >= 9999}
+                  onClick={() => bump(1)}
+                >
+                  <Icon name="plus" />
+                </button>
+              </div>
+              <span className="invb-qty-result" aria-live="polite">
+                {count > 0 && (
+                  <strong className="tone-up">
+                    {quantity(count * pack)}
+                    {item.unit} 요청해요
+                  </strong>
+                )}
+                <span className="invb-label">
+                  1개 = {quantity(pack)}
+                  {item.unit}
+                </span>
+              </span>
+            </div>
+          </div>
           <Field label="메모 (선택)">
             <textarea
               className="textarea"
-              rows="2"
+              rows="3"
               maxLength={300}
               placeholder="예: 다음 주 염색 예약이 많아요"
               value={form.note}
@@ -1579,9 +1705,30 @@ function StockForm({ item, kind, runAction, onClose, onSaved }) {
     }
   }
   const delta = Number(qty || 0) - Number(item.qty);
+  const nextItem = { ...item, min: qty === "" ? item.min : Number(qty) };
+  const preview = (target) => {
+    const amount = `${quantity(target.qty)}${target.unit}`;
+    const current = Number(target.qty),
+      min = Number(target.min);
+    return {
+      tone: stockTone(target),
+      status: stockStatus(target),
+      line:
+        current <= 0
+          ? "재고가 없어요"
+          : current < min
+            ? `${subject(amount)} 기준보다 적어요`
+            : current === min
+              ? `${subject(amount)} 기준과 같아요`
+              : `${subject(amount)} 기준보다 많아요`,
+    };
+  };
+  const before = preview(item),
+    after = preview(nextItem);
   return (
     <Modal
       title={isAdjust ? "재고 실사 조정" : "보충 기준 변경"}
+      size="wide"
       onClose={busy ? undefined : onClose}
       dirty={dirty}
       footer={
@@ -1607,53 +1754,114 @@ function StockForm({ item, kind, runAction, onClose, onSaved }) {
               {error}
             </div>
           )}
-          <div className="inset inv-summary">
-            <strong>{item.name}</strong>
-            <span className="muted">
-              {isAdjust
-                ? `전산 재고 ${quantity(item.qty)}${item.unit}`
-                : `지금 보충 기준 ${quantity(item.min)}${item.unit}`}
+          <div className="invb-head-row">
+            <span className="invb-head-text">
+              <strong>{item.name}</strong>
+              <span className="invb-label">
+                {isAdjust
+                  ? "선반과 창고를 확인한 실제 총수량을 넣으면 차이만 반영해요"
+                  : "재고가 기준과 같거나 적으면 보충 필요로 표시돼요"}
+              </span>
             </span>
-            <span className="small muted">
-              {isAdjust
-                ? "선반과 창고를 확인한 실제 총수량을 넣으면 차이만 반영해요"
-                : "재고가 기준과 같거나 적으면 보충 필요로 표시돼요"}
+            <span className="invb-head-side">
+              <span className="invb-label">
+                {isAdjust ? "전산 재고" : "지금 재고"}
+              </span>
+              <strong className="num">
+                {quantity(item.qty)}
+                {item.unit}
+              </strong>
             </span>
           </div>
-          <Field
-            label={`${isAdjust ? "실제로 남아 있는 총수량" : "새 보충 기준"} (${item.unit})`}
-          >
-            <input
-              className="input"
-              type="number"
-              inputMode="decimal"
-              required
-              min="0"
-              max="1000000000"
-              step={unitStep(item)}
-              value={qty}
-              onChange={(e) => {
-                setQty(e.target.value);
-                setDirty(true);
-              }}
-            />
-          </Field>
-          {isAdjust && (
-            <>
-              <div className="inv-delta-row">
-                <strong className={delta > 0 ? "tone-up" : delta < 0 ? "tone-down" : ""}>
-                  {delta > 0 ? "+" : ""}
-                  {quantity(delta)}
-                  {item.unit} 조정
+          <div className="inv-grid-2">
+            {!isAdjust && (
+              <div className="field">
+                <span className="field-label">지금 보충 기준</span>
+                <span className="invb-readonly num">
+                  <span>{quantity(item.min)}</span>
+                  <span className="invb-unit">{item.unit}</span>
+                </span>
+              </div>
+            )}
+            <Field
+              label={`${isAdjust ? "실제로 남아 있는 총수량" : "새 보충 기준"} (${item.unit})`}
+              help={
+                isAdjust
+                  ? "조정할 차이가 아니라 남은 전체 양을 넣어 주세요"
+                  : undefined
+              }
+            >
+              <span className="invb-suffix">
+                <input
+                  className="input num"
+                  type="number"
+                  inputMode="decimal"
+                  required
+                  min="0"
+                  max="1000000000"
+                  step={unitStep(item)}
+                  value={qty}
+                  onChange={(e) => {
+                    setQty(e.target.value);
+                    setDirty(true);
+                  }}
+                />
+                <span className="invb-unit" aria-hidden="true">
+                  {item.unit}
+                </span>
+              </span>
+            </Field>
+            {isAdjust && (
+              <div
+                className={`invb-result ${delta > 0 ? "is-up" : delta < 0 ? "is-down" : ""}`}
+                aria-live="polite"
+              >
+                <strong className="invb-big num">
+                  {delta === 0 ? "변동 없음" : `${signed(delta, item.unit)} 조정`}
                 </strong>
-                <span className="small muted">
+                <span className="invb-label">
                   조정 후 {quantity(qty)}
                   {item.unit}
                 </span>
               </div>
+            )}
+          </div>
+          {!isAdjust && (
+            <div className="invb-preview">
+              <span className="field-label">바꾸면 이렇게 보여요</span>
+              <div className="invb-preview-row" aria-live="polite">
+                {[
+                  ["지금", before, item.min, ""],
+                  ["바꾼 뒤", after, nextItem.min, " is-next"],
+                ].map(([label, view, min, extra], index) => (
+                  <React.Fragment key={label}>
+                    {index === 1 && (
+                      <span className="invb-preview-arrow" aria-hidden="true">
+                        <Icon name="arrow-right" />
+                      </span>
+                    )}
+                    <div className={`invb-preview-card${extra}`}>
+                      <span className="invb-preview-top">
+                        <span className="invb-label">{label}</span>
+                        <Badge tone={view.tone}>{view.status}</Badge>
+                      </span>
+                      <strong className="num">
+                        기준 {quantity(min)}
+                        {item.unit}
+                      </strong>
+                      <span className="invb-label">{view.line}</span>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          )}
+          {isAdjust && (
+            <>
               <Field label="조정 사유 (필수)">
                 <textarea
                   className="textarea"
+                  rows="3"
                   required
                   maxLength={1000}
                   value={reason}
@@ -1682,24 +1890,34 @@ function ReceiptDetail({
   onCancel,
 }) {
   const cancelled = receipt.status === "cancelled";
+  const historyId = useId();
+  const unit = item?.unit || "";
+  const changes = (receipt.changes || []).slice().reverse();
+  const dotTone = (kind = "") =>
+    kind.includes("취소") ? "danger" : kind.includes("정정") ? "accent" : "ok";
   return (
     <Modal
       title="입고 상세"
+      size="wide"
       onClose={onClose}
       footer={
         <>
+          {canWrite && !cancelled && (
+            <Button
+              variant="danger"
+              className="invb-footer-start"
+              onClick={onCancel}
+            >
+              입고 취소
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClose}>
             닫기
           </Button>
           {canWrite && !cancelled && (
-            <>
-              <Button variant="danger" onClick={onCancel}>
-                입고 취소
-              </Button>
-              <Button variant="primary" onClick={onCorrect}>
-                수량 정정
-              </Button>
-            </>
+            <Button variant="primary" onClick={onCorrect}>
+              수량 정정
+            </Button>
           )}
         </>
       }
@@ -1708,29 +1926,39 @@ function ReceiptDetail({
         <div className="inv-detail-top">
           <span className="inv-card-title">
             <strong>{item?.name || "기존 품목"}</strong>
-            <span className="inv-detail-qty num">
+            <span className="invb-big num">
               {quantity(receipt.qty)}
-              {item?.unit}
+              {unit}
             </span>
           </span>
           <Badge tone={cancelled ? "muted" : "success"}>
             {cancelled ? "취소된 입고" : "입고 완료"}
           </Badge>
         </div>
-        <dl className="kv">
-          <dt>입고일</dt>
-          <dd>{receipt.date}</dd>
-          <dt>최초 기록자</dt>
-          <dd>{receipt.actorName || "기존 기록"}</dd>
-          <dt>입고 번호</dt>
-          <dd className="inv-break">{receipt.id}</dd>
-          <dt>현재 재고</dt>
-          <dd>
-            {quantity(item?.qty)}
-            {item?.unit}
-          </dd>
-          <dt>메모</dt>
-          <dd className="inv-prewrap">{receipt.memo || "없음"}</dd>
+        <dl className="invb-facts">
+          <div>
+            <dt>입고일</dt>
+            <dd className="num">{receipt.date}</dd>
+          </div>
+          <div>
+            <dt>최초 기록자</dt>
+            <dd>{receipt.actorName || "기존 기록"}</dd>
+          </div>
+          <div>
+            <dt>입고 번호</dt>
+            <dd className="inv-break">{receipt.id}</dd>
+          </div>
+          <div>
+            <dt>현재 재고</dt>
+            <dd className="num">
+              {quantity(item?.qty)}
+              {unit}
+            </dd>
+          </div>
+          <div>
+            <dt>메모</dt>
+            <dd className="inv-prewrap">{receipt.memo || "없음"}</dd>
+          </div>
         </dl>
         {receipt.orderId && (
           <p className="alert">
@@ -1738,37 +1966,45 @@ function ReceiptDetail({
             등록할 수 있어요
           </p>
         )}
-        <h3 className="inv-section-title">입고와 정정 이력</h3>
-        <ul className="inv-timeline">
-          {(receipt.changes || []).map((change, index) => (
-            <li key={index} className="inset">
-              <strong>{change.kind}</strong>
-              <span className="small muted">
-                {change.actorName || "기존 기록"}
-              </span>
-              <span className="small muted">{displayTime(change.at)}</span>
-              <span>
-                기록 수량 {quantity(change.beforeQty)}에서{" "}
-                {quantity(change.afterQty)}
-                {item?.unit}로
-              </span>
-              {change.delta != null && (
-                <span className="small muted">
-                  재고 {change.delta > 0 ? "+" : ""}
-                  {quantity(change.delta)}
-                  {item?.unit || ""}
-                </span>
-              )}
-              {change.reason && (
-                <span className="inv-prewrap">{change.reason}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-        <p className="help">
-          수량 정정은 기존 기록과의 차이만 반영해요. 이미 쓴 수량 때문에 재고가
-          음수가 되면 정정하거나 취소할 수 없어요
-        </p>
+        <section className="invb-history" aria-labelledby={historyId}>
+          <h3 id={historyId}>입고와 정정 이력</h3>
+          <ol className="invb-timeline">
+            {changes.map((change, index) => (
+              <li key={index} className={`is-${dotTone(change.kind)}`}>
+                <div className="invb-timeline-card">
+                  <span className="invb-timeline-top">
+                    <strong>{change.kind}</strong>
+                    <span className="invb-label num">
+                      {displayTime(change.at)}
+                    </span>
+                  </span>
+                  <span className="invb-label">
+                    {change.actorName || "기존 기록"}
+                  </span>
+                  <span className="num">
+                    기록 수량 {quantity(change.beforeQty)}
+                    {unit}에서 {quantity(change.afterQty)}
+                    {unit}로
+                  </span>
+                  {change.delta != null && (
+                    <span className="invb-label num">
+                      재고 {signed(Number(change.delta), unit)}
+                    </span>
+                  )}
+                  {change.reason && (
+                    <span className="inv-prewrap">{change.reason}</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+          <span className="invb-label">
+            수량 정정은 기존 기록과의 차이만 반영해요
+          </span>
+          <span className="invb-label">
+            이미 쓴 수량 때문에 재고가 음수가 되면 정정하거나 취소할 수 없어요
+          </span>
+        </section>
       </div>
     </Modal>
   );
@@ -1790,6 +2026,8 @@ function ReceiptChangeForm({
   const [dirty, setDirty] = useState(false);
   const [requestClose, closeGuard] = useCloseGuard(dirty, onClose);
   const originalRevision = useState(receipt.revision || 0)[0];
+  const unit = item?.unit || "";
+  const qtyDelta = Number(qty || 0) - Number(receipt.qty);
   const afterStock =
     Number(item?.qty || 0) +
     (cancel ? -Number(receipt.qty) : Number(qty || 0) - Number(receipt.qty));
@@ -1815,6 +2053,7 @@ function ReceiptChangeForm({
   return (
     <Modal
       title={cancel ? "입고 취소" : "입고 수량 정정"}
+      size="wide"
       onClose={busy ? undefined : onClose}
       dirty={dirty}
       footer={
@@ -1843,40 +2082,64 @@ function ReceiptChangeForm({
           )}
           <div className="inset inv-summary">
             <strong>{item?.name || "기존 품목"}</strong>
-            <span className="muted">{receipt.date} 입고</span>
-            <span className="small muted">
+            <span className="invb-sub">{receipt.date} 입고</span>
+            <span className="invb-label">
               {cancel
-                ? `기록된 ${quantity(receipt.qty)}${item?.unit || ""}를 재고에서 빼요. 취소 이력은 남아요`
-                : `지금 기록은 ${quantity(receipt.qty)}${item?.unit || ""}예요. 더할 양이 아니라 올바른 총수량을 넣으세요`}
+                ? `기록된 ${object(`${quantity(receipt.qty)}${unit}`)} 재고에서 빼요. 취소 이력은 남아요`
+                : `지금 기록은 ${copula(`${quantity(receipt.qty)}${unit}`)}. 더할 양이 아니라 올바른 총수량을 넣어 주세요`}
             </span>
           </div>
-          {!cancel && (
-            <Field label={`정정할 입고 총수량 (${item?.unit || "개"})`}>
-              <input
-                className="input"
-                required
-                type="number"
-                inputMode="decimal"
-                min={unitStep(item)}
-                max="1000000000"
-                step={unitStep(item)}
-                value={qty}
-                onChange={(e) => {
-                  setQty(e.target.value);
-                  setDirty(true);
-                }}
-              />
-            </Field>
-          )}
-          <div className="inv-delta-row">
-            <strong>
-              처리 후 재고 {quantity(afterStock)}
-              {item?.unit}
-            </strong>
-            <span className="small muted">
-              지금 {quantity(item?.qty)}
-              {item?.unit}
-            </span>
+          <div className="inv-grid-2">
+            {!cancel && (
+              <Field
+                label={`정정할 입고 총수량 (${item?.unit || "개"})`}
+                help={
+                  qtyDelta === 0
+                    ? "기존 기록과 같아요"
+                    : `재고에는 차이 ${signed(qtyDelta, unit)}만 반영돼요`
+                }
+              >
+                <span className="invb-suffix">
+                  <input
+                    className="input num"
+                    required
+                    type="number"
+                    inputMode="decimal"
+                    min={unitStep(item)}
+                    max="1000000000"
+                    step={unitStep(item)}
+                    value={qty}
+                    onChange={(e) => {
+                      setQty(e.target.value);
+                      setDirty(true);
+                    }}
+                  />
+                  <span className="invb-unit" aria-hidden="true">
+                    {unit}
+                  </span>
+                </span>
+              </Field>
+            )}
+            <div className="invb-result is-plain" aria-live="polite">
+              <span className="invb-label">처리 후 재고</span>
+              <strong className="invb-big num">
+                {quantity(afterStock)}
+                {unit}
+              </strong>
+              <span className="invb-label">
+                지금 {quantity(item?.qty)}
+                {unit}
+              </span>
+            </div>
+            {cancel && (
+              <div className="invb-result is-plain">
+                <span className="invb-label">재고에서 빠지는 양</span>
+                <strong className="invb-big num tone-down">
+                  {signed(-Number(receipt.qty), unit)}
+                </strong>
+                <span className="invb-label">입고 기록은 취소됨으로 남아요</span>
+              </div>
+            )}
           </div>
           {afterStock < 0 && (
             <div className="alert alert-danger" role="alert">
@@ -1893,6 +2156,7 @@ function ReceiptChangeForm({
           <Field label={`${cancel ? "취소" : "정정"} 사유 (필수)`}>
             <textarea
               className="textarea"
+              rows="3"
               required
               maxLength={1000}
               value={reason}

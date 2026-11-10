@@ -1,0 +1,583 @@
+/* ===== 재고 dialogs (PurchaseRequestForm, StockAdjust, MinChange, ReceiptDetail, ReceiptCorrect boards)
+   and the phone layout (InventoryMobile board). Dialogs render in a portal, so they are scoped by .inv-form. */
+.inv-form .invb-label {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-meta);
+}
+.inv-form .invb-sub {
+  color: var(--text-muted);
+}
+.inv-form .invb-big {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.inv-form .tone-up {
+  color: var(--ok);
+}
+.inv-form .invb-big.tone-down,
+.inv-form .tone-down {
+  color: var(--danger);
+}
+
+/* Purchase request: stock card with two big numbers and a bar */
+.invb-stock-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.invb-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.invb-tone-warning .invb-now {
+  color: var(--warn);
+}
+.invb-tone-danger .invb-now {
+  color: var(--danger);
+}
+.invb-stock-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.invb-tone-warning .inv-bar > span {
+  background: var(--warn);
+}
+.invb-tone-danger .inv-bar > span {
+  background: var(--danger);
+}
+.invb-qty-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--inset);
+}
+.invb-qty-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.invb-qty-row .stepper > button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.inv-form .invb-qty-row .stepper input.inv-qty-input {
+  width: 96px;
+}
+.invb-qty-result {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+.invb-qty-result strong {
+  font-weight: 600;
+}
+
+/* Adjust / threshold: item row with the current number on the right */
+.invb-head-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.invb-head-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.invb-head-text strong {
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.invb-head-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.invb-head-side strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+/* Number input with the unit inside on the right */
+.invb-suffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.inv-form .invb-suffix input {
+  width: 100%;
+  padding-right: 48px;
+}
+.invb-suffix .invb-unit {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+}
+.invb-unit {
+  color: var(--text-meta);
+}
+.invb-readonly {
+  height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+/* Result tile next to the input (−50ml 조정, 처리 후 재고) */
+.invb-result {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.invb-result.is-down {
+  background: rgba(255, 122, 133, 0.12);
+}
+.invb-result.is-down .invb-big {
+  color: var(--danger);
+}
+.invb-result.is-up {
+  background: rgba(110, 231, 183, 0.12);
+}
+.invb-result.is-up .invb-big {
+  color: var(--ok);
+}
+
+/* Threshold preview: before → after */
+.invb-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.invb-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.invb-preview-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.invb-preview-card.is-next {
+  border-color: var(--accent);
+}
+.invb-preview-card strong {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.invb-preview-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.invb-preview-arrow {
+  flex: none;
+  display: flex;
+  color: var(--text-meta);
+}
+
+/* Receipt detail: facts grid and history timeline */
+.inv-form .invb-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.invb-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.invb-facts dt {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.invb-facts dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.invb-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inv-form .invb-history h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.invb-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.invb-timeline > li {
+  position: relative;
+  padding-left: 24px;
+}
+.invb-timeline > li:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.invb-timeline > li.is-ok:before {
+  background: var(--ok);
+}
+.invb-timeline > li.is-danger:before {
+  background: var(--danger);
+}
+.invb-timeline > li:not(:last-child):after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 20px;
+  bottom: -12px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--chip);
+}
+.invb-timeline-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.invb-timeline-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.invb-timeline-top strong {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.modal-footer .invb-footer-start {
+  margin-right: auto;
+}
+
+/* Page pieces that only show on a phone (InventoryMobile board) */
+.inv-narrow-only,
+.inv-card-spacer {
+  display: none;
+}
+.inv-receipt-action .icon {
+  display: none;
+}
+.inv-card-more .text-btn .icon {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .inv-form .invb-big {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .invb-stock-card,
+  .inv-form .invb-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .invb-qty-box {
+    padding: 16px;
+  }
+  .invb-qty-result {
+    margin-left: 0;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .invb-preview-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .invb-preview-arrow {
+    align-self: center;
+    transform: rotate(90deg);
+  }
+  .modal-footer .invb-footer-start {
+    margin-right: 0;
+  }
+
+  /* Phone page: compact header row, search with scan button, scrolling chips */
+  .inv-wide-only {
+    display: none !important;
+  }
+  .inv-narrow-only {
+    display: initial;
+  }
+  .inv-page .page-header {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .inv-page .page-header > div:first-child {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+  .inv-page .page-title {
+    font-size: 18px;
+    line-height: 1.25;
+  }
+  .inv-page .page-eyebrow {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-meta);
+    white-space: nowrap;
+  }
+  .inv-page .page-actions {
+    flex: none;
+    width: auto;
+  }
+  .inv-page .inv-receipt-action {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+  }
+  .inv-receipt-action .icon {
+    display: inline-flex;
+  }
+  .inv-page .inv-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .inv-page .inv-stats .home-stat {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--inset);
+  }
+  .inv-page .inv-stats .home-stat-label {
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .inv-page .inv-stats .home-stat-value {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 700;
+  }
+  .inv-page .inv-stats .home-stat > .small {
+    flex-basis: auto;
+  }
+  .inv-page .inv-panel {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .inv-filters {
+    gap: 8px;
+  }
+  .inv-search {
+    flex: 1 1 0;
+  }
+  .inv-scan {
+    display: inline-flex;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: var(--chip);
+    color: var(--text-strong);
+  }
+  .inv-scan-help {
+    display: block;
+    flex: 1 1 100%;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-meta);
+  }
+  .inv-filters > .chip-row {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px;
+    padding: 0 16px;
+    scrollbar-width: none;
+  }
+  .inv-filters > .chip-row .chip {
+    flex: none;
+    white-space: nowrap;
+  }
+  .inv-chip-count {
+    display: inline;
+    margin-left: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    color: var(--warn);
+  }
+
+  /* Stock cards */
+  .inv-card {
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--panel);
+  }
+  .inv-card-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .inv-card > td.inv-card-stock {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .inv-card-stock > * {
+    grid-column: 1 / -1;
+  }
+  .inv-card-stock > .inv-qty {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .inv-card-stock > .inv-card-line {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .inv-card-stock > .inv-bar {
+    grid-row: 2;
+  }
+  .inv-link {
+    height: 32px;
+    padding: 0 8px;
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .inv-card > td.inv-card-actions {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .inv-card-buttons,
+  .inv-card-more {
+    display: contents;
+  }
+  .inv-card-actions .btn,
+  .inv-card-more .inv-request-btn,
+  .inv-card-spacer {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  .inv-card-spacer {
+    display: block;
+  }
+  .inv-card-more .text-btn {
+    height: 44px;
+    min-height: 44px;
+  }
+  .inv-card-more .inv-edit-btn {
+    flex: none;
+    width: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .inv-card-more .text-btn .icon {
+    display: inline-flex;
+  }
+  .inv-card-more .inv-edit-btn .inv-edit-text {
+    display: none;
+  }
+  .inv-narrow-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .inv-narrow-links .text-btn {
+    min-height: 44px;
+  }
+}

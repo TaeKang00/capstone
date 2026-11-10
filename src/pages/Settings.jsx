@@ -68,7 +68,7 @@ export default function Settings(props) {
           {tab === "services" && <ServiceSettings {...props} />}
           {tab === "audit" && <Audit />}
           {tab === "backup" && user.role === "owner" && <DataSettings {...props} />}
-          {tab === "help" && <Help />}
+          {tab === "help" && <Help {...props} onTab={setTab} />}
         </div>
       </div>
       {pendingTab && (
@@ -105,11 +105,25 @@ const RATE_DEFAULTS = {
   employment: 0.9,
 };
 const RATE_LABELS = {
-  pension: ["국민연금", "근로자 부담 %"],
-  health: ["건강보험", "근로자 부담 %"],
-  care: ["장기요양", "건강보험료 대비 %"],
-  employment: ["고용보험", "근로자 부담 %"],
+  pension: ["국민연금", "근로자 부담 비율이에요"],
+  health: ["건강보험", "근로자 부담 비율이에요"],
+  care: ["장기요양보험", "건강보험료에 곱하는 비율이에요"],
+  employment: ["고용보험", "근로자 부담 비율이에요"],
 };
+const RATE_EXAMPLE_BASE = 3000000;
+const floor10 = (value) => Math.max(0, Math.floor(value / 10) * 10);
+/** Same employee-side estimate the payslip form uses (Payroll.jsx insuranceDeductions). */
+function insuranceExample(rates, base = RATE_EXAMPLE_BASE) {
+  const n = (key) => Number(rates[key]) || 0;
+  const health = floor10((base * n("health")) / 100);
+  return [
+    ["국민연금", floor10((base * n("pension")) / 100)],
+    ["건강보험", health],
+    ["장기요양보험", floor10((health * n("care")) / 100)],
+    ["고용보험", floor10((base * n("employment")) / 100)],
+  ];
+}
+const won = (value) => `${Number(value || 0).toLocaleString("ko-KR")}원`;
 /** A labelled on/off row: title, one help line, switch on the right. */
 function SwitchRow({ label, help, checked, onChange, disabled }) {
   const id = useId();
@@ -253,7 +267,7 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
   const closed = form.closedWeekdays || [];
   const titleId = part === "rates" ? "rates-title" : "store-title";
   return (
-    <section className="panel st-panel" aria-labelledby={titleId}>
+    <section className={`panel st-panel st-panel-${part}`} aria-labelledby={titleId}>
       <form className="st-form" data-dirty={dirty} onSubmit={submit}>
         <fieldset disabled={busy} className="st-fieldset">
           {error && (
@@ -293,36 +307,70 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
             </div>
           )}
           {part === "rates" ? (
-            <div className="st-group">
-              <h2 id={titleId}>4대보험 요율</h2>
+            <>
+              <div className="panel-head">
+                <h2 id={titleId}>4대보험 요율</h2>
+                <Badge tone="muted">
+                  {Object.keys(RATE_DEFAULTS).every(
+                    (key) => Number(rates[key]) === RATE_DEFAULTS[key],
+                  )
+                    ? "2026년 기준"
+                    : "직접 고친 요율"}
+                </Badge>
+              </div>
               <div className="st-grid-2">
-                {Object.entries(RATE_LABELS).map(([key, [label, unit]]) => (
-                  <Field key={key} label={`${label} (${unit})`}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      step="0.001"
-                      required
-                      value={rates[key]}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          payrollRates: {
-                            ...rates,
-                            [key]: e.target.value === "" ? "" : Number(e.target.value),
-                          },
-                        })
-                      }
-                    />
+                {Object.entries(RATE_LABELS).map(([key, [label, help]]) => (
+                  <Field key={key} label={label} help={help}>
+                    <span className="st-unit">
+                      <input
+                        type="number"
+                        min="0"
+                        max="30"
+                        step="0.001"
+                        required
+                        value={rates[key]}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            payrollRates: {
+                              ...rates,
+                              [key]: e.target.value === "" ? "" : Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                      <span aria-hidden="true">%</span>
+                    </span>
                   </Field>
                 ))}
               </div>
-              <span className="small muted">
-                급여명세의 4대보험 공제 계산이 이 값을 써요. 해마다 고시되는 요율을 확인해
+              <span className="small muted st-tight">
+                급여명세의 4대보험 계산이 이 값을 써요. 해마다 고시되는 요율을 확인해
                 고쳐 주세요
               </span>
-            </div>
+              <div className="st-group">
+                <span className="st-switch-label">
+                  월 과세 급여가 {won(RATE_EXAMPLE_BASE)}이면
+                </span>
+                <div className="st-grid-2 st-grid-tight">
+                  {insuranceExample(rates).map(([label, amount]) => (
+                    <div key={label} className="st-amount-row">
+                      <span className="muted">{label}</span>
+                      <span className="st-minus num">−{won(amount)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="st-amount-row st-amount-total">
+                  <span>직원 부담 합계</span>
+                  <span className="st-minus num">
+                    −{won(insuranceExample(rates).reduce((sum, [, v]) => sum + v, 0))}
+                  </span>
+                </div>
+                <span className="small muted">
+                  10원 단위에서 버려요. 소득세는 간이세액표를 보고 명세서에서 직접 넣어요
+                </span>
+              </div>
+            </>
           ) : (
             <>
               <div className="st-group">
@@ -484,7 +532,7 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
             </>
           )}
           <div className="st-actions">
-            {dirty && <span className="small muted">저장하지 않은 변경이 있어요</span>}
+            {dirty && <span className="small st-dirty">저장하지 않은 변경이 있어요</span>}
             <Button variant="secondary" disabled={!dirty} onClick={() => setResetting(true)}>
               되돌리기
             </Button>
@@ -826,6 +874,26 @@ function ServiceForm({ initial, data, runAction, notify, close }) {
     </Modal>
   );
 }
+const auditTime = (value) => {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date(value))
+      .map((part) => [part.type, part.value]),
+  );
+  return `${Number(p.month)}월 ${Number(p.day)}일 ${p.hour}:${p.minute}`;
+};
+/** "급여명세서 확정 (pay-…)" → ["급여명세서 확정", "pay-…"] */
+const splitSummary = (summary = "") => {
+  const match = /^(.*?) \(([^()]*)\)$/.exec(summary);
+  return match ? [match[1], match[2]] : [summary, ""];
+};
 function Audit() {
   const [entries, setEntries] = useState(null),
     [error, setError] = useState(""),
@@ -845,31 +913,32 @@ function Audit() {
     <section className="panel st-panel" aria-labelledby="audit-title">
       <div className="panel-head">
         <h2 id="audit-title">{kind === "auth" ? "접속 기록" : "최근 활동 기록"}</h2>
-        <Button variant="ghost" onClick={() => load()}>
+        <button type="button" className="text-btn st-text-btn" onClick={() => load()}>
           <Icon name="refresh" size={16} /> 새로고침
-        </Button>
+        </button>
       </div>
-      <div className="seg" role="group" aria-label="기록 종류">
-        {[
-          ["changes", "데이터 변경"],
-          ["auth", "접속 기록"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={kind === id}
-            onClick={() => setKind(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      {kind === "auth" && (
+      <div className="st-toolbar">
+        <div className="seg st-seg" role="group" aria-label="기록 종류">
+          {[
+            ["changes", "데이터 변경"],
+            ["auth", "접속 기록"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={kind === id}
+              onClick={() => setKind(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <span className="small muted">
-          로그인 성공과 실패, 공용 화면 전환, 원장 관리 재인증을 최근 순으로 보여 줘요.
-          모르는 실패 기록이 반복되면 비밀번호를 바꿔 주세요
+          {kind === "auth"
+            ? "로그인 성공과 실패, 공용 화면 전환, 원장 관리 재인증을 최근 순으로 보여 줘요"
+            : "누가 언제 무엇을 바꿨는지 최근 순으로 보여 줘요"}
         </span>
-      )}
+      </div>
       {error && (
         <div className="alert alert-warning" role="alert">
           {error}
@@ -878,42 +947,49 @@ function Audit() {
       {entries === null ? (
         <p className="st-empty">기록을 불러오는 중이에요</p>
       ) : entries.length ? (
-        <div className="table-wrap">
-          <table className="table">
+        <div className="table-wrap st-audit-wrap">
+          <table className="st-audit">
             <thead>
               <tr>
-                <th>일시</th>
-                <th>담당자</th>
-                <th>내용</th>
+                <th scope="col" className="st-audit-time">
+                  일시
+                </th>
+                <th scope="col" className="st-audit-actor">
+                  담당자
+                </th>
+                <th scope="col">내용</th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    {new Intl.DateTimeFormat("ko-KR", {
-                      timeZone: "Asia/Seoul",
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    }).format(new Date(e.at))}
-                  </td>
-                  <td>{e.actorName}</td>
-                  <td>
-                    {e.action === "auth.failed" && (
-                      <>
-                        <Badge tone="danger">실패</Badge>{" "}
-                      </>
-                    )}
-                    {e.summary}
-                  </td>
-                </tr>
-              ))}
+              {entries.map((e) => {
+                const [title, detail] = splitSummary(e.summary);
+                return (
+                  <tr key={e.id}>
+                    <th scope="row" className="num">
+                      {auditTime(e.at)}
+                    </th>
+                    <td>{e.actorName}</td>
+                    <td>
+                      <span className="st-audit-text">
+                        {e.action === "auth.failed" && <Badge tone="danger">실패</Badge>}
+                        <span className="st-audit-title">{title}</span>
+                        {detail && <span className="muted">{detail}</span>}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       ) : (
         <EmptyState title="활동 기록이 없습니다" />
       )}
+      <span className="small muted">
+        {kind === "auth"
+          ? "모르는 실패 기록이 반복되면 비밀번호를 바꿔 주세요"
+          : "접속 기록에서는 로그인 실패와 원장 관리 재인증도 볼 수 있어요"}
+      </span>
     </section>
   );
 }
@@ -921,8 +997,10 @@ function DataSettings({ data, runAction, notify }) {
   const [legacy, setLegacy] = useState(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [confirm, setConfirm] = useState(false);
+    [confirm, setConfirm] = useState(false),
+    [fileName, setFileName] = useState("");
   const [downloading, setDownloading] = useState(false);
+  const fileId = useId();
   const downloadBackup = async () => {
     setDownloading(true);
     try {
@@ -975,6 +1053,7 @@ function DataSettings({ data, runAction, notify }) {
   };
   const loadLocal = () => {
     setLegacy(null);
+    setFileName("");
     try {
       const parsed = JSON.parse(localStorage.getItem("salon-erp-prototype-v2"));
       if (!parsed) throw new Error("이 브라우저에 이전 자료가 없습니다.");
@@ -992,6 +1071,7 @@ function DataSettings({ data, runAction, notify }) {
       await runAction("legacy.import", { data: legacy });
       notify("이전 자료를 가져왔습니다. 예약, 수납, 재고를 확인해 주세요.");
       setLegacy(null);
+      setFileName("");
       setConfirm(false);
     } catch (e) {
       setError(e.message);
@@ -1005,6 +1085,7 @@ function DataSettings({ data, runAction, notify }) {
     if (!uploaded) return;
     setLegacy(null);
     setError("");
+    setFileName(uploaded.name);
     try {
       if (uploaded.size > 1800000)
         throw new Error("이전 JSON 자료는 1.8MB 이하로 준비해 주세요.");
@@ -1016,84 +1097,115 @@ function DataSettings({ data, runAction, notify }) {
     }
   };
   return (
-    <div className="st-stack">
-      <RecoveryAccessPanel />
-      <section className="panel st-panel" aria-labelledby="backup-title">
-        <div className="panel-head">
-          <h2 id="backup-title">데이터베이스 백업</h2>
-          <Badge>원장 전용</Badge>
-        </div>
-        <AutomaticBackup />
-        <span className="muted">
-          직원 계정과 매장 운영 데이터를 함께 보관해요. 정기적으로 내려받아 접근이 제한된
-          외부 저장소에 보관해 주세요
-        </span>
-        <div>
-          <Button variant="primary" onClick={downloadBackup} busy={downloading}>
-            <Icon name="download" size={16} /> 데이터베이스 백업 다운로드
-          </Button>
-        </div>
-        <span className="small muted">
-          백업에는 고객과 직원 개인정보가 들어 있어요. 복원은 서버를 멈춘 뒤 운영 안내서
-          절차로 진행해요. 서버 디스크 하나에만 백업을 두지 마세요
-        </span>
-      </section>
-      <section className="panel st-panel" aria-labelledby="legacy-title">
-        <div className="panel-head">
-          <h2 id="legacy-title">이전 v2 자료 가져오기</h2>
-        </div>
-        {error && (
-          <div className="alert alert-warning" role="alert">
-            {error}
+    <div className="st-columns">
+      <div className="st-stack">
+        <RecoveryAccessPanel />
+        <section className="panel st-panel st-panel-tight" aria-labelledby="legacy-title">
+          <div className="panel-head">
+            <h2 id="legacy-title">이전 v2 자료 가져오기</h2>
           </div>
-        )}
-        {!empty && (
-          <div className="alert alert-warning st-remote">
-            <strong>이 매장에는 이미 운영 자료가 있습니다.</strong>
-            <span>
-              이전 자료 가져오기는 처음 등록한 빈 매장에서만 할 수 있어요. 지금 자료를
-              덮어쓰거나 합치지 않아요. 아래에서는 가져올 파일의 요약만 볼 수 있어요
-            </span>
-          </div>
-        )}
-        <span className="small muted">
-          이전 브라우저 저장 버전의 자료를 처음 등록한 빈 매장으로 옮겨요. 시술이나 고객을
-          등록하기 전에 진행하세요. 브라우저에 있던 자료는 가져온 뒤에도 지워지지 않아요
-        </span>
-        <div className="st-legacy-row">
-          <Button disabled={!localAvailable} onClick={loadLocal}>
-            이 브라우저의 이전 자료 읽기
-          </Button>
-          <Field label="이전 v2 JSON 파일">
-            <input type="file" accept="application/json,.json" onChange={file} />
-          </Field>
-        </div>
-        {!localAvailable && (
+          {error && (
+            <div className="alert alert-warning" role="alert">
+              {error}
+            </div>
+          )}
+          {!empty && (
+            <div className="alert alert-warning st-alert-lines">
+              <strong>이 매장에는 이미 운영 자료가 있어요</strong>
+              <span className="st-alert-body">
+                처음 등록한 빈 매장에서만 가져올 수 있어요. 지금 자료를 덮어쓰거나 합치지
+                않아요
+              </span>
+              <span className="st-alert-body">아래에서는 가져올 파일의 요약만 볼 수 있어요</span>
+            </div>
+          )}
           <span className="small muted">
-            이 브라우저에는 이전 자료가 없어요. 이전 앱을 쓰던 브라우저에서 내보낸 JSON
-            파일을 골라 주세요. 접속 주소나 컴퓨터가 바뀌면 브라우저 자료를 찾을 수 없어요
+            이전 브라우저 저장 버전의 자료를 빈 매장으로 옮겨요. 브라우저 자료는 가져온 뒤에도
+            지워지지 않아요
           </span>
-        )}
-        {legacy && (
-          <div className="inset st-legacy-summary">
-            <dl className="kv">
-              <dt>고객</dt>
-              <dd>{legacy.customers.length}명</dd>
-              <dt>예약</dt>
-              <dd>{legacy.resv.length}건</dd>
-              <dt>수납</dt>
-              <dd>{legacy.txns.length}건</dd>
-              <dt>재고</dt>
-              <dd>{legacy.items.length}품목</dd>
-            </dl>
-            <div>
-              <Button disabled={!empty} onClick={() => setConfirm(true)} variant="primary">
-                검증 후 가져오기
-              </Button>
+          <div className="st-legacy-row">
+            <Button disabled={!localAvailable} onClick={loadLocal}>
+              이 브라우저의 이전 자료 읽기
+            </Button>
+            <div className="field st-file-field">
+              <label className="field-label" htmlFor={fileId}>
+                이전 v2 JSON 파일
+              </label>
+              <span className="st-file">
+                <span className={fileName ? "st-file-name" : "st-file-name muted"}>
+                  {fileName || "고른 파일 없음"}
+                </span>
+                <span className="st-file-pick" aria-hidden="true">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 15V4M7 9l5-5 5 5M5 20h14" />
+                  </svg>
+                  파일 고르기
+                </span>
+                <input
+                  id={fileId}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={file}
+                />
+              </span>
             </div>
           </div>
-        )}
-      </section>
+          {!localAvailable && (
+            <span className="small muted">
+              이 브라우저에는 이전 자료가 없어요. 이전 앱을 쓰던 브라우저에서 내보낸 파일을
+              골라 주세요
+            </span>
+          )}
+          {legacy && (
+            <div className="inset st-legacy-summary">
+              <dl className="kv">
+                <dt>고객</dt>
+                <dd>{legacy.customers.length}명</dd>
+                <dt>예약</dt>
+                <dd>{legacy.resv.length}건</dd>
+                <dt>수납</dt>
+                <dd>{legacy.txns.length}건</dd>
+                <dt>재고</dt>
+                <dd>{legacy.items.length}품목</dd>
+              </dl>
+              <div>
+                <Button disabled={!empty} onClick={() => setConfirm(true)} variant="primary">
+                  검증 후 가져오기
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+      <div className="st-stack">
+        <section className="panel st-panel st-panel-tight" aria-labelledby="backup-title">
+          <div className="panel-head">
+            <h2 id="backup-title">데이터베이스 백업</h2>
+            <span className="badge st-badge-accent">원장 전용</span>
+          </div>
+          <AutomaticBackup />
+          <span>직원 계정과 매장 운영 데이터를 한 파일로 내려받아요</span>
+          <div>
+            <Button variant="primary" onClick={downloadBackup} busy={downloading}>
+              <Icon name="download" size={16} /> 데이터베이스 백업 다운로드
+            </Button>
+          </div>
+          <span className="small muted">
+            백업에는 고객과 직원 개인정보가 들어 있어요. 접근이 제한된 외부 저장소에 보관해
+            주세요
+          </span>
+          <span className="small muted">복원은 서버를 멈춘 뒤 운영 안내서 순서대로 해요</span>
+        </section>
+      </div>
       {confirm && (
         <ConfirmDialog
           title="이전 자료를 이 매장으로 가져올까요?"
@@ -1102,58 +1214,206 @@ function DataSettings({ data, runAction, notify }) {
           busy={busy}
           confirmLabel="자료 가져오기"
         >
-          자료 전체의 형식과 연결을 검증합니다. 현재 재고 수량을 그대로 가져오며, 이미
-          운영 데이터가 있는 매장에는 가져올 수 없습니다.
+          <span>자료 전체의 형식과 연결을 검증해요</span>
+          <span className="muted">현재 재고 수량을 그대로 가져와요</span>
+          <span className="muted">이미 운영 데이터가 있는 매장에는 가져올 수 없어요</span>
         </ConfirmDialog>
       )}
     </div>
   );
 }
-function Help() {
-  const steps = [
-    "매장 이름과 영업시간, 쉬는 요일을 정해요.",
-    "직원 정보를 등록하고 로그인 권한에서 개인 계정을 발급해요.",
-    "재고 품목과 보충 기준을 등록하고 실제 입고 수량을 넣어요.",
-    "시술마다 가격, 걸리는 시간, 쓰는 재료를 정해요.",
-    "고객을 등록하고 담당자와 시술을 골라 예약해요.",
-    "방문과 시술 상태를 바꾸고 단말기 승인 후 수납을 기록해요.",
-    "하루를 마감할 때 결제수단별 매출과 단말기를 맞춰 봐요.",
-    "월말에 급여명세의 지급과 공제 항목을 검토하고 확정해요.",
-  ];
-  const notes = [
+const GUIDE_STEPS = [
+  {
+    title: "매장 정보 정하기",
+    body: "매장 이름과 영업시간, 쉬는 요일을 정해요",
+    action: "매장 정보 열기",
+    go: { tab: "store" },
+    done: (d) => Boolean(d.store?.name && d.store?.open != null && d.store?.close != null),
+  },
+  {
+    title: "직원과 계정",
+    body: "직원 정보를 등록하고 로그인 권한에서 개인 계정을 발급해요",
+    action: "직원 열기",
+    go: { page: "staff" },
+    done: (d, users) =>
+      users
+        ? users.some((u) => u.role !== "owner" && u.staffId)
+        : (d.staff || []).some((s) => s.role !== "owner"),
+  },
+  {
+    title: "재고 품목",
+    body: "재고 품목과 보충 기준을 등록하고 실제 입고 수량을 넣어요",
+    action: "재고 열기",
+    go: { page: "inventory" },
+    done: (d) => (d.items || []).length > 0,
+  },
+  {
+    title: "시술 메뉴",
+    body: "시술마다 가격, 걸리는 시간, 쓰는 재료를 정해요",
+    action: "시술 메뉴 열기",
+    go: { tab: "services" },
+    done: (d) => (d.services || []).length > 0,
+  },
+  {
+    title: "첫 예약",
+    body: "고객을 등록하고 담당자와 시술을 골라 예약해요",
+    action: "예약 열기",
+    go: { page: "appointments" },
+    done: (d) => (d.appointments || []).length > 0,
+  },
+  {
+    title: "수납 기록",
+    body: "방문과 시술 상태를 바꾸고 단말기 승인 후 수납을 기록해요",
+    action: "수납 열기",
+    go: { page: "payments" },
+    done: (d) => (d.transactions || []).length > 0,
+  },
+  {
+    title: "하루 마감",
+    body: "결제수단별 매출과 단말기를 맞춰 봐요",
+    note: "매일 해요",
+    action: "매출 열기",
+    go: { page: "sales" },
+    done: null,
+  },
+  {
+    title: "월말 급여",
+    body: "급여명세의 지급과 공제 항목을 검토하고 확정해요",
+    action: "급여 열기",
+    go: { page: "payroll" },
+    done: (d) => (d.payroll || []).some((p) => p.status !== "draft"),
+  },
+];
+const GUIDE_NOTES = [
+  [
+    "수납과 환불",
     [
-      "수납과 환불",
-      "이 ERP는 단말기 결제 결과를 기록해요. 카드 승인과 취소는 실제 단말기에서 먼저 처리해 주세요. 금액이 틀렸다면 수납 상세의 금액 정정과 재수납을 써요. 재료와 상품 재고를 다시 빼지 않아요.",
+      "카드 승인과 취소는 실제 단말기에서 먼저 해 주세요",
+      "이 ERP는 단말기 결과를 기록해요",
+      "금액이 틀렸다면 수납 상세의 금액 정정과 재수납을 써요. 재고는 다시 빠지지 않아요",
     ],
+  ],
+  [
+    "수동 입고",
     [
-      "수동 입고",
-      "입고 등록은 실제 받은 수량을 넣는 방식이에요. 현재 수량이 보충 기준 이하이면 보충 필요로 보여 줘요. 재고 실사는 현재 총수량을 다시 맞추는 기능이고 사유가 남아요.",
+      "입고 등록에는 실제 받은 수량을 넣어요",
+      "보충 기준 이하이면 보충 필요로 보여 줘요",
+      "재고 실사는 총수량을 다시 맞추고 사유를 남겨요",
     ],
+  ],
+  [
+    "계정과 개인정보",
     [
-      "계정과 개인정보",
-      "공용 PC에서는 직원 본인 인증 후 업무를 기록해요. 계정, 전체 급여, 백업은 원장 관리에서만 열 수 있고, 직원은 본인 인증 후 자기 확정 급여만 볼 수 있어요. 확인한 뒤 지금 잠그기를 누르고, 퇴사자의 계정은 꺼 주세요. 고객의 민감정보와 카드번호는 메모에 넣지 마세요.",
+      "계정, 전체 급여, 백업은 원장 관리에서만 열려요",
+      "직원은 본인 인증 후 자기 확정 급여만 봐요",
+      "확인한 뒤 지금 잠그기를 누르고, 퇴사자 계정은 꺼 주세요",
+      "고객 민감정보와 카드번호는 메모에 넣지 마세요",
     ],
-  ];
+  ],
+];
+function Help({ data, user, navigate, onTab }) {
+  const [users, setUsers] = useState(null);
+  useEffect(() => {
+    if (user?.role !== "owner") return;
+    let live = true;
+    api("/users")
+      .then((r) => live && setUsers(r.users || []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [user?.role]);
+  const steps = GUIDE_STEPS.map((step) => ({
+    ...step,
+    complete: step.done ? step.done(data || {}, users) : null,
+  }));
+  const tracked = steps.filter((step) => step.complete !== null);
+  const doneCount = tracked.filter((step) => step.complete).length;
+  const current = steps.findIndex((step) => step.complete === false);
+  const open = (go) =>
+    go.tab ? onTab?.(go.tab) : navigate?.(go.page);
   return (
-    <section className="panel st-panel" aria-labelledby="help-title">
-      <div className="panel-head">
-        <h2 id="help-title">처음 사용하는 순서</h2>
-      </div>
-      <ol className="st-steps">
-        {steps.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ol>
-      {notes.map(([title, body]) => (
-        <div key={title} className="inset st-note">
-          <strong>{title}</strong>
-          <span>{body}</span>
+    <div className="st-columns st-columns-guide">
+      <section className="panel st-panel st-guide" aria-labelledby="help-title">
+        <div className="panel-head">
+          <h2 id="help-title">처음 사용하는 순서</h2>
+          <span className="small muted">
+            {doneCount === tracked.length
+              ? "모두 끝났어요"
+              : `${tracked.length}단계 중 ${doneCount}단계 끝났어요`}
+          </span>
         </div>
-      ))}
-      <span className="small muted">
-        급여의 세금과 사회보험 공제는 검토한 금액을 직접 넣어요. 외부 카드 승인, 문자 발송,
-        온라인 고객 예약, 세무 신고 연동은 이 버전에 없어요
-      </span>
-    </section>
+        <div className="st-progress" aria-hidden="true">
+          <span style={{ width: `${Math.round((doneCount / tracked.length) * 100)}%` }} />
+        </div>
+        <ol className="st-steps">
+          {steps.map((step, index) => (
+            <li
+              key={step.title}
+              className="st-step"
+              data-done={step.complete === true || undefined}
+              aria-current={index === current ? "step" : undefined}
+            >
+              <span
+                className={`st-step-mark ${step.complete ? "is-done" : ""}`}
+                aria-hidden="true"
+              >
+                {step.complete && <Icon name="check" size={16} />}
+              </span>
+              <span className="st-step-text">
+                <span className="st-step-title">
+                  {index + 1}. {step.title}
+                </span>
+                <span className="small muted">{step.body}</span>
+              </span>
+              {step.complete ? (
+                <span className="small st-ok">끝났어요</span>
+              ) : (
+                <>
+                  {step.note && <span className="small muted">{step.note}</span>}
+                  {index === current ? (
+                    <Button variant="primary" className="st-step-btn" onClick={() => open(step.go)}>
+                      {step.action}
+                    </Button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-btn st-text-btn"
+                      onClick={() => open(step.go)}
+                    >
+                      {step.action}
+                    </button>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+      <div className="st-stack st-guide-side">
+        <section className="panel st-panel st-panel-tight" aria-labelledby="help-notes-title">
+          <div className="panel-head">
+            <h2 id="help-notes-title">알아 두면 좋아요</h2>
+          </div>
+          {GUIDE_NOTES.map(([title, lines]) => (
+            <div key={title} className="inset st-note">
+              <strong>{title}</strong>
+              {lines.map((line) => (
+                <span key={line} className="muted">
+                  {line}
+                </span>
+              ))}
+            </div>
+          ))}
+        </section>
+        <div className="inset st-note st-missing">
+          <span className="st-missing-title">이 버전에 없는 기능</span>
+          <span className="muted">
+            외부 카드 승인, 문자 발송, 온라인 예약, 세무 신고 연동은 아직 없어요
+          </span>
+          <span className="small muted">급여의 세금과 사회보험 공제는 검토한 금액을 직접 넣어요</span>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -23,7 +23,7 @@ test("출근 기록, 휴가 신청과 원장 승인이 화면에서 이어진다
   await unlockOwner(page);
   await page.getByRole("navigation", { name: "원장 관리 메뉴" }).getByRole("button", { name: /근태와 휴가/ }).click();
   await page.getByRole("button", { name: "승인", exact: true }).click();
-  const approve = page.getByRole("dialog", { name: /병가 승인/ });
+  const approve = page.getByRole("dialog", { name: /병가 신청/ });
   await approve.getByRole("button", { name: "승인", exact: true }).click();
   await expect(approve).toBeHidden();
   const admin = await adminState(page);
@@ -61,12 +61,12 @@ test("재직증명서는 입사일이 있어야 발급된다", async ({ page }) 
   await nav.getByRole("button", { name: /근태와 휴가/ }).click();
   await page.getByRole("button", { name: "증명서 발급", exact: true }).click();
   await page.getByLabel("직원", { exact: true }).selectOption(owner.id);
-  await page.getByLabel("용도", { exact: true }).fill("금융기관 제출");
+  await page.getByLabel("용도와 제출처", { exact: true }).fill("금융기관 제출");
   await page.evaluate(() => {
     window.print = () => {};
   });
   await page.getByRole("button", { name: "발급하고 인쇄", exact: true }).click();
-  await expect(page.getByText(`재직증명서 ${today().slice(0, 4)}-0001`)).toBeVisible();
+  await expect(page.getByText(`제${today().slice(0, 4)}-0001호`)).toBeVisible();
 });
 
 test("작은 화면에서 새 화면들이 가로로 넘치지 않는다", async ({ page }) => {

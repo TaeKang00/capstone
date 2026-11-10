@@ -188,6 +188,10 @@
 .st-actions .btn-primary {
   padding: 0 24px;
 }
+.st-dirty {
+  margin-right: auto;
+  color: var(--warn);
+}
 .st-remote {
   display: flex;
   flex-direction: column;
@@ -220,17 +224,11 @@
   flex-direction: column;
   gap: 16px;
 }
-.st-steps {
-  margin: 0;
-  padding-left: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .st-note {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 12px 16px;
 }
 .st-note strong {
   font-weight: 600;
@@ -346,5 +344,352 @@
     grid-template-columns: minmax(0, 1fr) 120px 44px;
     gap: 8px;
     padding: 12px;
+  }
+}
+
+/* Shared bits for the settings boards */
+.st-text-btn {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.st-text-btn:hover {
+  background: var(--surface-2);
+}
+.st-panel-tight {
+  gap: 12px;
+}
+.st-badge-accent {
+  color: var(--accent);
+  background: rgba(76, 125, 255, 0.14);
+}
+.st-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+.st-columns > * {
+  flex: 1 1 400px;
+  min-width: 0;
+}
+
+/* 4대보험 요율 (SettingsRates.dc.html) */
+.st-panel-rates .st-fieldset {
+  gap: 24px;
+}
+.st-panel-rates .st-tight {
+  margin-top: -16px;
+}
+.st-grid-2.st-grid-tight {
+  gap: 8px;
+}
+.st-amount-row {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.st-amount-total {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.st-minus {
+  flex: none;
+  font-weight: 600;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+/* 변경 기록 (SettingsAudit.dc.html) */
+.st-seg {
+  border: 0;
+  border-radius: 12px;
+}
+.st-seg button {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+}
+.st-audit-wrap {
+  overflow-x: auto;
+}
+.st-audit {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  margin: -4px 0;
+}
+.st-audit thead th {
+  height: 32px;
+  padding: 0 16px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+.st-audit .st-audit-time {
+  width: 160px;
+}
+.st-audit .st-audit-actor {
+  width: 96px;
+}
+.st-audit tbody th,
+.st-audit tbody td {
+  height: 44px;
+  padding: 0 16px;
+  background: var(--inset);
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+.st-audit tbody th {
+  color: var(--text-muted);
+  border-radius: 12px 0 0 12px;
+}
+.st-audit tbody td:last-child {
+  border-radius: 0 12px 12px 0;
+  white-space: normal;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.st-audit-text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.st-audit-title {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+/* 백업과 복구 (SettingsBackup.dc.html) */
+.st-alert-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.st-alert-body {
+  color: var(--text);
+}
+.st-legacy-row {
+  align-items: flex-end;
+  gap: 16px;
+}
+.st-file-field {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.st-file {
+  position: relative;
+  height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--inset);
+}
+.st-file:focus-within {
+  border-color: var(--accent);
+}
+.st-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-file-pick {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.st-file:hover .st-file-pick {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.st-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.auto-backup {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.auto-backup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.auto-backup-head h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.auto-backup-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.auto-backup-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.auto-backup-value {
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+.auto-backup-path {
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auto-backup .alert {
+  margin: 0;
+}
+
+/* 사용 안내 (SettingsGuide.dc.html) */
+.st-columns-guide > .st-guide {
+  flex: 1.6 1 480px;
+}
+.st-columns-guide > .st-guide-side {
+  flex: 1 1 340px;
+}
+.st-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--chip);
+  overflow: hidden;
+}
+.st-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.st-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.st-step {
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.st-step[aria-current="step"] {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+.st-step-mark {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1.5px solid #3a3a45;
+  background: var(--inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.st-step-mark.is-done {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+}
+.st-step-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.st-step-title {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.st-step[data-done] .st-step-title {
+  color: var(--text-muted);
+}
+.st-ok {
+  color: var(--ok);
+  white-space: nowrap;
+}
+.st-step .btn.st-step-btn {
+  height: 40px;
+  min-height: 40px;
+  flex: none;
+}
+.st-missing {
+  border: 1px solid var(--line);
+  gap: 8px;
+}
+.st-missing-title {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+
+@media (max-width: 520px) {
+  .st-step {
+    flex-wrap: wrap;
+  }
+  .st-step > .btn,
+  .st-step > .text-btn {
+    margin-left: 32px;
+  }
+  .auto-backup-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .st-audit .st-audit-time {
+    width: auto;
   }
 }

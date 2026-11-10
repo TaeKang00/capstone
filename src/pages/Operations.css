@@ -206,12 +206,29 @@
 .ops-history time {
   flex: none;
 }
+.ops-status-form {
+  gap: 24px;
+}
 .ops-status-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.ops-status-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  color: var(--text-muted);
 }
-.ops-status-summary strong {
+.ops-status-text strong {
+  font-size: 16px;
+  line-height: 24px;
   font-weight: 600;
   color: var(--text-strong);
 }
@@ -219,8 +236,253 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
   color: var(--text-meta);
+}
+.ops-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ops-reason-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-reason textarea:focus {
+  border-color: var(--accent);
+}
+.ops-tag {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(161, 161, 171, 0.12);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.ops-tag.is-required {
+  background: rgba(255, 122, 133, 0.12);
+  color: var(--danger);
+}
+.ops-info {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text);
+}
+.ops-info > .icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+/* Status pill (board colors per appointment state) */
+.ops-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(161, 161, 171, 0.12);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 24px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ops-pill[data-status="checked_in"],
+.ops-pill[data-status="in_service"] {
+  background: rgba(245, 185, 74, 0.12);
+  color: var(--warn);
+}
+.ops-pill[data-status="completed"] {
+  background: rgba(110, 231, 183, 0.12);
+  color: var(--ok);
+}
+.ops-pill[data-status="no_show"] {
+  background: rgba(255, 122, 133, 0.12);
+  color: var(--danger);
+}
+.ops-pill[data-status="cancelled"],
+.ops-pill[data-status="leave"] {
+  background: rgba(107, 107, 118, 0.12);
+  color: var(--text-meta);
+}
+.ops-meta {
+  color: var(--text-meta);
+}
+span.ops-meta,
+.ops-m-card-text .ops-meta {
+  font-size: 12px;
+  line-height: 16px;
+}
+.ops-detail-day .ops-meta {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ---------- Appointment detail dialog ---------- */
+.ops-form.ops-detail {
+  gap: 24px;
+}
+.ops-detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--inset);
+  font-variant-numeric: tabular-nums;
+}
+.ops-detail-when {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ops-detail-day {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ops-detail-range {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.ops-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-disabled);
+}
+.ops-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-steps li.is-now {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.ops-step-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.ops-steps li.is-now .ops-step-dot {
+  background: var(--accent);
+}
+.ops-detail-person {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.ops-detail-name {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.ops-pill-btn {
+  flex: none;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ops-pill-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-strong);
+}
+.ops-warning.ops-warning-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(245, 185, 74, 0.12);
+}
+.ops-warning-note > .icon {
+  flex: none;
+}
+.ops-warning-note strong {
+  font-weight: 600;
+}
+.ops-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ops-facts > div {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ops-facts > .ops-facts-wide {
+  grid-column: 1 / -1;
+}
+.ops-facts dt {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.ops-facts dd {
+  margin: 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+.ops-facts dd.ops-chart-notes {
+  color: var(--text);
+}
+.ops-facts-staff {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-avatar.ops-avatar-sm {
+  width: 24px;
+  height: 24px;
+}
+.modal-footer > .ops-footer-side {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.modal-footer > .ops-footer-side:empty {
+  display: none;
+}
+.modal-footer > .ops-footer-side:empty + .btn {
+  margin-left: auto;
 }
 
 /* ---------- Dialog sizes and footer ---------- */
@@ -841,4 +1103,460 @@ button.ops-record:hover {
 }
 #customer-editor.ops-form {
   gap: 24px;
+}
+.ops-history .help {
+  font-size: 12px;
+  line-height: 16px;
+}
+@media (max-width: 640px) {
+  .ops-detail-hero {
+    padding: 16px;
+  }
+  .ops-detail-range {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .ops-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .modal-footer > .ops-footer-side {
+    flex: 1 1 100%;
+  }
+}
+
+/* ---------- Phone layouts (ScheduleMobile, CustomersMobile boards) ---------- */
+.ops-page.ops-page-phone {
+  gap: 16px;
+}
+.ops-m-head {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ops-m-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ops-m-head h1 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.ops-m-dot {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.ops-m-overdue,
+.ops-m-cta,
+.ops-m-chipbtn {
+  flex: none;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ops-m-overdue {
+  background: rgba(245, 185, 74, 0.12);
+  color: var(--warn);
+}
+.ops-m-cta {
+  background: var(--chip);
+  color: var(--text-strong);
+}
+.ops-m-chipbtn {
+  margin-left: auto;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text);
+}
+.ops-m-head-back {
+  justify-content: flex-start;
+  gap: 4px;
+  margin-left: -8px;
+}
+.ops-m-back {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ops-m-back:hover {
+  background: var(--surface-2);
+}
+.ops-m-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.ops-m-datenav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-m-square {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* The native date input stays (typing and validation); a label sits on top
+   and the calendar trigger covers the whole control. */
+.ops-m-date {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.ops-m-date .date-input-control {
+  display: block;
+  width: 100%;
+}
+.ops-m-date .date-input-control > input.date-input-native[type] {
+  padding: 0 12px;
+  border-color: var(--line-strong);
+  background: var(--inset);
+  color: transparent;
+  text-align: center;
+}
+.ops-m-date .date-input-trigger {
+  top: 0;
+  right: 0;
+  transform: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+.ops-m-date .date-input-trigger > .icon {
+  visibility: hidden;
+}
+.ops-m-date .date-input-trigger:hover:not(:disabled),
+.ops-m-date .date-input-trigger[aria-expanded="true"] {
+  background: transparent;
+}
+.ops-m-date:has(.date-input-trigger[aria-expanded="true"])
+  input.date-input-native[type] {
+  border-color: var(--accent);
+}
+.ops-m-date-label {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--text-strong);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ops-m-date-label > .icon {
+  flex: none;
+  color: var(--text-muted);
+}
+.ops-m-date:has(input:focus) .ops-m-date-label {
+  visibility: hidden;
+}
+.ops-m-date:has(input:focus) input.date-input-native[type] {
+  color: var(--text-strong);
+}
+.ops-m-chips {
+  margin: 0 -16px;
+  padding: 0 16px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ops-m-chips .chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.ops-m-chip-count {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+}
+.ops-m-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 80px;
+}
+.ops-m-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+.ops-m-time {
+  padding-top: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+.ops-m-time.is-now {
+  color: var(--text-strong);
+}
+.ops-m-time.is-gap {
+  color: var(--text-disabled);
+}
+.ops-m-gap {
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-meta);
+  font: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+.ops-m-gap:hover {
+  color: var(--text-strong);
+  border-color: var(--accent);
+}
+.ops-m-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+button.ops-m-card {
+  cursor: pointer;
+}
+.ops-m-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.ops-m-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.ops-m-card.tone-arrived {
+  border-color: var(--line-strong);
+}
+.ops-m-card.tone-service {
+  background: rgba(245, 185, 74, 0.06);
+  border-color: rgba(245, 185, 74, 0.3);
+}
+.ops-m-card.tone-done .ops-m-name {
+  color: var(--text-muted);
+}
+.ops-m-card.tone-leave {
+  background: transparent;
+}
+.ops-m-card.tone-leave .ops-m-name {
+  color: var(--text-meta);
+}
+.ops-m-empty {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--inset);
+  color: var(--text-meta);
+}
+.ops-m-more {
+  padding-top: 8px;
+}
+.ops-m-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  z-index: 50;
+  height: 44px;
+  padding: 0 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--chip);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color: var(--text-strong);
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* Customers on a phone: the list sits on the page, rows are cards */
+.ops-page-phone .ops-split {
+  display: block;
+}
+.ops-page-phone .panel.ops-customer-pane {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 12px;
+}
+.ops-page-phone .ops-customer-pane > .chip-row {
+  margin: 0 -16px;
+  padding: 0 16px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ops-page-phone .ops-customer-pane > .chip-row .chip {
+  flex: none;
+  border: 1px solid var(--line-strong);
+}
+.ops-page-phone .ops-customer-pane > .chip-row .chip[aria-pressed="true"] {
+  border-color: var(--chip);
+}
+.ops-page-phone .list-row.ops-customer-row {
+  min-height: 64px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.ops-page-phone .ops-customer-note {
+  font-weight: 600;
+}
+.ops-row-chevron {
+  flex: none;
+  color: var(--text-disabled);
+}
+.ops-m-detail.ops-customer-detail {
+  gap: 16px;
+}
+.ops-m-detail .panel.ops-detail-card {
+  padding: 24px 16px 16px;
+  gap: 16px;
+}
+.ops-m-detail .ops-person-head {
+  flex-wrap: nowrap;
+}
+.ops-m-detail .ops-person-text {
+  flex: 1 1 auto;
+}
+.ops-tel {
+  text-decoration: none;
+}
+.ops-m-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ops-m-actions > .btn:only-child {
+  grid-column: 1 / -1;
+}
+.ops-m-detail .ops-stat-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ops-m-detail .ops-stat {
+  padding: 12px;
+}
+.ops-m-detail .ops-stat .muted {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-meta);
+}
+.ops-m-detail .ops-stat strong,
+.ops-m-detail .ops-stat .amount small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.ops-m-detail > .ops-section {
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
+}
+.ops-m-detail .panel.ops-records {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 8px;
+}
+.ops-m-detail .ops-records > .ops-panel-title {
+  padding: 0 8px 4px;
+  font-weight: 600;
+}
+.ops-record.is-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.ops-record.is-compact .ops-record-main {
+  flex: 1;
+}
+button.ops-record.is-compact:hover {
+  background: var(--surface-2);
+}
+.ops-m-archive .ops-archive-row {
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--inset);
 }
