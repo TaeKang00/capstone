@@ -72,7 +72,7 @@ test("실제 사용량 입력 → 금액 정정 재수납 → 금액 일부 환�
     .getByRole("button", { name: "방문 고객 결제 상세", exact: true })
     .click();
   await dialog(page)
-    .getByRole("button", { name: "금액 정정·재수납", exact: true })
+    .getByRole("button", { name: "금액 정정과 재수납", exact: true })
     .click();
   await dialog(page)
     .getByLabel("케어 시술 정정 단가 (원)", { exact: true })
@@ -167,7 +167,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
   ).toBeVisible();
   for (const amount of [10000, 30000]) {
     await dialog(page)
-      .getByRole("button", { name: "분할 지급·환급", exact: true })
+      .getByRole("button", { name: "분할 지급과 환급", exact: true })
       .click();
     await dialog(page)
       .getByLabel("이번 정산 금액 (원)", { exact: true })
@@ -176,7 +176,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
       .getByLabel("처리 사유 / 메모", { exact: true })
       .fill("이체 확인");
     await dialog(page)
-      .getByRole("button", { name: "분할 지급·환급 저장", exact: true })
+      .getByRole("button", { name: "분할 지급과 환급 저장", exact: true })
       .click();
     await expect(dialog(page)).toHaveAttribute("aria-labelledby", /./);
     await expect(
@@ -197,7 +197,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
     .click();
   await expect(dialog(page)).toContainText("돌려받을 금액");
   await dialog(page)
-    .getByRole("button", { name: "분할 지급·환급", exact: true })
+    .getByRole("button", { name: "분할 지급과 환급", exact: true })
     .click();
   await expect(
     dialog(page).getByLabel("정산 구분", { exact: true }),
@@ -206,7 +206,7 @@ test("일부 입고 후 잔량 취소·분할 지급·반품·환급 금액을 �
     .getByLabel("처리 사유 / 메모", { exact: true })
     .fill("반품 대금 반환 확인");
   await dialog(page)
-    .getByRole("button", { name: "분할 지급·환급 저장", exact: true })
+    .getByRole("button", { name: "분할 지급과 환급 저장", exact: true })
     .click();
   await expect(
     dialog(page).getByRole("button", { name: "거래처 반품", exact: true }),
@@ -246,7 +246,7 @@ test("원장이 복구 코드를 발급하고 로그인 화면에서 아이디 �
     .getByRole("button", { name: "로그아웃", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "아이디·비밀번호 찾기", exact: true })
+    .getByRole("button", { name: "아이디나 비밀번호를 잊었어요", exact: true })
     .click();
   await dialog(page).getByLabel("원장 복구 코드", { exact: true }).fill(code);
   await dialog(page)

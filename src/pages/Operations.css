@@ -134,7 +134,7 @@
 .ops-avatar-xl {
   width: 64px;
   height: 64px;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
 }
@@ -586,7 +586,7 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   gap: 4px;
 }
 .ops-booking-time strong {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   color: var(--text-strong);
@@ -711,14 +711,14 @@ input.ops-input-warn:not([type="checkbox"]):not([type="radio"]) {
   min-width: 0;
 }
 .ops-stat strong {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 .ops-stat .amount small {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--text-strong);
 }
 .ops-archive-row {

@@ -576,7 +576,7 @@ export default function Sales({ data, user, navigate, version, routeContext, not
                       className="input"
                       type="search"
                       value={eventQuery}
-                      placeholder="고객명, 담당자, 승인 · 거래번호"
+                      placeholder="고객명, 담당자, 승인번호"
                       onChange={(e) => {
                         setEventQuery(e.target.value);
                         setLimit(50);
@@ -650,7 +650,7 @@ export default function Sales({ data, user, navigate, version, routeContext, not
                           <th>거래</th>
                           <th>수단</th>
                           <th className="numeric">금액</th>
-                          <th className="optional-mobile">승인 · 거래번호</th>
+                          <th className="optional-mobile">승인번호</th>
                           <th>기록</th>
                         </tr>
                       </thead>
@@ -684,7 +684,7 @@ export default function Sales({ data, user, navigate, version, routeContext, not
                               <Money value={event.amount} />
                             </td>
                             <td
-                              data-label="승인 · 거래번호"
+                              data-label="승인번호"
                               className="optional-mobile"
                             >
                               {event.reference || "—"}

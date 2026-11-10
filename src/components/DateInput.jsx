@@ -127,18 +127,19 @@ export const DateInput = forwardRef(function DateInput(
     if (panel.showPopover && !panel.matches(":popover-open"))
       panel.showPopover();
     function position() {
-      const anchor = rootRef.current?.getBoundingClientRect();
+      // Anchor to the visible field so the calendar opens below it, never over it.
+      const anchor = (inputRef.current || rootRef.current)?.getBoundingClientRect();
       if (!anchor) return;
       const margin = 12;
-      const width = Math.min(296, window.innerWidth - margin * 2);
+      const width = Math.min(336, window.innerWidth - margin * 2);
       panel.style.width = `${width}px`;
       const height = panel.getBoundingClientRect().height;
       const below = window.innerHeight - anchor.bottom - margin;
       const above = anchor.top - margin;
       const top =
         below >= height || below >= above
-          ? anchor.bottom + 6
-          : anchor.top - height - 6;
+          ? anchor.bottom + 8
+          : anchor.top - height - 8;
       panel.style.left = `${Math.max(margin, Math.min(anchor.left, window.innerWidth - width - margin))}px`;
       panel.style.top = `${Math.max(margin, Math.min(top, window.innerHeight - height - margin))}px`;
       panel.style.maxHeight = `${window.innerHeight - margin * 2}px`;
@@ -355,7 +356,7 @@ export const DateInput = forwardRef(function DateInput(
               disabled={previous < minimum || previous.getFullYear() < 1}
               onClick={() => navigate(-1)}
             >
-              <Icon name="chevron-left" size={16} />
+              <Icon name="chevron-left" size={20} />
             </button>
             {mode === "days" ? (
               <button
@@ -367,7 +368,8 @@ export const DateInput = forwardRef(function DateInput(
                   focusNext.current = true;
                 }}
               >
-                {year}년 {month + 1}월<span aria-hidden="true">⌄</span>
+                {year}년 {month + 1}월
+                <Icon name="chevron-down" size={16} />
               </button>
             ) : (
               <strong className="date-picker-period" aria-live="polite">
@@ -381,7 +383,7 @@ export const DateInput = forwardRef(function DateInput(
               disabled={next > maximum || next.getFullYear() > 9999}
               onClick={() => navigate(1)}
             >
-              <Icon name="chevron-right" size={16} />
+              <Icon name="chevron-right" size={20} />
             </button>
           </div>
           <span className="date-picker-announcement" aria-live="polite">

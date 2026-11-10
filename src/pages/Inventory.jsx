@@ -243,7 +243,7 @@ export default function Inventory({
               variant="ghost"
               onClick={() => navigate("settings", { tab: "services" })}
             >
-              시술 · 재료 설정
+              시술과 재료 설정
             </Button>
           )}
           {canManage && (

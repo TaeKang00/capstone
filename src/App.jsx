@@ -524,19 +524,19 @@ export default function App() {
   if (security.locking)
     return (
       <div className="loading-screen">
-        <Icon name="lock" size={24} />
-        <h1>화면이 잠겼습니다</h1>
-        <p>{security.lockError || "공용 화면으로 전환하고 있습니다."}</p>
-        <Button onClick={security.lockWork}>잠금 상태 다시 확인</Button>
+        <span className="loading-icon" aria-hidden="true">
+          <Icon name="lock" />
+        </span>
+        <h1>화면이 잠겼어요</h1>
+        <p>{security.lockError || "공용 화면으로 바꾸고 있어요"}</p>
+        <Button variant="secondary" onClick={security.lockWork}>잠금 상태 다시 확인</Button>
       </div>
     );
   if (loading)
     return (
       <div className="loading-screen">
-        <div className="brand-mark">
-          <Icon name="workspace" size={19} />
-        </div>
-        <p>매장 데스크를 준비하고 있습니다…</p>
+        <span className="brand-dot" aria-hidden="true" />
+        <p>매장 데스크를 준비하고 있어요</p>
       </div>
     );
   if (!session)
@@ -557,17 +557,26 @@ export default function App() {
     );
   if (session.user.mustChangePassword)
     return (
-      <div className="auth-page">
-        <div className="auth-card">
-          <h1>새 비밀번호를 설정해 주세요</h1>
-          <p className="muted">
-            처음 로그인하거나 관리자가 비밀번호를 재설정한 계정입니다.
-          </p>
-          <PasswordForm forced onSuccess={security.authenticated} />
-          <Button onClick={doLogout} variant="ghost">
-            로그아웃
-          </Button>
-        </div>
+      <div className="auth-layout">
+        <header className="auth-header">
+          <span className="auth-brand">
+            <span className="brand-dot" aria-hidden="true" />
+            <strong>살롱 데스크</strong>
+          </span>
+          <span className="auth-chip">{session.user.name}</span>
+        </header>
+        <section className="auth-form-side">
+          <div className="auth-card">
+            <div className="auth-card-head">
+              <h1>새 비밀번호를 설정해 주세요</h1>
+              <p className="muted">처음 로그인했거나 비밀번호가 초기화된 계정이에요</p>
+            </div>
+            <PasswordForm forced onSuccess={security.authenticated} />
+            <Button onClick={doLogout} variant="ghost" className="btn-block">
+              로그아웃
+            </Button>
+          </div>
+        </section>
       </div>
     );
   if (security.access)
@@ -1080,23 +1089,22 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
         />
       )}
       <header className="auth-header">
-        <div className="brand">
-          <span className="brand-mark">
-            <Icon name="workspace" size={19} />
-          </span>
-          <span>
-            살롱 데스크<small>매장 관리</small>
-          </span>
-        </div>
+        <span className="auth-brand">
+          <span className="brand-dot" aria-hidden="true" />
+          <strong>살롱 데스크</strong>
+        </span>
+        <span className="auth-chip">{setup ? "처음 설정" : "직원 전용"}</span>
       </header>
       <section className="auth-form-side">
         <div className="auth-card">
-          <h1>{setup ? "매장 초기 설정" : "로그인"}</h1>
-          <p className="muted">
-            {setup
-              ? "매장과 첫 원장 계정을 등록합니다. 직원 계정은 로그인 후 발급할 수 있습니다."
-              : "직원 계정으로 로그인해 주세요."}
-          </p>
+          <div className="auth-card-head">
+            <h1>{setup ? "매장 초기 설정" : "로그인"}</h1>
+            <p className="muted">
+              {setup
+                ? "매장과 첫 원장 계정을 만들어요. 직원 계정은 로그인한 뒤에 발급해요"
+                : "기록에 내 이름이 남아요"}
+            </p>
+          </div>
           {(externalError || error) && (
             <div className="alert alert-warning" role="alert">
               {externalError || error}
@@ -1211,24 +1219,22 @@ function AuthScreen({ bootstrap, onSuccess, error: externalError, retry }) {
                 {setup ? "매장 만들고 시작하기" : "로그인"}
               </Button>
               {!setup && (
-                <p className="help auth-help">
-                  <button
-                    type="button"
-                    className="commerce-tag-button"
-                    onClick={() => setRecovering(true)}
-                  >
-                    아이디·비밀번호 찾기
-                  </button>
-                </p>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block auth-help"
+                  onClick={() => setRecovering(true)}
+                >
+                  아이디나 비밀번호를 잊었어요
+                </button>
               )}
             </form>
           )}
           <div className="auth-note">
-            <Icon name="lock" size={14} />
-            매장 직원 전용 · 개인 계정으로 이용해 주세요.
+            <span>내 계정으로만 로그인해 주세요</span>
+            <span className="muted">함께 쓰는 PC는 자리를 비울 때 잠가 주세요</span>
           </div>
         </div>
-        <footer className="auth-footer">살롱 데스크 · v2.0</footer>
+        <footer className="auth-footer">살롱 데스크 v2.0</footer>
       </section>
     </div>
   );
@@ -1258,7 +1264,7 @@ function PasswordForm({ onSuccess, forced }) {
     }
   };
   return (
-    <form className="stack" onSubmit={submit}>
+    <form className={`stack password-form${forced ? " is-forced" : ""}`} onSubmit={submit}>
       {error && (
         <div role="alert" className="alert alert-warning">
           {error}
@@ -1274,7 +1280,7 @@ function PasswordForm({ onSuccess, forced }) {
           label={label}
           help={
             key === "newPassword"
-              ? "12~128자. 변경하면 다른 기기의 로그인은 해제됩니다."
+              ? "12자 이상이에요. 바꾸면 다른 기기는 로그아웃돼요"
               : undefined
           }
         >

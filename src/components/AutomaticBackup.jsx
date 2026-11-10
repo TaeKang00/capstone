@@ -48,7 +48,7 @@ export function AutomaticBackup() {
         <>
           <p>
             {status.enabled
-              ? `서버 실행 중 하루 한 번 자동 백업 · 최근 ${status.retention}개 보관`
+              ? `서버가 켜져 있으면 하루 한 번 백업하고 최근 ${status.retention}개를 보관해요`
               : "자동 백업이 꺼져 있습니다. 서버 설정을 확인하세요."}
           </p>
           <p>

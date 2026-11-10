@@ -1,3 +1,4 @@
+import { TimeInput } from "../components/TimeInput.jsx";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { api, timeLabel } from "../api";
 import { useViewState } from "../components/ViewState";
@@ -452,8 +453,7 @@ function StaffForm({ initial, user, linked, save, close, notify }) {
   const timeField = (key, label) => (
     <div className="people-time" key={key}>
       <Field label={label}>
-        <input
-          type="time"
+        <TimeInput
           className="num"
           required={
             (key === "startMinutes" || key === "endMinutes") &&

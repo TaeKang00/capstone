@@ -1,3 +1,4 @@
+import { TimeInput } from "../components/TimeInput.jsx";
 import React, { useState } from "react";
 import { roleLabel, today, won } from "../api";
 import { Badge, Button, ConfirmDialog, Field, Modal } from "../components/ui";
@@ -603,16 +604,16 @@ function AttendanceForm({ initial, staff, runAction, notify, close }) {
             />
           </Field>
           <Field label="출근 시각">
-            <input
-              type="time"
+            <TimeInput
+              interval={10}
               required
               value={form.clockIn}
               onChange={(e) => set("clockIn", e.target.value)}
             />
           </Field>
           <Field label="퇴근 시각" help="비우면 근무 중으로 남아요">
-            <input
-              type="time"
+            <TimeInput
+              interval={10}
               value={form.clockOut}
               onChange={(e) => set("clockOut", e.target.value)}
             />

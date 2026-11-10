@@ -25,7 +25,7 @@
 }
 .paym-stats .home-stat-value small {
   margin-left: 4px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
 }
 .paym-stat-note {
@@ -772,7 +772,7 @@
   gap: 4px;
 }
 .paym-refund-sum strong {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.02em;

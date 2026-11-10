@@ -1,3 +1,4 @@
+import { TimeInput } from "../components/TimeInput.jsx";
 import React, { useEffect, useId, useState } from "react";
 import { today } from "../api";
 import { Badge, Button, Field, Modal, ConfirmDialog } from "../components/ui";
@@ -577,16 +578,14 @@ function RequestForm({ kind, day, data, staff, staffId, balance, runAction, clos
           {!leave && (
             <>
               <Field label="시작 시각">
-                <input
-                  type="time"
+                <TimeInput
                   required
                   value={form.start}
                   onChange={(e) => set("start", e.target.value)}
                 />
               </Field>
               <Field label="종료 시각" help="자정까지는 23:59로 넣어 주세요">
-                <input
-                  type="time"
+                <TimeInput
                   required
                   value={form.end}
                   onChange={(e) => set("end", e.target.value)}

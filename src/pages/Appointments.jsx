@@ -1,4 +1,5 @@
 import { DateInput } from "../components/DateInput.jsx";
+import { TimeInput } from "../components/TimeInput.jsx";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Badge,
@@ -762,9 +763,9 @@ function AppointmentEditor({
                 label="시작 시간"
                 help={`매장 영업 ${rangeLabel(data.store.open, data.store.close)}`}
               >
-                <input
+                <TimeInput
                   className="input"
-                  type="time"
+                  interval={Number(data.store.slotMinutes) || 30}
                   required
                   step="60"
                   value={Number.isFinite(start) ? timeLabel(start) : ""}

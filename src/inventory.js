@@ -25,7 +25,7 @@
     const unit = item && item.unit;
     if (unit === "g" || unit === "ml") {
       if ((text.split(".")[1] || "").length > 3)
-        throw new Error("g·ml 수량은 소수점 셋째 자리까지 입력할 수 있습니다.");
+        throw new Error("g와 ml 수량은 소수점 셋째 자리까지 입력할 수 있습니다.");
     } else if (!Number.isInteger(value)) {
       throw new Error("개 단위 수량은 정수로 입력해 주세요.");
     }

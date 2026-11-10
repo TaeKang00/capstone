@@ -1213,7 +1213,7 @@ function OrderPanel({
             className="po-text-btn"
             onClick={() => onAction("settlement")}
           >
-            분할 지급·환급
+            분할 지급과 환급
           </button>
           {hasPending && (
             <button
@@ -1343,7 +1343,7 @@ function OrderAction({
     receive: "발주 입고",
     closeRemaining: "미입고 잔량 취소",
     return: "거래처 반품",
-    settlement: "분할 지급·환급",
+    settlement: "분할 지급과 환급",
     ship: "배송 시작 기록",
     cancel: "발주 취소",
     payment: o.paid ? "지급 기록 정정" : "대금 지급 기록",
@@ -1583,7 +1583,7 @@ function OrderAction({
               <p className="help">
                 {o.paid
                   ? "지급 기록을 미지급으로 정정해요. 실제 이체 취소나 환불은 거래처와 따로 처리하세요"
-                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부만 지급했다면 분할 지급·환급을 쓰세요"}
+                  : "남은 대금을 실제로 모두 지급한 뒤 기록하세요. 일부만 지급했다면 분할 지급과 환급을 쓰세요"}
               </p>
               {!o.paid && (
                 <div className="inset po-summary">

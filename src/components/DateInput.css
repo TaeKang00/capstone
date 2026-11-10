@@ -268,3 +268,24 @@
 .range-picker-hint { font-size: 12px; line-height: 16px; color: #8B8B96; }
 .range-picker-actions { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 640px) { .range-picker-panel { position: fixed; left: 16px; right: 16px; top: 120px; width: auto; } }
+
+/* Time picker list (TimeInput) */
+.date-input-native[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+.date-input-native[type="time"]::-webkit-datetime-edit { padding: 0; }
+.date-input-native[type="time"]::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+.date-input-native[type="time"]::-webkit-datetime-edit-hour-field:focus,
+.date-input-native[type="time"]::-webkit-datetime-edit-minute-field:focus,
+.date-input-native[type="time"]::-webkit-datetime-edit-ampm-field:focus,
+.date-input-native[type="date"]::-webkit-datetime-edit-year-field:focus,
+.date-input-native[type="date"]::-webkit-datetime-edit-month-field:focus,
+.date-input-native[type="date"]::-webkit-datetime-edit-day-field:focus { background: #24242C; color: #F4F4F6; border-radius: 4px; }
+.time-picker-panel.date-picker-panel { padding: 4px; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; scrollbar-color: #2A2A33 transparent; }
+.date-picker-panel .time-picker-option { flex: none; height: 40px; padding: 0 12px; border-radius: 8px; text-align: left; color: #D4D4DA; font-variant-numeric: tabular-nums; cursor: pointer; }
+.date-picker-panel .time-picker-option:hover, .date-picker-panel .time-picker-option:focus-visible { background: #18181E; color: #F4F4F6; outline: none; }
+.date-picker-panel .time-picker-option[aria-selected="true"] { background: #24242C; color: #F4F4F6; font-weight: 600; }
+.time-picker-empty { padding: 12px; color: #8B8B96; }
+.date-picker-period .icon { color: #A1A1AB; }
+.date-picker-panel .date-picker-period { gap: 4px; }
+.date-input-control { display: inline-flex; align-items: center; position: relative; vertical-align: middle; }
+.field .date-input-control, .date-input-control:has(> input.input) { display: flex; width: 100%; }
+.date-input-control > input.date-input-native[type] { padding-right: 44px; }

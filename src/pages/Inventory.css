@@ -125,7 +125,7 @@
   gap: 8px;
 }
 .inv-qty {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -407,7 +407,7 @@
   gap: 16px;
 }
 .inv-detail-qty {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.02em;

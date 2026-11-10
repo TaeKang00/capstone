@@ -259,7 +259,7 @@
   color: var(--text-meta);
 }
 .wf-sum strong {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.25;
   font-weight: 700;
   color: var(--text-strong);
@@ -458,3 +458,4 @@
 .wf-count {
   margin-left: 4px;
 }
+.wf-org-team li strong { font-weight: 600; }

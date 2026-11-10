@@ -65,7 +65,7 @@ test("로그인 후 거래처·분류·품목·시술 등록부터 발주·부�
     .selectOption(categoryId);
   await expect(page.locator("tbody")).toContainText("케어 샴푸");
   await page
-    .getByRole("button", { name: "시술 · 재료 설정", exact: true })
+    .getByRole("button", { name: "시술과 재료 설정", exact: true })
     .click();
   const gate = page.getByRole("dialog", {
     name: "원장 관리 열기",

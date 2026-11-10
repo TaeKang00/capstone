@@ -470,7 +470,7 @@ export default function Payments({
             className="paym-link"
             onClick={() => navigate("sales")}
           >
-            매출 · 정산
+            매출
           </button>
           에서 확인해 주세요.
         </p>
@@ -1264,7 +1264,7 @@ function printReceipt(tx, data) {
       <tr><td colspan="5">공급 합계</td><td class="num">${printMoney(tx.subtotal)}</td></tr>
       ${tx.discount ? `<tr><td colspan="5">할인</td><td class="num">-${printMoney(tx.discount)}</td></tr>` : ""}
       <tr><td colspan="5">결제 금액 (${escapeHtml(methodNames[tx.method] || tx.method)}${
-        tx.reference ? ` · 승인 ${escapeHtml(tx.reference)}` : ""
+        tx.reference ? `, 승인 ${escapeHtml(tx.reference)}` : ""
       })</td><td class="num">${printMoney(tx.total)}</td></tr>
     </tfoot></table>
     ${
@@ -1311,7 +1311,7 @@ function PaymentDetail({
           )}
           {canWrite && tx.status === "paid" && !refunds.length && (
             <Button variant="secondary" onClick={onReprice}>
-              금액 정정·재수납
+              금액 정정과 재수납
             </Button>
           )}
           {canWrite && tx.status !== "refunded" && (
@@ -1326,7 +1326,7 @@ function PaymentDetail({
         <div>
           <h3>{tx.customerName || "방문 고객"}</h3>
           <p className="muted">
-            {tx.date} {tx.time} · {methodNames[tx.method]}
+            {tx.date} {tx.time}, {methodNames[tx.method]}
           </p>
         </div>
         <Badge tone={paymentTone(tx.status)}>
@@ -1346,7 +1346,7 @@ function PaymentDetail({
           {tx.materialUsage
             .map((m) => `${m.name} ${quantity(m.quantity)}${m.unit}`)
             .join(" / ")}
-          {tx.materialReason && ` · ${tx.materialReason}`}
+          {tx.materialReason && `, ${tx.materialReason}`}
         </p>
       )}
       <dl className="commerce-definition">
@@ -1356,22 +1356,23 @@ function PaymentDetail({
         <dd>
           {data.staff.find((s) => s.id === tx.staffId)?.name || "기존 담당자"}
         </dd>
-        <dt>시술 · 판매일</dt>
+        <dt>시술일</dt>
         <dd>{tx.serviceDate || tx.date}</dd>
-        <dt>승인 · 거래번호</dt>
+        <dt>승인번호</dt>
         <dd>{tx.reference || "미입력"}</dd>
         {tx.customerId && (
           <>
             <dt>고객 정보</dt>
             <dd>
               <button
-                className="commerce-tag-button"
+                type="button"
+                className="text-btn"
                 onClick={() => {
                   onClose();
                   navigate("customers", { customerId: tx.customerId });
                 }}
               >
-                고객 차트 열기
+                손님 정보 보기
               </button>
             </dd>
           </>
@@ -1417,7 +1418,7 @@ function PaymentDetail({
                 <td>
                   <strong>{line.name}</strong>
                   <span className="commerce-secondary">
-                    {line.type === "service" ? "시술" : "상품"} · 단가{" "}
+                    {line.type === "service" ? "시술" : "상품"}, 단가{" "}
                     {money(line.unitPrice)}
                   </span>
                 </td>
@@ -1457,10 +1458,10 @@ function PaymentDetail({
             {refunds.map((r) => (
               <li key={r.id}>
                 <strong>
-                  {money(r.amount)} · {methodNames[r.method]}
+                  {money(r.amount)}, {methodNames[r.method]}
                 </strong>
                 <span className="commerce-secondary">
-                  {r.date} {r.time} · {r.reference || "거래번호 미입력"}
+                  {r.date} {r.time}, {r.reference || "거래번호 미입력"}
                 </span>
                 <p>{r.reason}</p>
                 <p className="commerce-note">
@@ -1483,7 +1484,7 @@ function PaymentDetail({
             {tx.changes.map((c, index) => (
               <li key={index}>
                 <strong>
-                  {c.actorName || "직원"} · {displayTime(c.at || c.createdAt)}
+                  {c.actorName || "직원"}, {displayTime(c.at || c.createdAt)}
                 </strong>
                 <p>{c.reason || "정보 정정"}</p>
                 {c.before && c.after && (
@@ -1554,8 +1555,8 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
       <form id="payment-correct" onSubmit={submit} className="stack">
         <fieldset disabled={busy} className="commerce-fieldset">
           <div className="alert">
-            담당자·결제 수단·거래번호의 오입력을 바로잡습니다. 결제액과 재고
-            사용량은 유지됩니다. 금액 변경은 수납 상세의 ‘금액 정정·재수납’을
+            담당자, 결제 수단, 거래번호의 오입력을 바로잡습니다. 결제액과 재고
+            사용량은 유지됩니다. 금액 변경은 수납 상세의 ‘금액 정정과 재수납’을
             이용하세요.
           </div>
           {error && (
@@ -1592,7 +1593,7 @@ function CorrectionForm({ tx, data, runAction, onClose, onSaved }) {
               ))}
             </select>
           </Field>
-          <Field label="승인번호 · 거래번호">
+          <Field label="승인번호">
             <input
               className="input"
               maxLength={100}
@@ -2028,7 +2029,7 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
   }
   return (
     <Modal
-      title="금액 정정·재수납"
+      title="금액 정정과 재수납"
       size="wide"
       dirty={dirty}
       onClose={busy ? undefined : onClose}
@@ -2054,7 +2055,7 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
       >
         <fieldset className="stack commerce-fieldset" disabled={busy}>
           <p className="alert">
-            동일한 시술·상품의 단가와 할인액을 정정합니다. 기존 결제{" "}
+            같은 시술과 상품의 단가와 할인액을 정정합니다. 기존 결제{" "}
             {money(tx.total)}의 취소와 새 결제를 단말기에서 처리한 뒤
             기록하세요. 재료와 상품 재고는 추가 차감하지 않습니다.
           </p>
@@ -2067,7 +2068,7 @@ function RepriceForm({ tx, runAction, onClose, onSaved }) {
             <Field
               key={l.id}
               label={`${l.name} 정정 단가 (원)`}
-              help={`기존 ${money(l.unitPrice)} · 수량 ${quantity(l.quantity)}`}
+              help={`기존 ${money(l.unitPrice)}, 수량 ${quantity(l.quantity)}`}
             >
               <input
                 className="input"

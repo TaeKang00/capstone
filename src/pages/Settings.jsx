@@ -1,5 +1,6 @@
 import { AutomaticBackup } from "../components/AutomaticBackup";
 import { RecoveryAccessPanel } from "../components/AccountRecovery";
+import { TimeInput } from "../components/TimeInput.jsx";
 import React, { useEffect, useId, useState } from "react";
 import { api, download, timeLabel, today } from "../api";
 import { useViewState } from "../components/ViewState";
@@ -356,19 +357,17 @@ function StoreSettings({ data, version, runAction, notify, part = "store" }) {
                 <h2>영업시간</h2>
                 <div className="st-grid-3">
                   <Field label="영업 시작">
-                    <input
+                    <TimeInput
                       required
-                      type="time"
                       step="60"
                       value={form.open == null ? "" : timeLabel(form.open)}
                       onChange={(e) => setForm({ ...form, open: asMinutes(e.target.value) })}
                     />
                   </Field>
                   <Field label="영업 종료">
-                    <input
+                    <TimeInput
                       required
                       disabled={form.close === 1440}
-                      type="time"
                       step="60"
                       value={
                         form.close == null

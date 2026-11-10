@@ -125,7 +125,7 @@ test('고객 주의사항과 예약 수납·정정·부분 환불이 연결되�
   await page.getByRole('button', { name: '연결 고객 결제 상세', exact: true }).click();
   await page.getByRole('button', { name: '수납 정보 정정', exact: true }).click();
   dialog = page.getByRole('dialog', { name: '수납 정보 정정', exact: true });
-  await dialog.getByLabel('승인번호 · 거래번호', { exact: true }).fill('TEST-APPROVAL-27');
+  await dialog.getByLabel('승인번호', { exact: true }).fill('TEST-APPROVAL-27');
   await dialog.getByLabel('정정 사유 (필수)', { exact: true }).fill('단말기 거래번호 확인');
   await dialog.getByRole('button', { name: '정정 저장' }).click();
   await expect(dialog).toBeHidden();

@@ -38,7 +38,7 @@ export function RecoveryAccessPanel() {
   function save() {
     const blob = new Blob(
       [
-        `살롱 데스크 원장 계정 복구 코드\n${code}\n\n로그인 화면 → 아이디·비밀번호 찾기에서 사용하세요. 일회용이며 재발급·비밀번호 변경 후에는 기존 코드를 사용할 수 없습니다.\n공용 PC나 ERP 자료 폴더에 보관하지 마세요.\n`,
+        `살롱 데스크 원장 계정 복구 코드\n${code}\n\n로그인 화면 → 아이디나 비밀번호를 잊었어요에서 사용하세요. 일회용이며 재발급·비밀번호 변경 후에는 기존 코드를 사용할 수 없습니다.\n공용 PC나 ERP 자료 폴더에 보관하지 마세요.\n`,
       ],
       { type: "text/plain;charset=utf-8" },
     );
@@ -142,7 +142,7 @@ export function AccountRecoveryDialog({ onClose, onRecovered }) {
   }
   return (
     <Modal
-      title="아이디·비밀번호 찾기"
+      title="아이디와 비밀번호 찾기"
       onClose={busy ? undefined : onClose}
       footer={
         result ? (

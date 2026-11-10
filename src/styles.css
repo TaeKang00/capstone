@@ -2633,7 +2633,7 @@ input[type="radio"] {
   color: var(--text-strong);
 }
 .home-stat-value .amount small {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--text-strong);
   font-weight: 700;
 }
@@ -2894,7 +2894,7 @@ input[type="radio"] {
     padding: 16px;
   }
   .home-stat-value {
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1.25;
   }
   .home-stat-value .amount small {
@@ -3006,3 +3006,134 @@ input[type="radio"] {
   .home-clock-time strong { font-size: 32px; line-height: 40px; }
   .home-leave { padding: 16px; }
 }
+
+/* ===== Auth, lock and loading screens (Login board) ===== */
+.auth-layout { min-height: 100vh; background: #09090B; color: #D4D4DA; display: flex; flex-direction: column; }
+.auth-header { height: 64px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; background: transparent; border: 0; box-shadow: none; }
+.auth-brand { display: flex; align-items: center; gap: 8px; }
+.auth-brand strong { font-size: 18px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: #F4F4F6; }
+.auth-chip { height: 24px; padding: 0 8px; border-radius: 999px; background: #24242C; color: #A1A1AB; font-size: 12px; line-height: 24px; font-weight: 600; }
+.auth-form-side { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px 16px; background: transparent; }
+.auth-card { width: 100%; max-width: 400px; box-sizing: border-box; padding: 24px; border-radius: 20px; background: rgba(17, 17, 22, 0.92); border: 1px solid #1D1D24; box-shadow: none; display: flex; flex-direction: column; gap: 24px; }
+.auth-layout .auth-card:has(.grid-2) { max-width: 560px; }
+.auth-card-head { display: flex; flex-direction: column; gap: 4px; }
+.auth-card h1, .auth-card-head h1 { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: #F4F4F6; }
+.auth-card-head .muted, .auth-card > .muted { margin: 0; color: #8B8B96; font-size: 14px; line-height: 20px; }
+.auth-card > .alert { margin: 0; }
+.auth-card form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+.auth-card .btn-block { width: 100%; height: 44px; justify-content: center; margin: 0; }
+.auth-card .auth-help { margin: 0; color: #A1A1AB; font-weight: 600; text-decoration: none; }
+.auth-note { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 16px; border: 0; border-radius: 12px; background: #0E0E12; color: #D4D4DA; font-size: 14px; line-height: 20px; margin: 0; }
+.auth-note .muted { color: #8B8B96; }
+.auth-footer { color: #6B6B76; font-size: 12px; line-height: 16px; }
+.password-input button { color: #A1A1AB; font-size: 12px; font-weight: 600; }
+.password-form.is-forced > .btn-primary { width: 100%; height: 44px; justify-content: center; }
+.modal-body .password-form > .btn-primary { align-self: flex-end; height: 44px; padding: 0 24px; }
+.loading-screen { min-height: 100vh; box-sizing: border-box; padding: 32px 16px; background: #09090B; color: #D4D4DA; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.loading-screen h1 { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: #F4F4F6; }
+.loading-screen p { margin: 0; color: #8B8B96; }
+.loading-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(76, 125, 255, 0.14); color: #4C7DFF; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 640px) { .auth-header { padding: 0 16px; } .auth-card { padding: 24px 16px; } }
+.alert strong { font-weight: 600; }
+
+/* No native number spinners anywhere */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+
+/* ===== Final form and dialog rules (2026-11) =====
+   One source of truth for controls and dialogs, so pages without a board look the same. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]):not([type="range"]) {
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  line-height: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+textarea, .textarea { box-sizing: border-box; padding: 12px; border-radius: 8px; line-height: 20px; font-size: 14px; min-height: 96px; }
+input:disabled, select:disabled, textarea:disabled { background: #0E0E12; color: #8B8B96; opacity: 0.35; }
+input::placeholder, textarea::placeholder { color: #6B6B76; }
+.input-icon input, .app-search input { height: 40px !important; min-height: 0 !important; }
+.field { gap: 8px; }
+.field-label { font-size: 12px; line-height: 16px; font-weight: 600; color: #8B8B96; }
+.field .help, .help { font-size: 12px; line-height: 16px; color: #8B8B96; }
+.field .error, .error { font-size: 12px; line-height: 16px; color: #FF7A85; }
+
+/* Checkbox and radio: 20px, radius 6 (circle for radio), accent fill with a drawn check */
+input[type="checkbox"], input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid #3A3A45;
+  border-radius: 6px;
+  background: #0E0E12 center / 14px 14px no-repeat;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+input[type="radio"] { border-radius: 999px; }
+input[type="checkbox"]:hover:not(:disabled), input[type="radio"]:hover:not(:disabled) { border-color: #4C7DFF; }
+input[type="checkbox"]:checked {
+  border-color: #4C7DFF;
+  background-color: #4C7DFF;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:indeterminate {
+  border-color: #4C7DFF;
+  background-color: #4C7DFF;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+input[type="radio"]:checked { border-color: #4C7DFF; background: radial-gradient(circle, #4C7DFF 0 5px, #0E0E12 5.5px); }
+input[type="checkbox"]:focus-visible, input[type="radio"]:focus-visible { outline: 2px solid #4C7DFF; outline-offset: 2px; }
+input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: 0.35; cursor: not-allowed; }
+.check { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 12px 16px; border-radius: 12px; background: #0E0E12; color: #D4D4DA; line-height: 20px; cursor: pointer; }
+.check input[type="checkbox"], .check input[type="radio"] { margin-top: 0; }
+.check:has(input:checked) { color: #F4F4F6; }
+
+/* Buttons: 44px, radius 8, centered label */
+.btn { min-height: 44px; height: 44px; padding: 0 16px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap; }
+.btn-primary { padding: 0 24px; }
+.btn .icon { flex: none; }
+.chip-row .chip, .seg button { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Dialogs: same frame everywhere */
+.modal { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: rgba(17, 17, 22, 0.92); border: 1px solid #1D1D24; border-radius: 20px; }
+.modal.modal-wide { width: min(800px, calc(100vw - 32px)); }
+.modal-header { min-height: 0; padding: 24px 24px 0; display: flex; align-items: center; gap: 8px; }
+.modal-header h2 { flex: 1; margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: #F4F4F6; }
+.modal-header .icon-btn { width: 44px; height: 44px; margin: -10px -10px -10px 0; border-radius: 8px; color: #A1A1AB; }
+.modal-body { flex: 1; min-height: 0; overflow: auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 24px; color: #D4D4DA; }
+.modal-body > .stack, .modal-body > form { display: flex; flex-direction: column; gap: 24px; }
+.modal-body h3 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; color: #F4F4F6; }
+.modal-body p { margin: 0; }
+.modal-body fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.modal-body hr { display: none; }
+.modal-body .card { background: #0E0E12; border: 0; border-radius: 12px; box-shadow: none; }
+.modal-body .alert { border: 0; border-radius: 12px; padding: 12px 16px; }
+.modal-body dl:not([class]) { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
+.modal-body dl:not([class]) dt { color: #8B8B96; }
+.modal-body dl:not([class]) dd { margin: 0; color: #F4F4F6; }
+.modal-footer { padding: 0 24px 24px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; border: 0; background: transparent; }
+.modal-footer > :first-child:not(.btn):not(button) { margin-right: auto; }
+@media (max-width: 640px) {
+  .modal { width: calc(100vw - 16px); }
+  .modal-header { padding: 16px 16px 0; }
+  .modal-body { padding: 24px 16px; }
+  .modal-footer { padding: 0 16px 16px; }
+  .modal-footer .btn { flex: 1 1 auto; }
+}
+
+/* Inline links read as text buttons (no underline), dividers removed inside dialogs and panels */
+.paym-link, .commerce-tag-button, .wf-link, .ops-link, .text-btn {
+  border: 0; padding: 0; background: transparent; color: #A1A1AB; font: inherit; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+}
+.paym-link:hover, .commerce-tag-button:hover, .wf-link:hover, .ops-link:hover, .text-btn:hover { color: #F4F4F6; text-decoration: none; }
+.commerce-line, .commerce-totals, .commerce-totals .grand-total { border-top: 0; border-bottom: 0; }
+.commerce-totals { padding: 12px 16px; border-radius: 12px; background: #0E0E12; }
+.modal-body .table td, .modal-body .table th, .panel .table td, .panel .table th { border-top: 0; border-bottom: 0; }
