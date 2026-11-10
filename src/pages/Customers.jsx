@@ -1,3 +1,4 @@
+import { useMediaQuery } from "../useMediaQuery";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
@@ -16,7 +17,6 @@ import {
   staffName,
   timeLabel,
   todaySeoul,
-  useMediaQuery,
 } from "./operations-utils.js";
 import "./Operations.css";
 import { Icon } from "../components/Icon.jsx";
